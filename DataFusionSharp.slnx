@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/misc/">
+    <File Path=".gitignore" />
+    <File Path="CONTRIBUTING.md" />
+    <File Path="LICENSE.txt" />
+    <File Path="NOTICE.txt" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="src/DataFusionSharp/DataFusionSharp.csproj" />
+  <Project Path="tests/DataFusionSharp.Tests/DataFusionSharp.Tests.csproj" />
+</Solution>
