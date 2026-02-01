@@ -106,18 +106,70 @@ pub extern "C" fn datafusion_dataframe_schema(
 
     dev_msg!("Executing schema on DataFrame: {:p}", df);
 
-    let schema = dataframe.inner.schema();
+    let schema = dataframe.inner.schema().as_arrow();
 
     let mut serialized_data = Vec::new();
 
-    let result = datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialized_data, schema.as_arrow())
+    let result = datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialized_data, schema)
         .and_then(|mut s| s.flush())
         .map(|_| crate::callback::BytesData::new(serialized_data.as_slice()))
         .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
-    
+
     dev_msg!("Finished executing schema on DataFrame: {:p}, schema size: {}", df, serialized_data.len());
 
     crate::invoke_callback(result, callback, callback_user_data);
+
+    crate::ErrorCode::Ok
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn datafusion_dataframe_collect(
+    df: *mut DataFrameWrapper,
+    callback: Option<crate::Callback>,
+    callback_user_data: u64
+) -> crate::ErrorCode {
+    if df.is_null() {
+        return crate::ErrorCode::InvalidArgument;
+    }
+
+    let Some(callback) = callback else {
+        return crate::ErrorCode::InvalidArgument;
+    };
+
+    let dataframe = unsafe { &*df };
+    let runtime = std::sync::Arc::clone(&dataframe.runtime);
+    let inner = dataframe.inner.clone();
+
+    dev_msg!("Executing collect on DataFrame: {:p}", df);
+
+    runtime.spawn(async move {
+        let mut serialized_data = Vec::new();
+
+        let schema = inner.schema().as_arrow();
+        let result = match datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialized_data, schema) {
+            Ok(mut s) => {
+                inner
+                    .collect()
+                    .await
+                    .map(|batches| -> datafusion::error::Result<()> {
+                        for batch in batches {
+                            s.write(&batch)?;
+                        }
+                        Ok(())
+                    })
+                    .map(|_| s.flush())
+                    .map(|_| crate::callback::BytesData::new(serialized_data.as_slice()))
+                    .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
+            }
+            Err(e) => {
+                Err(crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
+            }
+        };
+
+        dev_msg!("Finished executing collect, serialized size: {}", serialized_data.len());
+
+        crate::invoke_callback(result, callback, callback_user_data);
+    });
 
     crate::ErrorCode::Ok
 }
