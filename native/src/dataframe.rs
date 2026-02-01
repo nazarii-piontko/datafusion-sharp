@@ -108,16 +108,16 @@ pub extern "C" fn datafusion_dataframe_schema(
 
     let schema = dataframe.inner.schema();
 
-    let mut buffer = Vec::new();
+    let mut serialized_data = Vec::new();
 
-    let data = datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut buffer, schema.as_arrow())
-        .and_then(|mut s| s.finish())
-        .map(|_| crate::callback::BytesData::new(buffer.as_slice()))
+    let result = datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialized_data, schema.as_arrow())
+        .and_then(|mut s| s.flush())
+        .map(|_| crate::callback::BytesData::new(serialized_data.as_slice()))
         .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
     
-    dev_msg!("Finished executing schema on DataFrame: {:p}, schema size: {}", df, buffer.len());
+    dev_msg!("Finished executing schema on DataFrame: {:p}, schema size: {}", df, serialized_data.len());
 
-    crate::invoke_callback(data, callback, callback_user_data);
+    crate::invoke_callback(result, callback, callback_user_data);
 
     crate::ErrorCode::Ok
 }
