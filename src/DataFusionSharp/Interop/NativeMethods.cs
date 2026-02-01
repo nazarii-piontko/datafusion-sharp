@@ -38,4 +38,7 @@ internal static partial class NativeMethods
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_show")]
     public static partial DataFusionErrorCode DataFrameShow(IntPtr dataFrameHandle, ulong limit, AsyncCallback callback, ulong callbackUserData);
+    
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_schema")]
+    public static partial DataFusionErrorCode DataFrameSchema(IntPtr dataFrameHandle, AsyncCallback callback, ulong callbackUserData);
 }

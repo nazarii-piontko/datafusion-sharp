@@ -5,14 +5,14 @@ pub type Callback = extern "C" fn(
 );
 
 #[repr(C)]
-pub struct StringData {
-    pub data: *const u8,
-    pub len: u32,
+pub struct BytesData {
+    data: *const u8,
+    len: u32,
 }
 
-impl StringData {
-    fn new(s: &str) -> Self {
-        StringData {
+impl BytesData {
+    pub(crate) fn new(s: &[u8]) -> Self {
+        BytesData {
             data: s.as_ptr(),
             len: s.len() as u32,
         }
@@ -22,14 +22,14 @@ impl StringData {
 #[repr(C)]
 pub struct ErrorInfoData {
     pub code: crate::ErrorCode,
-    pub message: StringData
+    pub message: BytesData
 }
 
 impl ErrorInfoData {
     fn new(err: &crate::ErrorInfo) -> Self {
         ErrorInfoData {
             code: err.code(),
-            message: StringData::new(err.message()),
+            message: BytesData::new(err.message().as_bytes()),
         }
     }
 }

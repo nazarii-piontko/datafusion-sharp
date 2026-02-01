@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace DataFusionSharp.Interop;
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct StringData
+internal struct BytesData
 {
     /// <summary>
     /// String data pointer, UTF-8 encoded, *const u8
@@ -19,7 +19,7 @@ internal struct StringData
     /// Gets the message as a managed string.
     /// </summary>
     /// <returns></returns>
-    public string GetMessage()
+    public string GetAsUtf8()
     {
         if (DataPtr == IntPtr.Zero || Length == 0)
             return string.Empty;
@@ -28,9 +28,9 @@ internal struct StringData
         return message;
     }
     
-    public static StringData FromIntPtr(IntPtr ptr)
+    public static BytesData FromIntPtr(IntPtr ptr)
     {
-        var data = Marshal.PtrToStructure<StringData>(ptr);
+        var data = Marshal.PtrToStructure<BytesData>(ptr);
         return data;
     }
 }

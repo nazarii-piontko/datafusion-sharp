@@ -1,3 +1,4 @@
+using Apache.Arrow;
 using DataFusionSharp.Interop;
 
 namespace DataFusionSharp;
@@ -43,6 +44,19 @@ public class DataFrame : IDisposable
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start showing DataFrame");
         }
+        return tcs.Task;
+    }
+    
+    public Task<Schema> GetSchemaAsync()
+    {
+        var (id, tcs) = AsyncOperations.Instance.Create<Schema>();
+        var result = NativeMethods.DataFrameSchema(_handle, AsyncOperationCallbacks.SchemaResult, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to start getting DataFrame schema");
+        }
+
         return tcs.Task;
     }
     

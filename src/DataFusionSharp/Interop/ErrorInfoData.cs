@@ -13,7 +13,7 @@ internal struct ErrorInfoData
     /// <summary>
     /// Error message
     /// </summary>
-    public StringData Message;
+    public BytesData Message;
     
     public static ErrorInfoData FromIntPtr(IntPtr ptr)
     {
@@ -23,7 +23,7 @@ internal struct ErrorInfoData
     
     public Exception ToException()
     {
-        var message = Message.GetMessage();
+        var message = Message.GetAsUtf8();
         return new DataFusionException(Code, message);
     }
 }

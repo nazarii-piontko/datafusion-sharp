@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <LangVersion>14</LangVersion>
     </PropertyGroup>
 
     <!-- Rust build configuration -->
@@ -20,9 +21,14 @@
     <ItemGroup>
         <!-- Copy native library to output directory for local development -->
         <None Include="$(NativeDir)/target/$(CargoTarget)/$(NativeLibName)"
-              CopyToOutputDirectory="PreserveNewest"
+              CopyToOutputDirectory="Always"
+              CopyToPublishDirectory="Always"
               Link="$(NativeLibName)"
-              Visible="false" />
+              Visible="true" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Apache.Arrow" Version="22.1.0" />
     </ItemGroup>
     
 </Project>

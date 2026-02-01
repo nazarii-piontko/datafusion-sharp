@@ -38,7 +38,7 @@ pub extern "C" fn datafusion_dataframe_count(
     let dataframe = unsafe { &*dataframe_ptr };
     let runtime = std::sync::Arc::clone(&dataframe.runtime);
     let inner = dataframe.inner.clone();
-    
+
     dev_msg!("Executing count on DataFrame: {:p}", dataframe_ptr);
 
     runtime.spawn(async move {
@@ -72,7 +72,7 @@ pub extern "C" fn datafusion_dataframe_show(
     let dataframe = unsafe { &*df };
     let runtime = std::sync::Arc::clone(&dataframe.runtime);
     let inner = dataframe.inner.clone();
-    
+
     dev_msg!("Executing show on DataFrame: {:p}", df);
 
     runtime.spawn(async move {
@@ -84,6 +84,40 @@ pub extern "C" fn datafusion_dataframe_show(
 
         crate::invoke_callback(result, callback, callback_user_data);
     });
+
+    crate::ErrorCode::Ok
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn datafusion_dataframe_schema(
+    df: *mut DataFrameWrapper,
+    callback: Option<crate::Callback>,
+    callback_user_data: u64
+) -> crate::ErrorCode {
+    if df.is_null() {
+        return crate::ErrorCode::InvalidArgument;
+    }
+
+    let Some(callback) = callback else {
+        return crate::ErrorCode::InvalidArgument;
+    };
+
+    let dataframe = unsafe { &*df };
+
+    dev_msg!("Executing schema on DataFrame: {:p}", df);
+
+    let schema = dataframe.inner.schema();
+
+    let mut buffer = Vec::new();
+
+    let data = datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut buffer, schema.as_arrow())
+        .and_then(|mut s| s.finish())
+        .map(|_| crate::callback::BytesData::new(buffer.as_slice()))
+        .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
+    
+    dev_msg!("Finished executing schema on DataFrame: {:p}, schema size: {}", df, buffer.len());
+
+    crate::invoke_callback(data, callback, callback_user_data);
 
     crate::ErrorCode::Ok
 }
