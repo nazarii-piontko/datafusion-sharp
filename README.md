@@ -15,7 +15,34 @@ dotnet add package DataFusionSharp
 
 ## Quick Start
 
-TODO: Provide a simple code example demonstrating basic usage
+```csharp
+using DataFusionSharp;
+
+await using var runtime = DataFusionRuntime.Create();
+using var context = runtime.CreateSessionContext();
+
+// Register a CSV file as a table
+await context.RegisterCsvAsync("orders", "path/to/orders.csv");
+
+// Execute SQL query
+using var df = await context.SqlAsync(
+    "SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id");
+
+// Display results to console
+await df.ShowAsync();
+
+// Access schema
+var schema = await df.GetSchemaAsync();
+foreach (var field in schema.FieldsList)
+    Console.WriteLine($"- {field.Name}: {field.DataType}");
+
+// Collect as Arrow batches
+var data = await df.CollectAsync();
+foreach (var batch in data.Batches)
+{
+    // Process Arrow RecordBatch...
+}
+```
 
 ## Requirements
 
