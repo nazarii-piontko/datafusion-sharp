@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 on:
   push:
@@ -13,8 +13,8 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-
+    name: Check
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -29,7 +29,7 @@ jobs:
         with:
           components: clippy
 
-      - name: Cache
+      - name: Setup Rust Cargo Cache
         uses: actions/cache@v4
         with:
           path: |
@@ -38,16 +38,16 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('native/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('native/Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Build
+      - name: Run Build
         run: dotnet build -c Release
         
-      - name: Test
+      - name: Run Test
         run: dotnet test --no-build -c Release -v n --logger 'console;verbosity=normal'
       
-      - name: Clippy
+      - name: Run Rust Cargo Clippy
         working-directory: native
         run: cargo clippy --release --all-targets -- -D warnings
