@@ -48,6 +48,18 @@ public class DataFrame : IDisposable
         return tcs.Task;
     }
     
+    public Task<string> ToStringAsync()
+    {
+        var (id, tcs) = AsyncOperations.Instance.Create<string>();
+        var result = NativeMethods.DataFrameToString(_handle, AsyncOperationGenericCallbacks.StringResult, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to start converting DataFrame to string");
+        }
+        return tcs.Task;
+    }
+    
     public Task<Schema> GetSchemaAsync()
     {
         var (id, tcs) = AsyncOperations.Instance.Create<Schema>();
@@ -73,17 +85,19 @@ public class DataFrame : IDisposable
 
         return tcs.Task;
     }
-
-    public Task<string> ToStringAsync()
+    
+    public async Task<DataFrameStream> ExecuteStreamAsync()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<string>();
-        var result = NativeMethods.DataFrameToString(_handle, AsyncOperationGenericCallbacks.StringResult, id);
+        var (id, tcs) = AsyncOperations.Instance.Create<IntPtr>();
+        var result = NativeMethods.DataFrameExecuteStream(_handle, AsyncOperationGenericCallbacks.IntPtrResult, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start converting DataFrame to string");
+            throw new DataFusionException(result, "Failed to start executing stream on DataFrame");
         }
-        return tcs.Task;
+
+        var streamHandle = await tcs.Task;
+        return new DataFrameStream(this, streamHandle);
     }
     
     public void Dispose()

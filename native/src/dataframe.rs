@@ -1,6 +1,14 @@
+use futures::StreamExt;
+
 pub struct DataFrameWrapper {
     runtime: crate::RuntimeHandle,
     inner: datafusion::prelude::DataFrame,
+}
+
+pub struct DataFrameStreamWrapper {
+    runtime: crate::RuntimeHandle,
+    writer: datafusion::arrow::ipc::writer::StreamWriter<Vec<u8>>,
+    stream: datafusion::execution::SendableRecordBatchStream
 }
 
 impl DataFrameWrapper {
@@ -192,10 +200,10 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
     dev_msg!("Executing collect on DataFrame: {:p}", df_ptr);
 
     runtime.spawn(async move {
-        let mut serialized_data = Vec::new();
+        let mut serialization_buffer = Vec::new();
 
         let schema = df.schema().as_arrow();
-        let result = match datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialized_data, schema) {
+        let result = match datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialization_buffer, schema) {
             Ok(mut s) => {
                 df
                     .collect()
@@ -207,17 +215,132 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
                         Ok(())
                     })
                     .map(|_| s.flush())
-                    .map(|_| crate::callback::BytesData::new(serialized_data.as_slice()))
+                    .map(|_| crate::callback::BytesData::new(serialization_buffer.as_slice()))
                     .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
             }
-            Err(e) => {
-                Err(crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
-            }
+            Err(e) => Err(crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
         };
 
-        dev_msg!("Finished executing collect, serialized size: {}", serialized_data.len());
+        dev_msg!("Finished executing collect, serialized size: {}", serialization_buffer.len());
 
         crate::invoke_callback(result, callback, user_data);
+    });
+
+    crate::ErrorCode::Ok
+}
+
+/// Executes the `DataFrame` and returns a stream of record batches as serialized Arrow IPC data.
+///
+/// This is an async operation. The callback is invoked on completion with a pointer to a `DataFrameStreamWrapper`.
+/// The caller can then call `datafusion_dataframe_stream_next` to retrieve each batch as bytes.
+///
+/// # Safety
+/// - `df_ptr` must be a valid pointer returned by other public functions
+/// - `callback` must be valid to call from any thread
+/// - Caller must call `datafusion_dataframe_stream_destroy` on the returned stream pointer
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
+    df_ptr: *mut DataFrameWrapper,
+    callback: crate::Callback,
+    user_data: u64
+) -> crate::ErrorCode {
+    let df_wrapper = ffi_ref!(df_ptr);
+
+    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
+    let runtime_w = std::sync::Arc::clone(&df_wrapper.runtime);
+    let df = df_wrapper.inner.clone();
+
+    dev_msg!("Executing execute_stream on DataFrame: {:p}", df_ptr);
+
+    runtime.spawn(async move {
+        let result = df
+            .execute_stream()
+            .await
+            .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
+            .and_then(|stream| {
+                datafusion::arrow::ipc::writer::StreamWriter::try_new(Vec::new(), &std::sync::Arc::clone(&stream.schema()))
+                    .map(|writer| {
+                        let stream_w = DataFrameStreamWrapper {
+                            runtime: runtime_w,
+                            writer,
+                            stream,
+                        };
+                        Box::into_raw(Box::new(stream_w))
+                    })
+                    .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
+            });
+
+        dev_msg!("Finished executing execute_stream");
+
+        crate::invoke_callback(result, callback, user_data);
+    });
+
+    crate::ErrorCode::Ok
+}
+
+/// Destroys a `DataFrameStreamWrapper` and frees its resources.
+///
+/// # Safety
+/// - `stream_ptr` must be a valid pointer returned by `datafusion_dataframe_execute_stream`, or null
+/// - Caller must not use `stream_ptr` after this call
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_dataframe_stream_destroy(
+    stream_ptr: *mut DataFrameStreamWrapper
+) -> crate::ErrorCode {
+    dev_msg!("Destroying dataframe_stream: {:p}", stream_ptr);
+
+    if !stream_ptr.is_null() {
+        unsafe { drop(Box::from_raw(stream_ptr)) };
+    }
+
+    crate::ErrorCode::Ok
+}
+
+/// Retrieves the next record batch from the stream as serialized Arrow IPC data.
+///
+/// This is an async operation. The callback is invoked on completion with the batch bytes, or null if the stream has ended.
+///
+/// The caller should call this function repeatedly until it returns null to retrieve all batches.
+///
+/// # Safety
+/// - `stream_ptr` must be a valid pointer returned by `datafusion_dataframe_execute_stream`
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_dataframe_stream_next(
+    stream_ptr: *mut DataFrameStreamWrapper,
+    callback: crate::Callback,
+    user_data: u64
+) -> crate::ErrorCode {
+    let stream_wrapper = ffi_ref_mut!(stream_ptr);
+    let runtime = std::sync::Arc::clone(&stream_wrapper.runtime);
+
+    dev_msg!("Executing next on DataFrameStream: {:p}", stream_ptr);
+
+    runtime.spawn(async move {
+        let result_opt = stream_wrapper.stream
+            .next()
+            .await
+            .map(|batch_res| batch_res
+                .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
+                .and_then(|batch| {
+                    stream_wrapper.writer
+                        .write(&batch)
+                        .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
+                }));
+
+        match result_opt {
+            Some(result) => {
+                let r = result.map(|()| crate::callback::BytesData::new(stream_wrapper.writer.get_ref()));
+
+                crate::invoke_callback(r, callback, user_data);
+
+                // Clear the writer buffer for the next call
+                stream_wrapper.writer.get_mut().clear();
+            }
+            None => {
+                crate::invoke_callback_null_result(callback, user_data);
+            }
+        }
     });
 
     crate::ErrorCode::Ok

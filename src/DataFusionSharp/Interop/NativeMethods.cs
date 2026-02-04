@@ -47,4 +47,15 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_to_string")]
     public static partial DataFusionErrorCode DataFrameToString(IntPtr dataFrameHandle, AsyncCallback callback, ulong userData);
+
+    // Stream
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_execute_stream")]
+    public static partial DataFusionErrorCode DataFrameExecuteStream(IntPtr dataFrameHandle, AsyncCallback callback, ulong userData);
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_stream_destroy")]
+    public static partial DataFusionErrorCode DataFrameStreamDestroy(IntPtr streamHandle);
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_stream_next")]
+    public static partial DataFusionErrorCode DataFrameStreamNext(IntPtr streamHandle, AsyncCallback callback, ulong userData);
 }

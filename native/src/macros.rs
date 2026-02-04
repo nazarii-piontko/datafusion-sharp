@@ -27,6 +27,18 @@ macro_rules! ffi_ref {
     }};
 }
 
+/// Converts a raw pointer to a mutable reference.
+/// Returns `InvalidArgument` error code if the pointer is null.
+#[macro_export]
+macro_rules! ffi_ref_mut {
+    ($ptr:expr) => {{
+        if $ptr.is_null() {
+            return $crate::ErrorCode::InvalidArgument;
+        }
+        unsafe { &mut *$ptr }
+    }};
+}
+
 /// Converts a C string pointer to an owned String.
 /// Returns `InvalidArgument` error code if the pointer is null or not valid UTF-8.
 #[macro_export]

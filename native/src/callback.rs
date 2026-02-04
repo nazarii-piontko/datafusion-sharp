@@ -42,9 +42,17 @@ pub(crate) fn invoke_callback<T>(result: Result<T, crate::ErrorInfo>, callback: 
             callback(value_ptr, std::ptr::null(), user_data);
         }
         Err(error) => {
-            let err_info = ErrorInfoData::new(&error);
-            let err_into_ptr = &raw const err_info;
-            callback(std::ptr::null(), err_into_ptr, user_data);
+            invoke_callback_error(&error, callback, user_data);
         }
     }
+}
+
+pub(crate) fn invoke_callback_error(error: &crate::ErrorInfo, callback: Callback, user_data: u64) {
+    let err_info = ErrorInfoData::new(error);
+    let err_into_ptr = &raw const err_info;
+    callback(std::ptr::null(), err_into_ptr, user_data);
+}
+
+pub(crate) fn invoke_callback_null_result(callback: Callback, user_data: u64) {
+    callback(std::ptr::null(), std::ptr::null(), user_data);
 }
