@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/examples/">
+    <Project Path="examples/QueryCsv/QueryCsv.csproj" />
+  </Folder>
   <Folder Name="/misc/">
     <File Path=".gitignore" />
     <File Path="CLAUDE.md" />
@@ -13,7 +16,11 @@
   <Folder Name="/misc/.github/workflows/">
     <File Path=".github\workflows\ci.yml" />
   </Folder>
-  <Project Path="examples/QueryCsv/QueryCsv.csproj" />
-  <Project Path="src/DataFusionSharp/DataFusionSharp.csproj" />
-  <Project Path="tests/DataFusionSharp.Tests/DataFusionSharp.Tests.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/DataFusionSharp/DataFusionSharp.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DataFusionSharp.Benchmark/DataFusionSharp.Benchmark.csproj" />
+    <Project Path="tests/DataFusionSharp.Tests/DataFusionSharp.Tests.csproj" />
+  </Folder>
 </Solution>
