@@ -21,9 +21,9 @@
 | **Data Sources** |                            |        |                                           |
 |                  | CSV read                   | ✅      | Basic, no options exposed                 |
 |                  | CSV write                  | ❌      |                                           |
-|                  | Parquet read               | ❌      |                                           |
+|                  | Parquet read               | ✅      | Basic, no options exposed                 |
 |                  | Parquet write              | ❌      |                                           |
-|                  | JSON read                  | ❌      |                                           |
+|                  | JSON read                  | ✅      | Basic, no options exposed                 |
 |                  | JSON write                 | ❌      |                                           |
 |                  | In-memory tables           | ❌      |                                           |
 | **DataFrame**    |                            |        |                                           |

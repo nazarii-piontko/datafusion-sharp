@@ -25,6 +25,12 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_csv")]
     public static partial DataFusionErrorCode ContextRegisterCsv(IntPtr contextHandle, [MarshalAs(UnmanagedType.LPStr)] string tableName, [MarshalAs(UnmanagedType.LPStr)] string filePath, AsyncCallback callback, ulong userData);
     
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_json")]
+    public static partial DataFusionErrorCode ContextRegisterJson(IntPtr contextHandle, [MarshalAs(UnmanagedType.LPStr)] string tableName, [MarshalAs(UnmanagedType.LPStr)] string filePath, AsyncCallback callback, ulong userData);
+    
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_parquet")]
+    public static partial DataFusionErrorCode ContextRegisterParquet(IntPtr contextHandle, [MarshalAs(UnmanagedType.LPStr)] string tableName, [MarshalAs(UnmanagedType.LPStr)] string filePath, AsyncCallback callback, ulong userData);
+    
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_sql")]
     public static partial DataFusionErrorCode ContextSql(IntPtr contextHandle, [MarshalAs(UnmanagedType.LPStr)] string sql, AsyncCallback callback, ulong userData);
     

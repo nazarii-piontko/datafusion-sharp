@@ -1,82 +1,10 @@
-[
-  {
-    "customer_id": 1,
-    "customer_name": "Acme Corp",
-    "country": "USA",
-    "city": "New York",
-    "signup_date": "2022-01-15",
-    "customer_segment": "Enterprise"
-  },
-  {
-    "customer_id": 2,
-    "customer_name": "Globex Ltd",
-    "country": "UK",
-    "city": "London",
-    "signup_date": "2022-02-10",
-    "customer_segment": "SMB"
-  },
-  {
-    "customer_id": 3,
-    "customer_name": "Initech",
-    "country": "USA",
-    "city": "San Francisco",
-    "signup_date": "2022-03-05",
-    "customer_segment": "SMB"
-  },
-  {
-    "customer_id": 4,
-    "customer_name": "Umbrella Corp",
-    "country": "Germany",
-    "city": "Berlin",
-    "signup_date": "2022-03-20",
-    "customer_segment": "Enterprise"
-  },
-  {
-    "customer_id": 5,
-    "customer_name": "Stark Industries",
-    "country": "USA",
-    "city": "Los Angeles",
-    "signup_date": "2022-04-01",
-    "customer_segment": "Enterprise"
-  },
-  {
-    "customer_id": 6,
-    "customer_name": "Wayne Enterprises",
-    "country": "USA",
-    "city": "Gotham",
-    "signup_date": "2022-04-18",
-    "customer_segment": "Enterprise"
-  },
-  {
-    "customer_id": 7,
-    "customer_name": "Wonka Factory",
-    "country": "UK",
-    "city": "Manchester",
-    "signup_date": "2022-05-02",
-    "customer_segment": "SMB"
-  },
-  {
-    "customer_id": 8,
-    "customer_name": "Oscorp",
-    "country": "USA",
-    "city": "New York",
-    "signup_date": "2022-05-15",
-    "customer_segment": "SMB"
-  },
-  {
-    "customer_id": 9,
-    "customer_name": "Hooli",
-    "country": "USA",
-    "city": "Palo Alto",
-    "signup_date": "2022-06-01",
-    "customer_segment": "Enterprise"
-  },
-  {
-    "customer_id": 10,
-    "customer_name": "Vehement Capital Partners",
-    "country": "France",
-    "city": "Paris",
-    "signup_date": "2022-06-20",
-    "customer_segment": "SMB"
-  }
-]
+{"customer_id":1,"customer_name":"Acme Corp","country":"USA","city":"New York","signup_date":"2022-01-15","customer_segment":"Enterprise"}
+{"customer_id":2,"customer_name":"Globex Ltd","country":"UK","city":"London","signup_date":"2022-02-10","customer_segment":"SMB"}
+{"customer_id":3,"customer_name":"Initech","country":"USA","city":"San Francisco","signup_date":"2022-03-05","customer_segment":"SMB"}
+{"customer_id":4,"customer_name":"Umbrella Corp","country":"Germany","city":"Berlin","signup_date":"2022-03-20","customer_segment":"Enterprise"}
+{"customer_id":5,"customer_name":"Stark Industries","country":"USA","city":"Los Angeles","signup_date":"2022-04-01","customer_segment":"Enterprise"}
+{"customer_id":6,"customer_name":"Wayne Enterprises","country":"USA","city":"Gotham","signup_date":"2022-04-18","customer_segment":"Enterprise"}
+{"customer_id":7,"customer_name":"Wonka Factory","country":"UK","city":"Manchester","signup_date":"2022-05-02","customer_segment":"SMB"}
+{"customer_id":8,"customer_name":"Oscorp","country":"USA","city":"New York","signup_date":"2022-05-15","customer_segment":"SMB"}
+{"customer_id":9,"customer_name":"Hooli","country":"USA","city":"Palo Alto","signup_date":"2022-06-01","customer_segment":"Enterprise"}
+{"customer_id":10,"customer_name":"Vehement Capital Partners","country":"France","city":"Paris","signup_date":"2022-06-20","customer_segment":"SMB"}

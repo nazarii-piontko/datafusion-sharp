@@ -1,42 +1,14 @@
 namespace DataFusionSharp.Tests;
 
-public sealed class CsvTests : IDisposable
+public sealed class CsvTests : FormatTests
 {
-    private readonly DataFusionRuntime _runtime;
-    private readonly SessionContext _context;
-
-    public CsvTests()
+    protected override Task RegisterCustomersTableAsync()
     {
-        _runtime = DataFusionRuntime.Create();
-        _context = _runtime.CreateSessionContext();
+        return Context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
     }
 
-    [Fact]
-    public async Task RegisterCsvAsync_CompletesSuccessfully()
+    protected override Task RegisterOrdersTableAsync()
     {
-        // Arrange
-
-        // Act & Assert
-        await _context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
-    }
-
-    [Fact]
-    public async Task RegisterCsvAsync_QueryRegisteredTable_ReturnsData()
-    {
-        // Arrange
-        await _context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
-
-        // Act
-        using var df = await _context.SqlAsync("SELECT * FROM customers");
-        var count = await df.CountAsync();
-
-        // Assert
-        Assert.True(count > 0);
-    }
-
-    public void Dispose()
-    {
-        _context.Dispose();
-        _runtime.Dispose();
+        return Context.RegisterCsvAsync("orders", DataSet.OrdersCsvPath);
     }
 }

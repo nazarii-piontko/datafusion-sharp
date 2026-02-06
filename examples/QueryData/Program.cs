@@ -4,8 +4,17 @@ using DataFusionSharp;
 await using var runtime = DataFusionRuntime.Create();
 using var context = runtime.CreateSessionContext();
 
-await context.RegisterCsvAsync("customers", Path.Combine("Data", "customers.csv"));
-await context.RegisterCsvAsync("orders", Path.Combine("Data", "orders.csv"));
+// Register data from CSV format
+// await context.RegisterCsvAsync("customers", Path.Combine("Data", "customers.csv"));
+// await context.RegisterCsvAsync("orders", Path.Combine("Data", "orders.csv"));
+
+// You can also register data from JSON format
+// await context.RegisterJsonAsync("customers", Path.Combine("Data", "customers.json"));
+// await context.RegisterJsonAsync("orders", Path.Combine("Data", "orders.json"));
+
+// Or from Parquet format
+// await context.RegisterParquetAsync("customers", Path.Combine("Data", "customers.parquet"));
+// await context.RegisterParquetAsync("orders", Path.Combine("Data", "orders.parquet"));
 
 using var df = await context.SqlAsync(
     """
@@ -41,6 +50,7 @@ foreach (var batch in collectedData.Batches)
             var v = batch.Column(c) switch
             {
                 StringArray a => (object)a.GetString(r),
+                StringViewArray a => a.GetString(r),
                 Int64Array a => a.GetValue(r),
                 _ => null
             };

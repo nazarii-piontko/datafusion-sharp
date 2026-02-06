@@ -31,6 +31,30 @@ public sealed class SessionContext : IDisposable
         return tcs.Task;
     }
     
+    public Task RegisterJsonAsync(string tableName, string filePath)
+    {
+        var (id, tcs) = AsyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResult, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to start registering JSON file");
+        }
+        return tcs.Task;
+    }
+    
+    public Task RegisterParquetAsync(string tableName, string filePath)
+    {
+        var (id, tcs) = AsyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResult, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to start registering Parquet file");
+        }
+        return tcs.Task;
+    }
+    
     public async Task<DataFrame> SqlAsync(string sql)
     {
         var (id, tcs) = AsyncOperations.Instance.Create<IntPtr>();

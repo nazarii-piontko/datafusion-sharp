@@ -78,11 +78,91 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
 
     runtime.spawn(async move {
         let result = inner
-            .register_csv(&table_ref, &table_path, datafusion::prelude::CsvReadOptions::new())
+            .register_csv(&table_ref, &table_path, datafusion::prelude::CsvReadOptions::default())
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
 
         dev_msg!("Finished registering CSV table '{}' from path '{}'", table_ref, table_path);
+
+        crate::invoke_callback(result, callback, user_data);
+    });
+
+    crate::ErrorCode::Ok
+}
+
+/// Registers a JSON file as a table in the `SessionContext`.
+///
+/// This is an async operation. The callback is invoked on completion with no result data.
+///
+/// # Safety
+/// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
+/// - `table_ref_ptr` must be a valid null-terminated UTF-8 string
+/// - `table_path_ptr` must be a valid null-terminated UTF-8 string
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_context_register_json(
+    context_ptr: *mut SessionContextWrapper,
+    table_ref_ptr: *const std::ffi::c_char,
+    table_path_ptr: *const std::ffi::c_char,
+    callback: crate::Callback,
+    user_data: u64
+) -> crate::ErrorCode {
+    let context = ffi_ref!(context_ptr);
+    let table_ref = ffi_cstr_to_string!(table_ref_ptr);
+    let table_path = ffi_cstr_to_string!(table_path_ptr);
+
+    let runtime = std::sync::Arc::clone(&context.runtime);
+    let inner = std::sync::Arc::clone(&context.inner);
+
+    dev_msg!("Registering JSON table '{}' from path '{}'", table_ref, table_path);
+
+    runtime.spawn(async move {
+        let result = inner
+            .register_json(&table_ref, &table_path, datafusion::prelude::NdJsonReadOptions::default())
+            .await
+            .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
+
+        dev_msg!("Finished registering JSON table '{}' from path '{}'", table_ref, table_path);
+
+        crate::invoke_callback(result, callback, user_data);
+    });
+
+    crate::ErrorCode::Ok
+}
+
+/// Registers a Parquet file as a table in the `SessionContext`.
+///
+/// This is an async operation. The callback is invoked on completion with no result data.
+///
+/// # Safety
+/// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
+/// - `table_ref_ptr` must be a valid null-terminated UTF-8 string
+/// - `table_path_ptr` must be a valid null-terminated UTF-8 string
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_context_register_parquet(
+    context_ptr: *mut SessionContextWrapper,
+    table_ref_ptr: *const std::ffi::c_char,
+    table_path_ptr: *const std::ffi::c_char,
+    callback: crate::Callback,
+    user_data: u64
+) -> crate::ErrorCode {
+    let context = ffi_ref!(context_ptr);
+    let table_ref = ffi_cstr_to_string!(table_ref_ptr);
+    let table_path = ffi_cstr_to_string!(table_path_ptr);
+
+    let runtime = std::sync::Arc::clone(&context.runtime);
+    let inner = std::sync::Arc::clone(&context.inner);
+
+    dev_msg!("Registering Parquet table '{}' from path '{}'", table_ref, table_path);
+
+    runtime.spawn(async move {
+        let result = inner
+            .register_parquet(&table_ref, &table_path, datafusion::prelude::ParquetReadOptions::default())
+            .await
+            .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
+
+        dev_msg!("Finished registering Parquet table '{}' from path '{}'", table_ref, table_path);
 
         crate::invoke_callback(result, callback, user_data);
     });

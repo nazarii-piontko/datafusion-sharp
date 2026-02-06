@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <LangVersion>14</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -18,6 +18,20 @@
               CopyToOutputDirectory="PreserveNewest" />
         <None Include="..\..\datasets\orders\csv\orders.csv"
               Link="Data\orders.csv"
+              CopyToOutputDirectory="PreserveNewest" />
+
+        <None Include="..\..\datasets\orders\json\customers.json"
+              Link="Data\customers.json"
+              CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\..\datasets\orders\json\orders.json"
+              Link="Data\orders.json"
+              CopyToOutputDirectory="PreserveNewest" />
+
+        <None Include="..\..\datasets\orders\parquet\customers.parquet"
+              Link="Data\customers.parquet"
+              CopyToOutputDirectory="PreserveNewest" />
+        <None Include="..\..\datasets\orders\parquet\orders.parquet"
+              Link="Data\orders.parquet"
               CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 

@@ -1,6 +1,6 @@
 <Solution>
   <Folder Name="/examples/">
-    <Project Path="examples\CsvQuery\CsvQuery.csproj" />
+    <Project Path="examples\QueryData\QueryData.csproj" />
   </Folder>
   <Folder Name="/misc/">
     <File Path=".gitignore" />
