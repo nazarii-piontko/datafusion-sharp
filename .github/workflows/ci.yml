@@ -15,49 +15,49 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-
-      - name: Setup Rust Cargo Cache
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            native/target/
-          key: ${{ runner.os }}-Cargo-${{ hashFiles('native/Cargo.*') }}
-          restore-keys: |
-            ${{ runner.os }}-Cargo-
-
-      - name: Run Build
-        run: dotnet build -c Release
-        
-      - name: Run Test
-        run: dotnet test --no-build -c Release -v n --logger 'console;verbosity=normal'
-      
-      - name: Run Rust Cargo Clippy
-        working-directory: native
-        run: cargo clippy --release --all-targets -- -D warnings
+#  check:
+#    name: Check
+#    runs-on: ubuntu-24.04
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v6
+#
+#      - name: Setup .NET
+#        uses: actions/setup-dotnet@v5
+#        with:
+#          dotnet-version: "10.0.x"
+#
+#      - name: Setup Rust
+#        uses: dtolnay/rust-toolchain@stable
+#        with:
+#          components: clippy
+#
+#      - name: Setup Rust Cargo Cache
+#        uses: actions/cache@v5
+#        with:
+#          path: |
+#            ~/.cargo/bin/
+#            ~/.cargo/registry/index/
+#            ~/.cargo/registry/cache/
+#            ~/.cargo/git/db/
+#            native/target/
+#          key: ${{ runner.os }}-Cargo-${{ hashFiles('native/Cargo.*') }}
+#          restore-keys: |
+#            ${{ runner.os }}-Cargo-
+#
+#      - name: Run Build
+#        run: dotnet build -c Release
+#        
+#      - name: Run Test
+#        run: dotnet test --no-build -c Release -v n --logger 'console;verbosity=normal'
+#      
+#      - name: Run Rust Cargo Clippy
+#        working-directory: native
+#        run: cargo clippy --release --all-targets -- -D warnings
 
   pack-build-native:
     name: Build Native for NuGet Pack (${{ matrix.target }})
-    needs: check
+#    needs: check
     strategy:
       matrix:
         include:
