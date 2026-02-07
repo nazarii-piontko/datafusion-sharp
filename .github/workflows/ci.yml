@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - feature/pack-build  # Temporary: remove after testing
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 env:
   CARGO_TERM_COLOR: always
@@ -51,3 +54,114 @@ jobs:
       - name: Run Rust Cargo Clippy
         working-directory: native
         run: cargo clippy --release --all-targets -- -D warnings
+
+  pack-build-native:
+    name: Build Native for NuGet Pack (${{ matrix.target }})
+    needs: check
+    strategy:
+      matrix:
+        include:
+          # Linux x64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+          
+          # Linux x64 musl
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-24.04
+          
+          # Linux ARM64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+          
+          # Linux ARM64 musl
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+          
+          # Windows x64
+          - target: x86_64-pc-windows-msvc
+            os: windows-2025
+          
+          # macOS ARM64
+          - target: aarch64-apple-darwin
+            os: macos-26
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          
+      - name: Setup Rust Cargo Cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            native/target/
+          key: ${{ runner.os }}-Cargo-${{ hashFiles('native/Cargo.*') }}
+          restore-keys: |
+            ${{ runner.os }}-Cargo-
+
+      - name: Install Linux Musl Tools
+        if: contains(matrix.target, 'musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build Native Library
+        working-directory: native
+        run: cargo build --target ${{ matrix.target }} --profile release
+
+      - name: Prepare Artifacts (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p native/target/${{ matrix.target }}/release/
+          if [[ "${{ matrix.os }}" == macos* ]]; then
+            cp native/target/${{ matrix.target }}/release/libdatafusion_sharp_native.dylib artifacts/native/target/${{ matrix.target }}/release/
+          else
+            cp native/target/${{ matrix.target }}/release/libdatafusion_sharp_native.so artifacts/native/target/${{ matrix.target }}/release/
+          fi
+
+      - name: Prepare Artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/native/target/${{ matrix.target }}/release/
+          Copy-Item native/target/${{ matrix.target }}/release/libdatafusion_sharp_native.dll artifacts/native/target/${{ matrix.target }}/release/
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: native-${{ matrix.target }}
+          path: artifacts/**
+          overwrite: true
+          retention-days: 1
+  
+  pack:
+    name: Pack NuGet
+    needs: pack-build-native
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: ./
+          merge-multiple: true
+
+      - name: Organize Native Libraries
+        run: ls -lR
