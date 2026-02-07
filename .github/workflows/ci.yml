@@ -56,7 +56,7 @@ jobs:
 #        run: cargo clippy --release --all-targets -- -D warnings
 
   pack-build-native:
-    name: Build Native for NuGet Pack (${{ matrix.target }})
+    name: Build Native (${{ matrix.target }}) for NuGet Pack
 #    needs: check
     strategy:
       matrix:
@@ -105,9 +105,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ${{ runner.os }}-Cargo-${{ hashFiles('native/Cargo.*') }}
+          key: ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}
           restore-keys: |
-            ${{ runner.os }}-Cargo-
+            ${{ matrix.os }}-cargo-
 
       - name: Install Linux Musl Tools
         if: contains(matrix.target, 'musl')
