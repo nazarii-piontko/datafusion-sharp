@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use futures::StreamExt;
 
 pub struct DataFrameWrapper {
@@ -49,12 +50,10 @@ pub unsafe extern "C" fn datafusion_dataframe_count(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
-    let df = df_wrapper.inner.clone();
-
     dev_msg!("Executing count on DataFrame: {:p}", df_ptr);
 
-    runtime.spawn(async move {
+    df_wrapper.runtime.spawn(async move {
+        let df = df_wrapper.inner.clone();
         let result = df
             .count()
             .await
@@ -86,12 +85,10 @@ pub unsafe extern "C" fn datafusion_dataframe_show(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
-    let df = df_wrapper.inner.clone();
-
     dev_msg!("Executing show on DataFrame: {:p}", df_ptr);
 
-    runtime.spawn(async move {
+    df_wrapper.runtime.spawn(async move {
+        let df = df_wrapper.inner.clone();
         let result = if limit > 0 {
             #[allow(clippy::cast_possible_truncation)]
             df.show_limit(limit as usize).await
@@ -120,12 +117,10 @@ pub unsafe extern "C" fn datafusion_dataframe_to_string(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
-    let df = df_wrapper.inner.clone();
-
     dev_msg!("Executing to_string on DataFrame: {:p}", df_ptr);
 
-    runtime.spawn(async move {
+    df_wrapper.runtime.spawn(async move {
+        let df = df_wrapper.inner.clone();
         let result = df
             .to_string()
             .await;
@@ -194,14 +189,12 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
-    let df = df_wrapper.inner.clone();
-
     dev_msg!("Executing collect on DataFrame: {:p}", df_ptr);
 
-    runtime.spawn(async move {
+    df_wrapper.runtime.spawn(async move {
         let mut serialization_buffer = Vec::new();
 
+        let df = df_wrapper.inner.clone();
         let schema = df.schema().as_arrow();
         let result = match datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialization_buffer, schema) {
             Ok(mut s) => {
@@ -246,22 +239,19 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
-    let runtime_w = std::sync::Arc::clone(&df_wrapper.runtime);
-    let df = df_wrapper.inner.clone();
-
     dev_msg!("Executing execute_stream on DataFrame: {:p}", df_ptr);
 
-    runtime.spawn(async move {
+    df_wrapper.runtime.spawn(async move {
+        let df = df_wrapper.inner.clone();
         let result = df
             .execute_stream()
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
             .and_then(|stream| {
-                datafusion::arrow::ipc::writer::StreamWriter::try_new(Vec::new(), &std::sync::Arc::clone(&stream.schema()))
+                datafusion::arrow::ipc::writer::StreamWriter::try_new(Vec::new(), &Arc::clone(&stream.schema()))
                     .map(|writer| {
                         let stream_w = DataFrameStreamWrapper {
-                            runtime: runtime_w,
+                            runtime: Arc::clone(&df_wrapper.runtime),
                             writer,
                             stream,
                         };
@@ -312,9 +302,10 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
     user_data: u64
 ) -> crate::ErrorCode {
     let stream_wrapper = ffi_ref_mut!(stream_ptr);
-    let runtime = std::sync::Arc::clone(&stream_wrapper.runtime);
 
     dev_msg!("Executing next on DataFrameStream: {:p}", stream_ptr);
+    
+    let runtime = Arc::clone(&stream_wrapper.runtime);
 
     runtime.spawn(async move {
         let result_opt = stream_wrapper.stream
@@ -364,12 +355,10 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
-    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
-    let df = df_wrapper.inner.clone();
-
     dev_msg!("Executing write_csv on DataFrame: {:p} to path: {}", df_ptr, path);
 
-    runtime.spawn(async move {
+    df_wrapper.runtime.spawn(async move {
+        let df = df_wrapper.inner.clone();
         let result = df
             .write_csv(&path, datafusion::dataframe::DataFrameWriteOptions::default(), None)
             .await
@@ -401,12 +390,10 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
-    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
-    let df = df_wrapper.inner.clone();
-
     dev_msg!("Executing write_json on DataFrame: {:p} to path: {}", df_ptr, path);
 
-    runtime.spawn(async move {
+    df_wrapper.runtime.spawn(async move {
+        let df = df_wrapper.inner.clone();
         let result = df
             .write_json(&path, datafusion::dataframe::DataFrameWriteOptions::default(), None)
             .await
@@ -438,12 +425,10 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
-    let runtime = std::sync::Arc::clone(&df_wrapper.runtime);
-    let df = df_wrapper.inner.clone();
-
     dev_msg!("Executing write_parquet on DataFrame: {:p} to path: {}", df_ptr, path);
 
-    runtime.spawn(async move {
+    df_wrapper.runtime.spawn(async move {
+        let df = df_wrapper.inner.clone();
         let result = df
             .write_parquet(&path, datafusion::dataframe::DataFrameWriteOptions::default(), None)
             .await

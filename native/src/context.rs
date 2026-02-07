@@ -1,13 +1,15 @@
+use std::sync::Arc;
+
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
-    inner: std::sync::Arc<datafusion::prelude::SessionContext>
+    inner: Arc<datafusion::prelude::SessionContext>
 }
 
 impl SessionContextWrapper {
     fn new(runtime: crate::RuntimeHandle) -> Self {
         Self {
             runtime,
-            inner: std::sync::Arc::new(datafusion::prelude::SessionContext::new())
+            inner: Arc::new(datafusion::prelude::SessionContext::new())
         }
     }
 }
@@ -26,7 +28,7 @@ pub unsafe extern "C" fn datafusion_context_new(runtime_ptr: *mut crate::Runtime
 
     let runtime_handle = ffi_ref!(runtime_ptr);
 
-    let context = Box::new(SessionContextWrapper::new(std::sync::Arc::clone(runtime_handle)));
+    let context = Box::new(SessionContextWrapper::new(Arc::clone(runtime_handle)));
     unsafe { *context_ptr = Box::into_raw(context); }
 
     dev_msg!("Successfully created context: {:p}", unsafe { *context_ptr });
@@ -71,12 +73,11 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
-    let runtime = std::sync::Arc::clone(&context.runtime);
-    let inner = std::sync::Arc::clone(&context.inner);
+    let inner = Arc::clone(&context.inner);
 
     dev_msg!("Registering CSV table '{}' from path '{}'", table_ref, table_path);
 
-    runtime.spawn(async move {
+    context.runtime.spawn(async move {
         let result = inner
             .register_csv(&table_ref, &table_path, datafusion::prelude::CsvReadOptions::default())
             .await
@@ -111,12 +112,11 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
-    let runtime = std::sync::Arc::clone(&context.runtime);
-    let inner = std::sync::Arc::clone(&context.inner);
+    let inner = Arc::clone(&context.inner);
 
     dev_msg!("Registering JSON table '{}' from path '{}'", table_ref, table_path);
 
-    runtime.spawn(async move {
+    context.runtime.spawn(async move {
         let result = inner
             .register_json(&table_ref, &table_path, datafusion::prelude::NdJsonReadOptions::default())
             .await
@@ -151,12 +151,11 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
-    let runtime = std::sync::Arc::clone(&context.runtime);
-    let inner = std::sync::Arc::clone(&context.inner);
+    let inner = Arc::clone(&context.inner);
 
     dev_msg!("Registering Parquet table '{}' from path '{}'", table_ref, table_path);
 
-    runtime.spawn(async move {
+    context.runtime.spawn(async move {
         let result = inner
             .register_parquet(&table_ref, &table_path, datafusion::prelude::ParquetReadOptions::default())
             .await
@@ -189,17 +188,14 @@ pub unsafe extern "C" fn datafusion_context_sql(
     let context = ffi_ref!(context_ptr);
     let sql = ffi_cstr_to_string!(sql_ptr);
 
-    let runtime = std::sync::Arc::clone(&context.runtime);
-    let inner = std::sync::Arc::clone(&context.inner);
-
     dev_msg!("Executing SQL query: {}", sql);
 
-    runtime.spawn(async move {
-        let result = inner
+    context.runtime.spawn(async move {
+        let result = context.inner
             .sql(&sql)
             .await
             .map(|dataframe| {
-                let data_frame = Box::new(crate::DataFrameWrapper::new(std::sync::Arc::clone(&context.runtime), dataframe));
+                let data_frame = Box::new(crate::DataFrameWrapper::new(Arc::clone(&context.runtime), dataframe));
                 Box::into_raw(data_frame)
             })
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::SqlError, e));

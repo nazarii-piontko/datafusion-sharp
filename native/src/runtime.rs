@@ -1,6 +1,8 @@
-pub type RuntimeHandle = std::sync::Arc<tokio::runtime::Runtime>;
+use std::sync::Arc;
 
-/// Creates a new Tokio multi-threaded runtime for `DataFusion`.
+pub type RuntimeHandle = Arc<tokio::runtime::Runtime>;
+
+/// Creates a new Tokio multithreaded runtime for `DataFusion`.
 ///
 /// # Safety
 /// - `runtime` must be a valid, aligned, non-null pointer to writable memory
@@ -33,7 +35,7 @@ pub unsafe extern "C" fn datafusion_runtime_new(
 
     match builder.build() {
         Ok(runtime) => {
-            let runtime_handle: RuntimeHandle = std::sync::Arc::new(runtime);
+            let runtime_handle: RuntimeHandle = Arc::new(runtime);
             unsafe { *runtime_ptr = Box::into_raw(Box::new(runtime_handle)); }
 
             dev_msg!("Successfully created Tokio runtime: {:p}", unsafe { *runtime_ptr });
@@ -71,7 +73,7 @@ pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHan
 
     dev_msg!("Attempting to destroy Tokio runtime: {:p}", runtime_ptr);
 
-    match std::sync::Arc::try_unwrap(*runtime_handle) {
+    match Arc::try_unwrap(*runtime_handle) {
         Ok(runtime) => {
             runtime.shutdown_timeout(std::time::Duration::from_millis(timeout_millis));
 
@@ -80,9 +82,9 @@ pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHan
             crate::ErrorCode::Ok
         }
         Err(arc) => {
-            dev_msg!("Cannot destroy Tokio runtime due to strong references: {:p}, references: {}", runtime_ptr, std::sync::Arc::strong_count(&arc));
+            dev_msg!("Cannot destroy Tokio runtime due to strong references: {:p}, references: {}", runtime_ptr, Arc::strong_count(&arc));
 
-            eprintln!("[datafusion-sharp-native] Cannot destroy Tokio runtime: there are still {} strong references", std::sync::Arc::strong_count(&arc));
+            eprintln!("[datafusion-sharp-native] Cannot destroy Tokio runtime: there are still {} strong references", Arc::strong_count(&arc));
 
             crate::ErrorCode::RuntimeInitializationFailed
         }
