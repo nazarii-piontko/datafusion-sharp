@@ -11,46 +11,41 @@
 
 ## Features
 
-| Component        | Feature                    | Status | Notes                                     |
-|------------------|----------------------------|--------|-------------------------------------------|
-| **Runtime**      | Create Tokio runtime       | ✅      | Configurable worker/blocking threads      |
-|                  | Graceful shutdown          | ✅      | With timeout                              |
-|                  | Multiple runtime instances | ✅      |                                           |
-| **Session**      | Create session context     | ✅      |                                           |
-|                  | Execute SQL queries        | ✅      | Returns DataFrame                         |
-| **Data Sources** |                            |        |                                           |
-|                  | CSV read                   | ✅      | Basic, no options exposed                 |
-|                  | CSV write                  | ❌      |                                           |
-|                  | Parquet read               | ✅      | Basic, no options exposed                 |
-|                  | Parquet write              | ❌      |                                           |
-|                  | JSON read                  | ✅      | Basic, no options exposed                 |
-|                  | JSON write                 | ❌      |                                           |
-|                  | In-memory tables           | ❌      |                                           |
-| **DataFrame**    |                            |        |                                           |
-|                  | Count rows                 | ✅      | `CountAsync()`                            |
-|                  | Get schema                 | ✅      | `GetSchemaAsync()` → Arrow Schema         |
-|                  | Collect all data           | ✅      | `CollectAsync()` → RecordBatches          |
-|                  | Stream results             | ✅      | `ExecuteStreamAsync()` → IAsyncEnumerable |
-|                  | Show/print                 | ✅      | `ShowAsync()`, `ToStringAsync()`          |
-|                  | Select columns             | ❌      | Use SQL instead                           |
-|                  | Filter rows                | ❌      | Use SQL instead                           |
-|                  | Limit rows                 | ❌      | Use SQL instead                           |
-|                  | Sort                       | ❌      | Use SQL instead                           |
-|                  | Join                       | ❌      | Use SQL instead                           |
-|                  | Aggregate                  | ❌      | Use SQL instead                           |
-|                  | Explain plan               | ❌      |                                           |
-|                  | Write to file              | ❌      |                                           |
-| **Arrow**        | RecordBatch support        | ✅      | Via Apache.Arrow                          |
-|                  | Schema inspection          | ✅      |                                           |
-|                  | IPC serialization          | ✅      | Internal transport                        |
-| **Advanced**     |                            |        |                                           |
-|                  | UDF registration           | ❌      |                                           |
-|                  | Catalog management         | ❌      |                                           |
-|                  | Table providers            | ❌      |                                           |
-| **Platforms**    | Linux x64                  | ✅      |                                           |
-|                  | Linux arm64                | ❌      |                                           |
-|                  | Windows x64                | ❌      |                                           |
-|                  | macOS arm64                | ❌      |                                           |
+| Component        | Feature                                      | Status | Notes                                     |
+|------------------|----------------------------------------------|--------|-------------------------------------------|
+| **Runtime**      | Create Tokio runtime                         | ✅      | Configurable threads                      |
+|                  | Graceful shutdown                            | ✅      |                                           |
+|                  | Multiple runtime instances                   | ✅      |                                           |
+| **Session**      | Create session context                       | ✅      |                                           |
+|                  | Execute SQL queries                          | ✅      | Returns DataFrame                         |
+| **Data Sources** |                                              |        |                                           |
+|                  | CSV read                                     | ✅      | Basic, no options exposed                 |
+|                  | CSV write                                    | ❌      |                                           |
+|                  | Parquet read                                 | ✅      | Basic, no options exposed                 |
+|                  | Parquet write                                | ❌      |                                           |
+|                  | JSON read                                    | ✅      | Basic, no options exposed                 |
+|                  | JSON write                                   | ❌      |                                           |
+|                  | In-memory tables                             | ❌      |                                           |
+| **DataFrame**    |                                              |        |                                           |
+|                  | Count rows                                   | ✅      | `CountAsync()`                            |
+|                  | Get schema                                   | ✅      | `GetSchemaAsync()` → Arrow Schema         |
+|                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches          |
+|                  | Stream results                               | ✅      | `ExecuteStreamAsync()` → IAsyncEnumerable |
+|                  | Show/print                                   | ✅      | `ShowAsync()`, `ToStringAsync()`          |
+|                  | Select, Aggregate, Join, Filter, Limit, Sort | ❌      | Use SQL instead                           |
+|                  | Explain plan                                 | ❌      |                                           |
+|                  | Write to file                                | ❌      |                                           |
+| **Arrow**        | RecordBatch support                          | ✅      | Via Apache.Arrow                          |
+|                  | Schema inspection                            | ✅      |                                           |
+|                  | IPC serialization                            | ✅      | Internal transport                        |
+| **Advanced**     |                                              |        |                                           |
+|                  | UDF registration                             | ❌      |                                           |
+|                  | Catalog management                           | ❌      |                                           |
+|                  | Table providers                              | ❌      |                                           |
+| **Platforms**    | Linux x64                                    | ✅      |                                           |
+|                  | Linux arm64                                  | ❌      |                                           |
+|                  | Windows x64                                  | ❌      |                                           |
+|                  | macOS arm64                                  | ❌      |                                           |
 
 ✅ Implemented  ❌ Not yet implemented
 
