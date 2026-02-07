@@ -129,11 +129,6 @@ foreach (var batch in data.Batches)
 
    For detailed benchmark results, see the [Benchmark README](tests/DataFusionSharp.Benchmark/README.md).
 
-5. **(Optional) Build NuGet package:**
-   ```bash
-   dotnet pack -c Release
-   ```
-
 ## Documentation
 
 TODO: Link to or provide documentation for the library
