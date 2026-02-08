@@ -189,7 +189,7 @@ jobs:
       - name: Build Test Application with Local NuGet Package
         working-directory: tests/DataFusionSharp.PackageSmokeTest
         run: |
-          dotnet add package DataFusionSharp --source ../packages --prerelease
+          dotnet add package DataFusionSharp --source ../../packages --prerelease
           cat DataFusionSharp.PackageSmokeTest.csproj
           dotnet build -c Release -p:CI=true
       
