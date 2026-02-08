@@ -37,10 +37,10 @@
         <CargoHome Condition="'$(CargoHome)' == ''">$([System.Environment]::GetEnvironmentVariable('CARGO_HOME'))</CargoHome>
         <CargoHome Condition="'$(CargoHome)' == '' AND $([MSBuild]::IsOSPlatform('Windows'))">$([System.Environment]::GetEnvironmentVariable('USERPROFILE'))\.cargo</CargoHome>
         <CargoHome Condition="'$(CargoHome)' == '' AND !$([MSBuild]::IsOSPlatform('Windows'))">$([System.Environment]::GetEnvironmentVariable('HOME'))/.cargo</CargoHome>
-        <CargoExec Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(CargoHome)\bin\cargo.exe</CargoExec>
         <CargoExec Condition="!$([MSBuild]::IsOSPlatform('Windows'))">$(CargoHome)/bin/cargo</CargoExec>
-        <RustupExec Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(CargoHome)\bin\rustup.exe</RustupExec>
+        <CargoExec Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(CargoHome)\bin\cargo.exe</CargoExec>
         <RustupExec Condition="!$([MSBuild]::IsOSPlatform('Windows'))">$(CargoHome)/bin/rustup</RustupExec>
+        <RustupExec Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(CargoHome)\bin\rustup.exe</RustupExec>
         
         <CargoProfile Condition="'$(Configuration)' == 'Release'">release</CargoProfile>
         <CargoProfile Condition="'$(Configuration)' == 'Debug'">dev</CargoProfile>
@@ -54,7 +54,8 @@
         <CargoTargetOsxARM64>aarch64-apple-darwin</CargoTargetOsxARM64>
 
         <NativeLibRootDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../native'))</NativeLibRootDir>
-        <NativeLibName>libdatafusion_sharp_native</NativeLibName>
+        <NativeLibName Condition="!$([MSBuild]::IsOSPlatform('Windows'))">libdatafusion_sharp_native</NativeLibName>
+        <NativeLibName Condition="$([MSBuild]::IsOSPlatform('Windows'))">datafusion_sharp_native</NativeLibName>
 
         <BuildCargoTarget Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'linux-x64'">$(CargoTargetLinuxX64)</BuildCargoTarget>
         <BuildCargoTarget Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'linux-arm64'">$(CargoTargetLinuxARM64)</BuildCargoTarget>
