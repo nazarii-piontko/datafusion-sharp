@@ -153,3 +153,65 @@ jobs:
         working-directory: tests/DataFusionSharp.PackageSmokeTest
         run: dotnet run --no-build -c Release -p:UseLocalPackage=true
         timeout-minutes: 1
+
+  pack-publish-github:
+    name: Publish to GitHub Packages
+    needs: pack-smoke-test
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Download NuGet Package Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: nuget-package
+          path: packages
+
+      - name: Extract Version
+        id: version
+        shell: bash
+        run: |
+          # Find the package files
+          NUPKG=$(ls packages/DataFusionSharp.*.nupkg | head -n 1)
+          SNUPKG=$(ls packages/DataFusionSharp.*.snupkg | head -n 1)
+
+          if [ -z "NUPKG" ]; then
+            echo "❌ No nupkg found"
+            exit 1
+          fi
+
+          if [ -z "SNUPKG" ]; then
+            echo "❌ No snupkg found"
+            exit 1
+          fi
+
+          # Extract version from filename
+          # DataFusionSharp.0.1.0.nupkg -> 0.1.0
+          VERSION=$(basename "NUPKG" | sed -E 's/DataFusionSharp\.(.*)\.nupkg/\1/')
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "nupkg=NUPKG" >> $GITHUB_OUTPUT
+          echo "snupkg=SNUPKG" >> $GITHUB_OUTPUT
+
+          echo "📦 Package: NUPKG"
+          echo "📦 Symbol Package: SNUPKG"
+          echo "📌 Version: $VERSION"
+
+      - name: Publish to GitHub Packages
+        run: |
+          dotnet nuget push \
+            ${{ steps.version.outputs.nupkg }} \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+
+      - name: Publish Symbols to GitHub Packages
+        run: |
+          dotnet nuget push \
+            ${{ steps.version.outputs.snupkg }} \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
