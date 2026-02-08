@@ -49,9 +49,7 @@
         <CargoProfileBuildDirName Condition="'$(Configuration)' == 'Debug'">debug</CargoProfileBuildDirName>
 
         <CargoTargetLinuxX64>x86_64-unknown-linux-gnu</CargoTargetLinuxX64>
-        <CargoTargetLinuxX64Musl>x86_64-unknown-linux-musl</CargoTargetLinuxX64Musl>
         <CargoTargetLinuxARM64>aarch64-unknown-linux-gnu</CargoTargetLinuxARM64>
-        <CargoTargetLinuxARM64Musl>aarch64-unknown-linux-musl</CargoTargetLinuxARM64Musl>
         <CargoTargetWinX64>x86_64-pc-windows-msvc</CargoTargetWinX64>
         <CargoTargetOsxARM64>aarch64-apple-darwin</CargoTargetOsxARM64>
 
@@ -59,9 +57,7 @@
         <NativeLibName>libdatafusion_sharp_native</NativeLibName>
 
         <BuildCargoTarget Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'linux-x64'">$(CargoTargetLinuxX64)</BuildCargoTarget>
-        <BuildCargoTarget Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'linux-musl-x64'">$(CargoTargetLinuxX64Musl)</BuildCargoTarget>
         <BuildCargoTarget Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'linux-arm64'">$(CargoTargetLinuxARM64)</BuildCargoTarget>
-        <BuildCargoTarget Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'linux-musl-arm64'">$(CargoTargetLinuxARM64Musl)</BuildCargoTarget>
         <BuildCargoTarget Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'win-x64'">$(CargoTargetWinX64)</BuildCargoTarget>
         <BuildCargoTarget Condition="'$(NETCoreSdkRuntimeIdentifier)' == 'osx-arm64'">$(CargoTargetOsxARM64)</BuildCargoTarget>
 
@@ -82,22 +78,10 @@
               Condition="Exists('$(NativeLibRootDir)/target/$(CargoTargetLinuxX64)/$(CargoProfileBuildDirName)/$(NativeLibName).so')"
               Pack="true" Visible="false" />
 
-        <!-- Linux x64 musl -->
-        <None Include="$(NativeLibRootDir)/target/$(CargoTargetLinuxX64Musl)/$(CargoProfileBuildDirName)/$(NativeLibName).so"
-              PackagePath="runtimes/linux-musl-x64/native/"
-              Condition="Exists('$(NativeLibRootDir)/target/$(CargoTargetLinuxX64Musl)/$(CargoProfileBuildDirName)/$(NativeLibName).so')"
-              Pack="true" Visible="false" />
-
         <!-- Linux ARM64 -->
         <None Include="$(NativeLibRootDir)/target/$(CargoTargetLinuxARM64)/$(CargoProfileBuildDirName)/$(NativeLibName).so"
               PackagePath="runtimes/linux-arm64/native/"
               Condition="Exists('$(NativeLibRootDir)/target/$(CargoTargetLinuxARM64)/$(CargoProfileBuildDirName)/$(NativeLibName).so')"
-              Pack="true" Visible="false" />
-
-        <!-- Linux ARM64 musl -->
-        <None Include="$(NativeLibRootDir)/target/$(CargoTargetLinuxARM64Musl)/$(CargoProfileBuildDirName)/$(NativeLibName).so"
-              PackagePath="runtimes/linux-musl-arm64/native/"
-              Condition="Exists('$(NativeLibRootDir)/target/$(CargoTargetLinuxARM64Musl)/$(CargoProfileBuildDirName)/$(NativeLibName).so')"
               Pack="true" Visible="false" />
 
         <!-- Windows x64 -->

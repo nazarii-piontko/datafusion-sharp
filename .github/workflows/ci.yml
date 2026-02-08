@@ -65,17 +65,17 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-24.04
           
-#          # Linux ARM64
-#          - target: aarch64-unknown-linux-gnu
-#            os: ubuntu-24.04-arm
+          # Linux ARM64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
 
           # Windows x64
           - target: x86_64-pc-windows-msvc
             os: windows-2025
           
-#          # macOS ARM64
-#          - target: aarch64-apple-darwin
-#            os: macos-26
+          # macOS ARM64
+          - target: aarch64-apple-darwin
+            os: macos-26
     
     runs-on: ${{ matrix.os }}
     
@@ -105,25 +105,26 @@ jobs:
         working-directory: native
         run: cargo build --target ${{ matrix.target }} --profile release
 
-      - name: Prepare Artifacts (Unix)
-        if: runner.os != 'Windows'
+      - name: [Linux] Prepare Native Library Artifacts
+        if: runner.os == 'Linux'
         run: |
           mkdir -p artifacts/native/target/${{ matrix.target }}/release/
-          if [[ "${{ matrix.os }}" == macos* ]]; then
-            cp native/target/${{ matrix.target }}/release/libdatafusion_sharp_native.dylib artifacts/native/target/${{ matrix.target }}/release/
-          else
-            cp native/target/${{ matrix.target }}/release/libdatafusion_sharp_native.so artifacts/native/target/${{ matrix.target }}/release/
-          fi
+          cp native/target/${{ matrix.target }}/release/*.so artifacts/native/target/${{ matrix.target }}/release/
 
-      - name: Prepare Artifacts (Windows)
+      - name: [Windows] Prepare Native Library Artifacts
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          tree /F
-#          New-Item -ItemType Directory -Force -Path artifacts/native/target/${{ matrix.target }}/release/
-#          Copy-Item native/target/${{ matrix.target }}/release/libdatafusion_sharp_native.dll artifacts/native/target/${{ matrix.target }}/release/
+          New-Item -ItemType Directory -Force -Path artifacts/native/target/${{ matrix.target }}/release/
+          Copy-Item native/target/${{ matrix.target }}/release/*.dll artifacts/native/target/${{ matrix.target }}/release/
+          
+      - name: [MacOS] Prepare Native Library Artifacts
+        if: runner.os == 'MacOS'
+        run: |
+          mkdir -p artifacts/native/target/${{ matrix.target }}/release/
+          cp native/target/${{ matrix.target }}/release/*.dylib artifacts/native/target/${{ matrix.target }}/release/
 
-      - name: Upload Artifacts
+      - name: Upload Native Library as Artifacts
         uses: actions/upload-artifact@v6
         with:
           name: native-${{ matrix.target }}
@@ -150,5 +151,15 @@ jobs:
           path: ./
           merge-multiple: true
 
-      - name: Organize Native Libraries
+      - name: Print Repository Structure
         run: ls -lR
+        
+      - name: Pack NuGet Package
+        run: dotnet pack src/DataFusionSharp/DataFusionSharp.csproj -c Release -p:BuildNativeLib=false -o ./packages
+
+      - name: Upload NuGet Package
+        uses: actions/upload-artifact@v6
+        with:
+          name: nuget-package
+          path: packages/*
+          retention-days: 1
