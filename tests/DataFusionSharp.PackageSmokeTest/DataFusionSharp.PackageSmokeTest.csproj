@@ -7,10 +7,10 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
-    <ItemGroup Condition="'$(CI)' != 'true'">
+    <ItemGroup Condition="'$(UseLocalPackage)' != 'true'">
       <ProjectReference Include="..\..\src\DataFusionSharp\DataFusionSharp.csproj" />
     </ItemGroup>
-    <ItemGroup Condition="'$(CI)' == 'true'">
+    <ItemGroup Condition="'$(UseLocalPackage)' == 'true'">
         <PackageReference Include="DataFusionSharp" Version="*" />
     </ItemGroup>
 

@@ -147,11 +147,9 @@ jobs:
 
       - name: Build Test Application with Local NuGet Package
         working-directory: tests/DataFusionSharp.PackageSmokeTest
-        run: dotnet build -c Release -p:CI=true
+        run: dotnet build -c Release -p:UseLocalPackage=true
       
       - name: Run Test Application
         working-directory: tests/DataFusionSharp.PackageSmokeTest
-        env:
-          CI: true
-        run: dotnet run --no-build -c Release -p:CI=true
+        run: dotnet run --no-build -c Release -p:UseLocalPackage=true
         timeout-minutes: 1
