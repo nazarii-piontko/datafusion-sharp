@@ -10,5 +10,8 @@
     <ItemGroup Condition="'$(CI)' != 'true'">
       <ProjectReference Include="..\..\src\DataFusionSharp\DataFusionSharp.csproj" />
     </ItemGroup>
+    <ItemGroup Condition="'$(CI)' == 'true'">
+        <PackageReference Include="DataFusionSharp" Version="*" />
+    </ItemGroup>
 
 </Project>

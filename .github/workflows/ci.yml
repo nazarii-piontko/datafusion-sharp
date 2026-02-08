@@ -56,7 +56,7 @@ jobs:
 #        run: cargo clippy --release --all-targets -- -D warnings
 
   pack-build-native:
-    name: Build Native (${{ matrix.target }}) for NuGet Pack
+    name: Build Native
 #    needs: check
     strategy:
       matrix:
@@ -188,10 +188,7 @@ jobs:
 
       - name: Build Test Application with Local NuGet Package
         working-directory: tests/DataFusionSharp.PackageSmokeTest
-        run: |
-          dotnet add package DataFusionSharp --source ../../packages --prerelease
-          cat DataFusionSharp.PackageSmokeTest.csproj
-          dotnet build -c Release -p:CI=true
+        run: dotnet build -c Release -p:CI=true
       
       - name: Run Test Application
         working-directory: tests/DataFusionSharp.PackageSmokeTest
