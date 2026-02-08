@@ -105,20 +105,20 @@ jobs:
         working-directory: native
         run: cargo build --target ${{ matrix.target }} --profile release
 
-      - name: [Linux] Prepare Native Library Artifacts
+      - name: (Linux) Prepare Native Library Artifacts
         if: runner.os == 'Linux'
         run: |
           mkdir -p artifacts/native/target/${{ matrix.target }}/release/
           cp native/target/${{ matrix.target }}/release/*.so artifacts/native/target/${{ matrix.target }}/release/
 
-      - name: [Windows] Prepare Native Library Artifacts
+      - name: (Windows) Prepare Native Library Artifacts
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts/native/target/${{ matrix.target }}/release/
           Copy-Item native/target/${{ matrix.target }}/release/*.dll artifacts/native/target/${{ matrix.target }}/release/
           
-      - name: [MacOS] Prepare Native Library Artifacts
+      - name: (MacOS) Prepare Native Library Artifacts
         if: runner.os == 'MacOS'
         run: |
           mkdir -p artifacts/native/target/${{ matrix.target }}/release/
@@ -152,7 +152,7 @@ jobs:
           merge-multiple: true
 
       - name: Print Repository Structure
-        run: ls -lR ./
+        run: ls -lR
         
       - name: Pack NuGet Package
         run: dotnet pack src/DataFusionSharp/DataFusionSharp.csproj -c Release -p:BuildNativeLib=false -o ./packages
