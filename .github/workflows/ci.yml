@@ -2,12 +2,14 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
-      - feature/pack-build  # Temporary: remove after testing
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
+  workflow_call:
+    outputs:
+      check-passed:
+        description: "Checks passed"
+        value: ${{ jobs.check.outputs.status }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,79 +17,26 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-#  check:
-#    name: Check
-#    runs-on: ubuntu-24.04
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v6
-#
-#      - name: Setup .NET
-#        uses: actions/setup-dotnet@v5
-#        with:
-#          dotnet-version: "10.0.x"
-#
-#      - name: Setup Rust
-#        uses: dtolnay/rust-toolchain@stable
-#        with:
-#          components: clippy
-#
-#      - name: Setup Rust Cargo Cache
-#        uses: actions/cache@v5
-#        with:
-#          path: |
-#            ~/.cargo/bin/
-#            ~/.cargo/registry/index/
-#            ~/.cargo/registry/cache/
-#            ~/.cargo/git/db/
-#            native/target/
-#          key: ${{ runner.os }}-Cargo-${{ hashFiles('native/Cargo.*') }}
-#          restore-keys: |
-#            ${{ runner.os }}-Cargo-
-#
-#      - name: Run Build
-#        run: dotnet build -c Release
-#        
-#      - name: Run Test
-#        run: dotnet test --no-build -c Release -v n --logger 'console;verbosity=normal'
-#      
-#      - name: Run Rust Cargo Clippy
-#        working-directory: native
-#        run: cargo clippy --release --all-targets -- -D warnings
-
-  pack-build-native:
-    name: Build Native
-#    needs: check
+  check:
+    name: Check
     strategy:
       matrix:
-        include:
-          # Linux x64
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-24.04
-          
-          # Linux ARM64
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04-arm
-
-          # Windows x64
-          - target: x86_64-pc-windows-msvc
-            os: windows-2025
-          
-          # macOS ARM64
-          - target: aarch64-apple-darwin
-            os: macos-26
-    
+        os: [ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
-          
+          components: clippy
+
       - name: Setup Rust Cargo Cache
         uses: actions/cache@v5
         with:
@@ -101,98 +50,12 @@ jobs:
           restore-keys: |
             ${{ matrix.os }}-cargo-
 
-      - name: Build Native Library
+      - name: Run Build
+        run: dotnet build -c Release
+
+      - name: Run Test
+        run: dotnet test --no-build -c Release -v n --logger 'console;verbosity=normal'
+
+      - name: Run Rust Cargo Clippy
         working-directory: native
-        run: cargo build --target ${{ matrix.target }} --profile release
-
-      - name: (Linux) Prepare Native Library Artifacts
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p artifacts/native/target/${{ matrix.target }}/release/
-          cp native/target/${{ matrix.target }}/release/*.so artifacts/native/target/${{ matrix.target }}/release/
-
-      - name: (Windows) Prepare Native Library Artifacts
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path artifacts/native/target/${{ matrix.target }}/release/
-          Copy-Item native/target/${{ matrix.target }}/release/*.dll artifacts/native/target/${{ matrix.target }}/release/
-          
-      - name: (MacOS) Prepare Native Library Artifacts
-        if: runner.os == 'MacOS'
-        run: |
-          mkdir -p artifacts/native/target/${{ matrix.target }}/release/
-          cp native/target/${{ matrix.target }}/release/*.dylib artifacts/native/target/${{ matrix.target }}/release/
-
-      - name: Upload Native Library as Artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: native-${{ matrix.target }}
-          path: artifacts/**
-          overwrite: true
-          retention-days: 1
-  
-  pack:
-    name: Pack NuGet
-    needs: pack-build-native
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v7
-        with:
-          path: ./
-          merge-multiple: true
-
-      - name: Print Repository Structure
-        run: ls -lR
-        
-      - name: Pack NuGet Package
-        run: dotnet pack src/DataFusionSharp/DataFusionSharp.csproj -c Release -p:BuildNativeLib=false -o ./packages
-
-      - name: Upload NuGet Package
-        uses: actions/upload-artifact@v6
-        with:
-          name: nuget-package
-          path: packages/*
-          retention-days: 1
-
-  pack-smoke-test:
-    name: Pack Test
-    needs: pack
-    strategy:
-      matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2025, macos-26]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Download NuGet Package Artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: nuget-package
-          path: packages
-
-      - name: Build Test Application with Local NuGet Package
-        working-directory: tests/DataFusionSharp.PackageSmokeTest
-        run: dotnet build -c Release -p:CI=true
-      
-      - name: Run Test Application
-        working-directory: tests/DataFusionSharp.PackageSmokeTest
-        env:
-          CI: true
-        run: dotnet run --no-build -c Release -p:CI=true
-        timeout-minutes: 1
+        run: cargo clippy --release --all-targets -- -D warnings

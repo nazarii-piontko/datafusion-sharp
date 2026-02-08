@@ -12,7 +12,7 @@
     <!-- NuGet package metadata -->
     <PropertyGroup>
         <PackageId>DataFusionSharp</PackageId>
-        <Version>0.1.0</Version>
+        <!--<Version>0.1.0</Version>--><!-- Version is set dynamically in CI pipeline -->
         <Authors>Nazarii Piontko</Authors>
         <Description>.NET bindings for Apache DataFusion - a fast, extensible query engine built on Apache Arrow for high-performance analytical query processing.</Description>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
@@ -103,6 +103,14 @@
     <ItemGroup>
         <None Include="../../README.md" PackagePath="/" Pack="true" Visible="false" />
         <None Include="../../LICENSE.txt" PackagePath="/" Pack="true" Visible="false" />
+    </ItemGroup>
+
+    <!-- MinVer for Git-based versioning -->
+    <ItemGroup>
+        <PackageReference Include="MinVer" Version="7.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 
     <!-- Check for Cargo availability and supported platform before building native library -->
