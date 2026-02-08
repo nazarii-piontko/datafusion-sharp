@@ -152,7 +152,7 @@ jobs:
           merge-multiple: true
 
       - name: Print Repository Structure
-        run: ls -lR
+        run: ls -lR ./
         
       - name: Pack NuGet Package
         run: dotnet pack src/DataFusionSharp/DataFusionSharp.csproj -c Release -p:BuildNativeLib=false -o ./packages
