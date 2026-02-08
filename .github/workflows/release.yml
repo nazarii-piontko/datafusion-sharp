@@ -12,7 +12,7 @@ env:
 jobs:
   check:
     name: Run Checks
-    uses: ci.yml
+    uses: ./.github/workflows/ci.yml
 
   pack-build-native:
     name: Build Native
