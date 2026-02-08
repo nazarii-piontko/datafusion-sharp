@@ -180,26 +180,26 @@ jobs:
           NUPKG=$(ls packages/DataFusionSharp.*.nupkg | head -n 1)
           SNUPKG=$(ls packages/DataFusionSharp.*.snupkg | head -n 1)
 
-          if [ -z "NUPKG" ]; then
+          if [ -z "$NUPKG" ]; then
             echo "❌ No nupkg found"
             exit 1
           fi
 
-          if [ -z "SNUPKG" ]; then
+          if [ -z "$SNUPKG" ]; then
             echo "❌ No snupkg found"
             exit 1
           fi
 
           # Extract version from filename
           # DataFusionSharp.0.1.0.nupkg -> 0.1.0
-          VERSION=$(basename "NUPKG" | sed -E 's/DataFusionSharp\.(.*)\.nupkg/\1/')
+          VERSION=$(basename "$NUPKG" | sed -E 's/DataFusionSharp\.(.*)\.nupkg/\1/')
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "nupkg=NUPKG" >> $GITHUB_OUTPUT
-          echo "snupkg=SNUPKG" >> $GITHUB_OUTPUT
+          echo "nupkg=$NUPKG" >> $GITHUB_OUTPUT
+          echo "snupkg=$SNUPKG" >> $GITHUB_OUTPUT
 
-          echo "📦 Package: NUPKG"
-          echo "📦 Symbol Package: SNUPKG"
+          echo "📦 Package: $NUPKG"
+          echo "📦 Symbol Package: $SNUPKG"
           echo "📌 Version: $VERSION"
 
       - name: Publish to GitHub Packages
