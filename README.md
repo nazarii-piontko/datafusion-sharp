@@ -87,9 +87,9 @@ foreach (var batch in data.Batches)
 
 - .NET 8.0 or later
 - Supported platforms:
-  - Linux (x64, ARM64) 🚧 Planned
-  - Windows (x64) 🚧 Planned
-  - macOS (ARM64) 🚧 Planned
+  - Linux (x64, arm64)
+  - Windows (x64)
+  - macOS (arm64)
 
 ## Building from Source
 
@@ -121,17 +121,9 @@ foreach (var batch in data.Batches)
    dotnet test -c Release
    ```
 
-4. **(Optional) Run benchmarks:**
-   ```bash
-   cd tests/DataFusionSharp.Benchmark
-   dotnet run -c Release
-   ```
-
-   For detailed benchmark results, see the [Benchmark README](tests/DataFusionSharp.Benchmark/README.md).
-
 ## Documentation
 
-TODO: Link to or provide documentation for the library
+TODO: Documentation is in progress. Please refer to the [source code](src/DataFusionSharp) and [examples](examples) for usage details.
 
 ## Project Structure
 
