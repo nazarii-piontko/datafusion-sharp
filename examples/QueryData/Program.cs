@@ -5,8 +5,8 @@ await using var runtime = DataFusionRuntime.Create();
 using var context = runtime.CreateSessionContext();
 
 // Register data from CSV format
-// await context.RegisterCsvAsync("customers", Path.Combine("Data", "customers.csv"));
-// await context.RegisterCsvAsync("orders", Path.Combine("Data", "orders.csv"));
+await context.RegisterCsvAsync("customers", Path.Combine("Data", "customers.csv"));
+await context.RegisterCsvAsync("orders", Path.Combine("Data", "orders.csv"));
 
 // You can also register data from JSON format
 // await context.RegisterJsonAsync("customers", Path.Combine("Data", "customers.json"));

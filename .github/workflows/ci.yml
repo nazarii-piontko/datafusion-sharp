@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -33,7 +35,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
         with:
           components: clippy
 
@@ -49,13 +51,80 @@ jobs:
           key: ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}
           restore-keys: |
             ${{ matrix.os }}-cargo-
+          save-always: 'true'
 
       - name: Run Build
         run: dotnet build -c Release
 
       - name: Run Test
         run: dotnet test --no-build -c Release -v n --logger 'console;verbosity=normal'
+        timeout-minutes: 5
 
       - name: Run Rust Cargo Clippy
         working-directory: native
         run: cargo clippy --release --all-targets -- -D warnings
+
+  sonar:
+    name: SonarCloud
+    needs: check
+    if: github.repository == 'nazarii-piontko/datafusion-sharp' && ((github.event_name == 'pull_request' && github.base_ref == 'main') || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+        with:
+          components: clippy
+          
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      - name: Setup Rust Cargo Cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            native/target/
+          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.*') }}
+          restore-keys: |
+            ubuntu-24.04-cargo-
+          save-always: 'true'
+
+      - name: Install SonarQube Tools
+        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          dotnet tool install --global dotnet-sonarscanner
+          dotnet tool install --global dotnet-coverage
+
+      - name: Build and Analyze
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        shell: bash
+        run: |
+          dotnet sonarscanner \
+            begin \
+            /k:"nazarii-piontko_datafusion-sharp" \
+            /o:"npiontko" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
+          
+          dotnet build -c Release
+          dotnet coverage collect "dotnet test --no-build -c Release" -f xml -o "coverage.xml"
+          
+          dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
