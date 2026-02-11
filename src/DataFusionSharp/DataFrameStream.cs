@@ -69,8 +69,7 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
     
     private async Task<RecordBatch?> NextAsync()
     {
-        if (_handle == IntPtr.Zero)
-            throw new ObjectDisposedException(nameof(DataFrameStream));
+        ObjectDisposedException.ThrowIf(_handle == IntPtr.Zero, nameof(DataFrameStream));
 
         var (id, tcs) = AsyncOperations.Instance.Create<BytesData?>();
         var result = NativeMethods.DataFrameStreamNext(_handle, CallbackForNextResult, id);

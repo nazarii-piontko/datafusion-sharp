@@ -34,6 +34,11 @@ public abstract class FileFormatTests : IDisposable
         Context = Runtime.CreateSessionContext();
     }
 
+    ~FileFormatTests()
+    {
+        Dispose(false);
+    }
+
     protected abstract Task RegisterCustomersTableAsync(string tableName = "customers");
     
     protected abstract Task RegisterOrdersTableAsync(string tableName = "orders");
@@ -136,9 +141,18 @@ public abstract class FileFormatTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => WriteTableAsync(df, string.Empty));
     }
 
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+            return;
+        
+        Runtime.Dispose();
+        Context.Dispose();
+    }
+
     public void Dispose()
     {
-        Context.Dispose();
-        Runtime.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 }

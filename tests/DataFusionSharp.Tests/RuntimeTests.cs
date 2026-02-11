@@ -3,10 +3,20 @@ namespace DataFusionSharp.Tests;
 public sealed class RuntimeTests
 {
     [Fact]
-    public void Create_ReturnsRuntime()
+    public void Create_WithSyncDispose_ReturnsRuntime()
     {
         // Act
         using var runtime = DataFusionRuntime.Create();
+
+        // Assert
+        Assert.NotNull(runtime);
+    }
+    
+    [Fact]
+    public async Task Create_WithAsyncDispose_ReturnsRuntime()
+    {
+        // Act
+        await using var runtime = DataFusionRuntime.Create();
 
         // Assert
         Assert.NotNull(runtime);
@@ -22,5 +32,14 @@ public sealed class RuntimeTests
         // Assert
         Assert.NotNull(runtime1);
         Assert.NotNull(runtime2);
+    }
+    
+    [Theory]
+    [InlineData(0u, 1u)]
+    [InlineData(1u, 0u)]
+    public void Create_WithInvalidParameters_Throws(uint workerThreads, uint maxBlockingThreads)
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => DataFusionRuntime.Create(workerThreads, maxBlockingThreads));
     }
 }

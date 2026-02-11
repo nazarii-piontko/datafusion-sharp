@@ -12,7 +12,7 @@ namespace DataFusionSharp;
 /// is called (e.g., <see cref="CollectAsync"/>, <see cref="ExecuteStreamAsync"/>, or one of the Write methods).
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
-public class DataFrame : IDisposable
+public sealed class DataFrame : IDisposable
 {
     private IntPtr _handle;
 
@@ -61,7 +61,7 @@ public class DataFrame : IDisposable
     public Task ShowAsync(ulong? limit = null)
     {
         if (limit.HasValue)
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit.Value, nameof(limit));
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit.Value);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
         var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, AsyncOperationGenericCallbacks.VoidResult, id);

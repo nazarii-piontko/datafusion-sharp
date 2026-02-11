@@ -41,9 +41,9 @@ public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
     public static DataFusionRuntime Create(uint? workerThreads = null, uint? maxBlockingThreads = null)
     {
         if (workerThreads.HasValue)
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(workerThreads.Value, nameof(workerThreads));
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(workerThreads.Value);
         if (maxBlockingThreads.HasValue)
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBlockingThreads.Value, nameof(maxBlockingThreads));
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBlockingThreads.Value);
         
         var result = NativeMethods.RuntimeNew(workerThreads ?? 0, maxBlockingThreads ?? 0, out var handle);
         if (result != DataFusionErrorCode.Ok)
@@ -81,7 +81,11 @@ public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
     /// <returns>A task representing the asynchronous dispose operation.</returns>
     public ValueTask DisposeAsync()
     {
-        return new ValueTask(Task.Run(Dispose));
+        var disposeTask = Task.Run(() => ShutdownRuntime(DefaultShutdownTimeout));
+        
+        GC.SuppressFinalize(this);
+        
+        return new ValueTask(disposeTask);
     }
 
     private void ShutdownRuntime(TimeSpan timeout)

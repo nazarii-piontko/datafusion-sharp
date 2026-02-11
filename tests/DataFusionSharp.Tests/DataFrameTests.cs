@@ -39,24 +39,16 @@ public sealed class DataFrameTests : IDisposable
         Assert.Equal(0UL, count);
     }
 
-    [Fact]
-    public async Task ShowAsync_CompletesSuccessfully()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(2ul)]
+    public async Task ShowAsync_CompletesSuccessfully(ulong? limit)
     {
         // Arrange
         using var df = await _context.SqlAsync(GetIdValueTableSelectSql(1));
 
         // Act & Assert
-        await df.ShowAsync();
-    }
-
-    [Fact]
-    public async Task ShowAsync_WithLimit_CompletesSuccessfully()
-    {
-        // Arrange
-        using var df = await _context.SqlAsync(GetIdValueTableSelectSql(3));
-
-        // Act & Assert
-        await df.ShowAsync(limit: 2);
+        await df.ShowAsync(limit);
     }
     
     [Fact]
@@ -169,9 +161,9 @@ public sealed class DataFrameTests : IDisposable
 
     private static IList<long> GetIds(RecordBatch batch) => ((Int64Array)batch.Column("id")).Values.ToArray();
     
-    private static IList<long> GetIds(IEnumerable<RecordBatch> batches) => batches.SelectMany(GetIds).ToList();
+    private static List<long> GetIds(IEnumerable<RecordBatch> batches) => batches.SelectMany(GetIds).ToList();
     
     private static IList<double> GetValues(RecordBatch batch) => ((DoubleArray)batch.Column("value")).Values.ToArray();
     
-    private static IList<double> GetValues(IEnumerable<RecordBatch> batches) => batches.SelectMany(GetValues).ToList();
+    private static List<double> GetValues(IEnumerable<RecordBatch> batches) => batches.SelectMany(GetValues).ToList();
 }
