@@ -1,4 +1,5 @@
 using DataFusionSharp.Interop;
+using FlatSharp;
 
 namespace DataFusionSharp;
 
@@ -32,18 +33,29 @@ public sealed class SessionContext : IDisposable
     {
         DestroyContext();
     }
-    
+
     /// <summary>
     /// Registers a CSV file as a table in this session.
     /// </summary>
     /// <param name="tableName">The name to use for the table.</param>
     /// <param name="filePath">The path to the CSV file.</param>
+    /// <param name="options">Optional CSV read options to customize parsing behavior.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
-    public Task RegisterCsvAsync(string tableName, string filePath)
+    public unsafe Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null)
     {
+        options ??= CsvReadOptions.Default;
+        var optionsBufferSize = CsvReadOptions.Serializer.GetMaxSize(options);
+        var optionsBuffer = stackalloc byte[optionsBufferSize];
+        var optionsSize = CsvReadOptions.Serializer.Write(new Span<byte>(optionsBuffer, optionsBufferSize), options);
+        var optionsBytes = new BytesData
+        {
+            DataPtr = new IntPtr(optionsBuffer),
+            Length = optionsSize
+        };
+        
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, &optionsBytes, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);

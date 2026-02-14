@@ -127,12 +127,12 @@ pub unsafe extern "C" fn datafusion_dataframe_to_string(
 
         match result {
             Ok(s) => {
-                let data = crate::callback::BytesData::new(s.as_bytes());
+                let data = crate::BytesData::new(s.as_bytes());
                 crate::invoke_callback(Ok(data), callback, user_data);
             }
             Err(err) => {
                 let err_info = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, err);
-                crate::invoke_callback(Err::<crate::callback::BytesData, _>(err_info), callback, user_data);
+                crate::invoke_callback(Err::<crate::BytesData, _>(err_info), callback, user_data);
             }
         }
     });
@@ -164,7 +164,7 @@ pub unsafe extern "C" fn datafusion_dataframe_schema(
 
     let result = datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialized_data, schema)
         .and_then(|mut s| s.flush())
-        .map(|()| crate::callback::BytesData::new(serialized_data.as_slice()))
+        .map(|()| crate::BytesData::new(serialized_data.as_slice()))
         .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
 
     dev_msg!("Finished executing schema on DataFrame: {:p}, schema size: {}", df_ptr, serialized_data.len());
@@ -208,7 +208,7 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
                         Ok(())
                     })
                     .map(|_| s.flush())
-                    .map(|_| crate::callback::BytesData::new(serialization_buffer.as_slice()))
+                    .map(|_| crate::BytesData::new(serialization_buffer.as_slice()))
                     .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
             }
             Err(e) => Err(crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
@@ -321,7 +321,7 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
 
         match result_opt {
             Some(result) => {
-                let r = result.map(|()| crate::callback::BytesData::new(stream_wrapper.writer.get_ref()));
+                let r = result.map(|()| crate::BytesData::new(stream_wrapper.writer.get_ref()));
 
                 crate::invoke_callback(r, callback, user_data);
 

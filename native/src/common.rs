@@ -18,6 +18,10 @@ impl BytesData {
             len: s.len() as u32,
         }
     }
+    
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.data, self.len as usize) }
+    }
 }
 
 #[repr(C)]

@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using Apache.Arrow;
-using Apache.Arrow.Ipc;
 using DataFusionSharp.Interop;
 
 namespace DataFusionSharp;
@@ -112,11 +111,11 @@ public sealed class DataFrame : IDisposable
     /// <summary>
     /// Collects all data from this DataFrame into memory.
     /// </summary>
-    /// <returns>A task containing the <see cref="CollectedData"/> with all record batches and schema.</returns>
+    /// <returns>A task containing the <see cref="CollectedRecords"/> with all record batches and schema.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task<CollectedData> CollectAsync()
+    public Task<CollectedRecords> CollectAsync()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<CollectedData>();
+        var (id, tcs) = AsyncOperations.Instance.Create<CollectedRecords>();
         var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
@@ -227,7 +226,7 @@ public sealed class DataFrame : IDisposable
                 var data = BytesData.FromIntPtr(result);
 
                 using var nativeMemoryManager = new NativeMemoryManager(data.DataPtr, data.Length);
-                using var reader = new ArrowStreamReader(nativeMemoryManager.Memory);
+                using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(nativeMemoryManager.Memory);
                 AsyncOperations.Instance.CompleteWithResult(handle, reader.Schema);
             }
             catch (Exception ex)
@@ -255,21 +254,21 @@ public sealed class DataFrame : IDisposable
                 // This causes segmentation fault when native memory is released after callback returns.
                 using var nativeMemoryManager = new NativeMemoryManager(data.DataPtr, data.Length);
                 using var nativeMemoryStream = new NativeMemoryStream(nativeMemoryManager);
-                using var reader = new ArrowStreamReader(nativeMemoryStream);
+                using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(nativeMemoryStream);
                 
                 var batches = new List<RecordBatch>();
                 while (reader.ReadNextRecordBatch() is {} batch)
                     batches.Add(batch);
                 
-                AsyncOperations.Instance.CompleteWithResult(handle, new CollectedData(batches, reader.Schema));
+                AsyncOperations.Instance.CompleteWithResult(handle, new CollectedRecords(batches, reader.Schema));
             }
             catch (Exception ex)
             {
-                AsyncOperations.Instance.CompleteWithError<CollectedData>(handle, ex);
+                AsyncOperations.Instance.CompleteWithError<CollectedRecords>(handle, ex);
             }
         }
         else
-            AsyncOperations.Instance.CompleteWithError<CollectedData>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+            AsyncOperations.Instance.CompleteWithError<CollectedRecords>(handle, ErrorInfoData.FromIntPtr(error).ToException());
     }
     private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollectResult;
     private static readonly IntPtr CallbackForCollectResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
@@ -290,5 +289,5 @@ public sealed class DataFrame : IDisposable
     /// </summary>
     /// <param name="Batches">The list of collected record batches.</param>
     /// <param name="Schema">The Arrow schema of the data.</param>
-    public record CollectedData(List<RecordBatch> Batches, Schema Schema);
+    public record CollectedRecords(List<RecordBatch> Batches, Schema Schema);
 }

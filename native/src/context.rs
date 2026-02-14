@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use crate::wire;
 
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
@@ -60,26 +61,60 @@ pub unsafe extern "C" fn datafusion_context_destroy(context_ptr: *mut SessionCon
 /// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
 /// - `table_ref_ptr` must be a valid null-terminated UTF-8 string
 /// - `table_path_ptr` must be a valid null-terminated UTF-8 string
+/// - `csv_options_bytes_ptr` must be a valid pointer to `BytesData` containing a Flatbuffers-encoded `CsvReadOptions` struct
 /// - `callback` must be valid to call from any thread
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_register_csv(
     context_ptr: *mut SessionContextWrapper,
     table_ref_ptr: *const std::ffi::c_char,
     table_path_ptr: *const std::ffi::c_char,
+    csv_options_bytes_ptr: *const crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> crate::ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
+    let csv_options_bytes: Vec<u8> = ffi_ref!(csv_options_bytes_ptr).as_slice().to_vec(); // Make a copy of the bytes to move into the async task.
 
     let inner = Arc::clone(&context.inner);
 
     dev_msg!("Registering CSV table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
+        let o = match flatbuffers::root::<wire::CsvReadOptions>(csv_options_bytes.as_slice()) {
+            Ok(o) => o,
+            Err(e) => {
+                crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, e), callback, user_data);
+                return;
+            }
+        };
+
+        let schema: Option<datafusion::arrow::datatypes::Schema> = if let Some(schema_serialized) = o.schema_serialized() {
+            match datafusion::arrow::ipc::reader::StreamReader::try_new(schema_serialized.bytes(), None)
+            {
+                Ok(reader) => Some(reader.schema().as_ref().clone()),
+                Err(e) => {
+                    crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, e), callback, user_data);
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+
+        let mut opts = datafusion::prelude::CsvReadOptions::new();
+        opts.has_header = o.has_header();
+        if let Some(delimiter) = o.delimiter() { opts.delimiter = delimiter; }
+        if let Some(quote) = o.quote() { opts.quote = quote; }
+        opts.terminator = o.terminator();
+        opts.escape = o.escape();
+        opts.comment = o.comment();
+        opts.newlines_in_values = o.newlines_in_values();
+        opts.schema = schema.as_ref();
+
         let result = inner
-            .register_csv(&table_ref, &table_path, datafusion::prelude::CsvReadOptions::default())
+            .register_csv(&table_ref, &table_path, opts)
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
 

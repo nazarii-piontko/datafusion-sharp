@@ -150,5 +150,15 @@
     <ItemGroup>
         <PackageReference Include="Apache.Arrow" Version="22.1.0" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+        <PackageReference Include="FlatSharp.Runtime" Version="7.9.0" />
+        <PackageReference Include="FlatSharp.Compiler" Version="7.9.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <!-- Include FlatBuffer schema files -->
+    <ItemGroup>
+        <FlatSharpSchema Include="../../wire/*.fbs" />
     </ItemGroup>
 </Project>

@@ -7,7 +7,8 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-datafusion = "52.1.0"
-tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
-futures = "0.3.31"
 chrono = "0.4.43"
+datafusion = "52.1.0"
+flatbuffers = "25.12.19"
+futures = "0.3.31"
+tokio = { version = "1.49.0", features = ["rt-multi-thread"] }

@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace DataFusionSharp.Interop;
 
-internal static partial class NativeMethods
+internal static unsafe partial class NativeMethods
 {
     private const string LibraryName = "datafusion_sharp_native";
     
@@ -28,7 +28,7 @@ internal static partial class NativeMethods
     public static partial DataFusionErrorCode ContextDestroy(IntPtr contextHandle);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_csv")]
-    public static partial DataFusionErrorCode ContextRegisterCsv(IntPtr contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, IntPtr callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterCsv(IntPtr contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, BytesData* data, IntPtr callback, ulong userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_json")]
     public static partial DataFusionErrorCode ContextRegisterJson(IntPtr contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, IntPtr callback, ulong userData);

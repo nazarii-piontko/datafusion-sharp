@@ -18,7 +18,7 @@ pub(crate) struct ErrorInfo {
 }
 
 impl ErrorInfo {
-    pub fn new<E: std::error::Error>(code: ErrorCode, error: E) -> Self {
+    pub fn new<E: std::fmt::Display>(code: ErrorCode, error: E) -> Self {
         Self {
             code,
             message: error.to_string()
