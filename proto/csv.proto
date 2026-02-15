@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package datafusion_sharp_proto;
+
+import "vendor/datafusion_common.proto";
+import "vendor/datafusion.proto";
+
+option csharp_namespace = "DataFusionSharp.Proto";
+
+// Options for reading CSV files.
+message CsvReadOptions {
+  // Does the CSV file have a header?
+  bool has_header = 1;
+
+  // Optional column delimiter. If unset, default is ','.
+  string delimiter = 2;
+
+  // Optional quote character. If unset, default is '"'.
+  string quote = 3;
+
+  // Optional terminator character (CRLF if unset).
+  optional string terminator = 4;
+
+  // Optional escape character.
+  optional string escape = 5;
+
+  // Lines beginning with this byte are ignored.
+  optional string comment = 6;
+
+  // Whether newlines in quoted values are supported.
+  bool newlines_in_values = 7;
+
+  // Optional schema. If unset, infer from data.
+  optional datafusion_common.Schema schema = 8;
+
+  // Max number of rows for schema inference.
+  uint64 schema_infer_max_records = 9;
+
+  // File extension (e.g. "csv").
+  string file_extension = 10;
+
+  // Partition columns
+  repeated datafusion.PartitionColumn table_partition_cols = 11;
+
+  // File compression type
+  datafusion_common.CompressionTypeVariant file_compression_type = 12;
+
+  // Indicates how the file is sorted (Vec<Vec<SortExpr>>)
+  repeated datafusion.SortExprNodeCollection file_sort_order = 13;
+
+  // Optional regex to match null values
+  optional string null_regex = 14;
+
+  // Allow truncated rows
+  bool truncated_rows = 15;
+}
+

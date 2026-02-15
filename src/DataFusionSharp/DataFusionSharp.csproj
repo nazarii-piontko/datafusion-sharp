@@ -119,7 +119,7 @@
     </ItemGroup>
 
     <!-- Check for Cargo availability and supported platform before building native library -->
-    <Target Name="BuildNativeCheck" BeforeTargets="DispatchToInnerBuilds"
+    <Target Name="BuildNativeCheck" BeforeTargets="BeforeBuild"
             Condition="'$(BuildNativeLib)' == 'true'">
         <Error Condition="'$(BuildCargoTarget)' == ''"
                Text="Unsupported platform: $(NETCoreSdkRuntimeIdentifier). Use -p:BuildNativeLib=false to skip native build." />
@@ -128,14 +128,14 @@
     </Target>
 
     <!-- Native library operations for the current target and profile before building the .NET assembly (local development, build, clean) -->
-    <Target Name="BuildNative" BeforeTargets="DispatchToInnerBuilds" DependsOnTargets="BuildNativeCheck"
+    <Target Name="BuildNative" BeforeTargets="BeforeBuild" DependsOnTargets="BuildNativeCheck"
             Condition="'$(BuildNativeLib)' == 'true'">
         <!-- Build native library for the current target and profile -->
         <Message Text="Building native library for target '$(BuildCargoTarget)' and profile '$(CargoProfile)'" Importance="high" />
         <Exec WorkingDirectory="$(NativeLibRootDir)"
               Command="&quot;$(RustupExec)&quot; target add $(BuildCargoTarget)" IgnoreExitCode="true" ContinueOnError="true" />
         <Exec WorkingDirectory="$(NativeLibRootDir)"
-              Command="&quot;$(CargoExec)&quot; build --target $(BuildCargoTarget) --profile $(CargoProfile)" />
+              Command="&quot;$(CargoExec)&quot; build --target $(BuildCargoTarget) --profile $(CargoProfile) --lib" />
     </Target>
     <Target Name="CleanNative" AfterTargets="Clean"
             Condition="'$(BuildNativeLib)' == 'true'">
@@ -152,15 +152,16 @@
     <ItemGroup>
         <PackageReference Include="Apache.Arrow" Version="22.1.0" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
-        <PackageReference Include="FlatSharp.Runtime" Version="7.9.0" />
-        <PackageReference Include="FlatSharp.Compiler" Version="7.9.0">
-            <PrivateAssets>all</PrivateAssets>
+        <PackageReference Include="Google.Protobuf" Version="3.33.5" />
+        <PackageReference Include="Grpc.Tools" Version="2.78.0">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
         </PackageReference>
     </ItemGroup>
 
-    <!-- Include FlatBuffer schema files -->
+    <!-- Include Protobuf schema files -->
     <ItemGroup>
-        <FlatSharpSchema Include="../../wire/*.fbs" />
+        <Protobuf Include="../../proto/*.proto" ProtoRoot="../../proto" GrpcServices="None" Visible="false"  />
+        <Protobuf Include="../../proto/vendor/*.proto" ProtoRoot="../../proto" GrpcServices="None"  Visible="false" />
     </ItemGroup>
 </Project>

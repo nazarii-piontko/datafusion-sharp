@@ -146,8 +146,8 @@ public abstract class FileFormatTests : IDisposable
         if (!disposing)
             return;
         
-        Runtime.Dispose();
         Context.Dispose();
+        Runtime.Dispose();
     }
 
     public void Dispose()

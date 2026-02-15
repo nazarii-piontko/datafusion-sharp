@@ -7,8 +7,13 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow = "1.0.101"
 chrono = "0.4.43"
 datafusion = "52.1.0"
-flatbuffers = "25.12.19"
+datafusion-proto = "52.1.0"
 futures = "0.3.31"
+prost = "0.14.3"
 tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
+
+[build-dependencies]
+prost-build = "0.14.3"

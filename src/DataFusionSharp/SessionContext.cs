@@ -1,7 +1,6 @@
-using DataFusionSharp.Formats;
-using DataFusionSharp.Formats.Csv;
 using DataFusionSharp.Interop;
-using FlatSharp;
+using DataFusionSharp.Proto;
+using Google.Protobuf;
 
 namespace DataFusionSharp;
 
@@ -46,24 +45,21 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public unsafe Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null)
     {
-        options ??= CsvReadOptions.Default;
-        var optionsBufferSize = CsvReadOptions.Serializer.GetMaxSize(options);
-        var optionsBuffer = stackalloc byte[optionsBufferSize];
-        var optionsSize = CsvReadOptions.Serializer.Write(new Span<byte>(optionsBuffer, optionsBufferSize), options);
-        var optionsBytes = new BytesData
+        var optionsData = (options ?? CsvReadOptions.Default).ToByteArray();
+        fixed (byte* optionsDataPtr = optionsData)
         {
-            DataPtr = new IntPtr(optionsBuffer),
-            Length = optionsSize
-        };
-        
-        var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, &optionsBytes, AsyncOperationGenericCallbacks.VoidResultHandler, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start registering CSV file");
+            var optionsBytes = new BytesData(optionsDataPtr, optionsData.Length);
+
+            var (id, tcs) = AsyncOperations.Instance.Create();
+            var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, &optionsBytes, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+            if (result != DataFusionErrorCode.Ok)
+            {
+                AsyncOperations.Instance.Abort(id);
+                throw new DataFusionException(result, "Failed to start registering CSV file");
+            }
+
+            return tcs.Task;
         }
-        return tcs.Task;
     }
     
     /// <summary>

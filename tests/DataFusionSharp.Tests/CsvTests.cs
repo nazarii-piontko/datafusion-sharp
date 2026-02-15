@@ -1,7 +1,9 @@
 using Apache.Arrow;
 using Apache.Arrow.Types;
-using DataFusionSharp.Formats.Csv;
+using DataFusionSharp.Proto;
 using Xunit.Abstractions;
+using Field = Apache.Arrow.Field;
+using Schema = Apache.Arrow.Schema;
 
 namespace DataFusionSharp.Tests;
 
@@ -89,7 +91,7 @@ public sealed class CsvTests : FileFormatTests
             ]);
         var options = new CsvReadOptions
         {
-            Delimiter = ';'
+            Delimiter = ";"
         };
 
         // Act
@@ -117,7 +119,7 @@ public sealed class CsvTests : FileFormatTests
             ]);
         var options = new CsvReadOptions
         {
-            Quote = '~'
+            Quote = "~"
         };
 
         // Act
@@ -144,7 +146,7 @@ public sealed class CsvTests : FileFormatTests
             ]);
         var options = new CsvReadOptions
         {
-            Comment = '#'
+            Comment = "#"
         };
 
         // Act
@@ -204,7 +206,7 @@ public sealed class CsvTests : FileFormatTests
         var options = new CsvReadOptions
         {
             HasHeader = false,
-            Schema = schema
+            Schema = schema.ToProto()
         };
 
         // Act
@@ -214,6 +216,7 @@ public sealed class CsvTests : FileFormatTests
 
         // Assert
         Assert.Equal(3, records.Schema.FieldsList.Count);
+        Assert.Contains("name", records.Schema.FieldsList.Select(f => f.Name));
         Assert.Equivalent(new[] {"Alice", "Bob"}, records.Batches.SelectMany(b => b.Column("name").GetStringValues()));
     }
 

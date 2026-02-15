@@ -14,6 +14,22 @@ internal struct BytesData
     /// String data length, u32
     /// </summary>
     public int Length;
+
+    public BytesData()
+    {
+    }
+    
+    public BytesData(IntPtr dataPtr, int length)
+    {
+        DataPtr = dataPtr;
+        Length = length;
+    }
+    
+    public unsafe BytesData(byte* ptr, int length)
+    {
+        DataPtr = new IntPtr(ptr);
+        Length = length;
+    }
     
     /// <summary>
     /// Gets the message as a managed string.

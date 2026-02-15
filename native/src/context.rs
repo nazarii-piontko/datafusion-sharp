@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::wire::data_fusion_sharp::formats::csv::CsvReadOptionsWire;
+use prost::Message;
 
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
@@ -75,57 +75,47 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
-    let csv_options_bytes: Vec<u8> = ffi_ref!(csv_options_bytes_ptr).as_slice().to_vec(); // Make a copy of the bytes to move into the async task.
 
-    let inner = Arc::clone(&context.inner);
+    let csv_options_bytes = ffi_ref!(csv_options_bytes_ptr).as_slice();
+    let csv_options_proto = match crate::proto::CsvReadOptions::decode(csv_options_bytes) {
+        Ok(opts) => opts,
+        Err(e) => {
+            dev_msg!("Failed to decode CSV options for table '{}': {}", table_ref, e);
+            return crate::ErrorCode::InvalidArgument;
+        }
+    };
 
     dev_msg!("Registering CSV table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
-        let o = match flatbuffers::root::<CsvReadOptionsWire>(csv_options_bytes.as_slice()) {
-            Ok(o) => o,
-            Err(e) => {
-                crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, e), callback, user_data);
-                return;
-            }
-        };
-
-        let schema: Option<datafusion::arrow::datatypes::Schema> = if let Some(schema_serialized) = o.schema() {
-            match datafusion::arrow::ipc::reader::StreamReader::try_new(schema_serialized.bytes(), None)
-            {
-                Ok(reader) => Some(reader.schema().as_ref().clone()),
+        let mut schema_opt: Option<datafusion::arrow::datatypes::Schema> = None;
+        if let Some(pb_schema) = csv_options_proto.schema.as_ref() {
+            let schema = match datafusion::arrow::datatypes::Schema::try_from(pb_schema) {
+                Ok(s) => s,
                 Err(e) => {
-                    crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, e), callback, user_data);
+                    dev_msg!("Failed to parse schema from options for CSV table '{}': {}", table_ref, e);
+                    crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options"), callback, user_data);
                     return;
                 }
+            };
+            schema_opt = Some(schema);
+        }
+
+        match crate::mappers::from_proto_csv_options(&csv_options_proto, schema_opt.as_ref()) {
+            Ok(opts) => {
+                let result = context.inner
+                    .register_csv(&table_ref, &table_path, opts)
+                    .await
+                    .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
+
+                crate::invoke_callback(result, callback, user_data);
+                dev_msg!("Finished registering CSV table '{}' from path '{}'", table_ref, table_path);
+            },
+            Err(e) => {
+                crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, format!("Failed to convert CSV options: {e}")), callback, user_data);
+                dev_msg!("Failed to convert CSV options for table '{}': {}", table_ref, e);
             }
-        } else {
-            None
-        };
-
-        let mut opts = datafusion::prelude::CsvReadOptions::new();
-        opts.has_header = o.has_header();
-        if let Some(delimiter) = o.delimiter() { opts.delimiter = delimiter; }
-        if let Some(quote) = o.quote() { opts.quote = quote; }
-        opts.terminator = o.terminator();
-        opts.escape = o.escape();
-        opts.comment = o.comment();
-        opts.newlines_in_values = o.newlines_in_values();
-        opts.schema = schema.as_ref();
-        if let Some(schema_infer_max_records) = o.schema_infer_max_records() { opts.schema_infer_max_records = schema_infer_max_records as usize; }
-        if let Some(file_extension) = o.file_extension() { opts.file_extension = file_extension; }
-        if let Some(file_compression_type) = o.file_compression_type() { opts.file_compression_type = file_compression_type.to_datafusion(); }
-        opts.null_regex = o.null_regex().map(|s| s.to_owned());
-        opts.truncated_rows = o.truncated_rows();
-
-        let result = inner
-            .register_csv(&table_ref, &table_path, opts)
-            .await
-            .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
-
-        dev_msg!("Finished registering CSV table '{}' from path '{}'", table_ref, table_path);
-
-        crate::invoke_callback(result, callback, user_data);
+        }
     });
 
     crate::ErrorCode::Ok
@@ -152,19 +142,16 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
-    let inner = Arc::clone(&context.inner);
-
     dev_msg!("Registering JSON table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
-        let result = inner
+        let result = context.inner
             .register_json(&table_ref, &table_path, datafusion::prelude::NdJsonReadOptions::default())
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
 
-        dev_msg!("Finished registering JSON table '{}' from path '{}'", table_ref, table_path);
-
         crate::invoke_callback(result, callback, user_data);
+        dev_msg!("Finished registering JSON table '{}' from path '{}'", table_ref, table_path);
     });
 
     crate::ErrorCode::Ok
@@ -191,19 +178,16 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
-    let inner = Arc::clone(&context.inner);
-
     dev_msg!("Registering Parquet table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
-        let result = inner
+        let result = context.inner
             .register_parquet(&table_ref, &table_path, datafusion::prelude::ParquetReadOptions::default())
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
 
-        dev_msg!("Finished registering Parquet table '{}' from path '{}'", table_ref, table_path);
-
         crate::invoke_callback(result, callback, user_data);
+        dev_msg!("Finished registering Parquet table '{}' from path '{}'", table_ref, table_path);
     });
 
     crate::ErrorCode::Ok

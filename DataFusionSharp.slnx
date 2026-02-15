@@ -44,6 +44,13 @@
     <File Path="datasets\orders\parquet\customers.parquet" />
     <File Path="datasets\orders\parquet\orders.parquet" />
   </Folder>
+  <Folder Name="/proto/">
+    <File Path="proto\csv.proto" />
+  </Folder>
+  <Folder Name="/proto/vendor/">
+    <File Path="proto\vendor\datafusion.proto" />
+    <File Path="proto\vendor\datafusion_common.proto" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/DataFusionSharp/DataFusionSharp.csproj" />
   </Folder>
@@ -51,12 +58,5 @@
     <Project Path="tests/DataFusionSharp.Benchmark/DataFusionSharp.Benchmark.csproj" />
     <Project Path="tests/DataFusionSharp.PackageSmokeTest/DataFusionSharp.PackageSmokeTest.csproj" />
     <Project Path="tests/DataFusionSharp.Tests/DataFusionSharp.Tests.csproj" />
-  </Folder>
-  <Folder Name="/wire/">
-    <File Path="wire\common.proto" />
-    <File Path="wire\csv.fbs" />
-    <File Path="wire\csv.proto" />
-    <File Path="wire\formats.fbs" />
-    <File Path="wire\schema.proto" />
   </Folder>
 </Solution>
