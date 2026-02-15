@@ -1,0 +1,15 @@
+namespace DataFusionSharp.Formats;
+
+/// Readable file compression type.
+enum FileCompressionType : byte {
+    /// Gzip-ed file.
+    GZip,
+    /// Bzip2-ed file.
+    BZip2,
+    /// Xz-ed file (liblzma).
+    Xz,
+    /// Zstd-ed file.
+    ZStd,
+    /// Uncompressed file.
+    Uncompressed
+}

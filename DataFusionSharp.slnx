@@ -56,6 +56,7 @@
     <File Path="wire\common.proto" />
     <File Path="wire\csv.fbs" />
     <File Path="wire\csv.proto" />
+    <File Path="wire\formats.fbs" />
     <File Path="wire\schema.proto" />
   </Folder>
 </Solution>

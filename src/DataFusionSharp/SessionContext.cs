@@ -1,3 +1,5 @@
+using DataFusionSharp.Formats;
+using DataFusionSharp.Formats.Csv;
 using DataFusionSharp.Interop;
 using FlatSharp;
 

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::wire;
+use crate::wire::data_fusion_sharp::formats::csv::CsvReadOptionsWire;
 
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     dev_msg!("Registering CSV table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
-        let o = match flatbuffers::root::<wire::CsvReadOptions>(csv_options_bytes.as_slice()) {
+        let o = match flatbuffers::root::<CsvReadOptionsWire>(csv_options_bytes.as_slice()) {
             Ok(o) => o,
             Err(e) => {
                 crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, e), callback, user_data);
@@ -90,7 +90,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
             }
         };
 
-        let schema: Option<datafusion::arrow::datatypes::Schema> = if let Some(schema_serialized) = o.schema_serialized() {
+        let schema: Option<datafusion::arrow::datatypes::Schema> = if let Some(schema_serialized) = o.schema() {
             match datafusion::arrow::ipc::reader::StreamReader::try_new(schema_serialized.bytes(), None)
             {
                 Ok(reader) => Some(reader.schema().as_ref().clone()),
@@ -112,6 +112,11 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
         opts.comment = o.comment();
         opts.newlines_in_values = o.newlines_in_values();
         opts.schema = schema.as_ref();
+        if let Some(schema_infer_max_records) = o.schema_infer_max_records() { opts.schema_infer_max_records = schema_infer_max_records as usize; }
+        if let Some(file_extension) = o.file_extension() { opts.file_extension = file_extension; }
+        if let Some(file_compression_type) = o.file_compression_type() { opts.file_compression_type = file_compression_type.to_datafusion(); }
+        opts.null_regex = o.null_regex().map(|s| s.to_owned());
+        opts.truncated_rows = o.truncated_rows();
 
         let result = inner
             .register_csv(&table_ref, &table_path, opts)

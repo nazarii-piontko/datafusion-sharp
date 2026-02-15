@@ -1,6 +1,10 @@
 #[macro_use]
 mod macros;
+
+#[allow(unused_imports)]
 pub mod wire;
+
+mod mappers;
 pub mod error;
 pub mod common;
 pub mod runtime;

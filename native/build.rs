@@ -40,6 +40,12 @@ fn build_flat_buffers() {
     let entries = fs::read_dir(&schema_dir).expect("Failed to read FlatBuffers schema directory");
     let mut processed_files = 0;
 
+    let mut flatc_command = Command::new(&flatc_path);
+    flatc_command
+        .arg("--rust")
+        .arg("-o").arg(&out_dir)
+        .arg("--rust-module-root-file");
+
     for entry in entries {
         let entry = entry.expect("Failed to read entry");
         let path = entry.path();
@@ -47,17 +53,7 @@ fn build_flat_buffers() {
         if path.extension().and_then(|e| e.to_str()) == Some("fbs") {
             println!("cargo:rerun-if-changed={}", path.display());
 
-            let status = Command::new(&flatc_path)
-                .arg("--rust")
-                .arg("-o")
-                .arg(&out_dir)
-                .arg(&path)
-                .status()
-                .expect("Failed to execute flatc");
-
-            if !status.success() {
-                panic!("flatc failed on {}", path.display());
-            }
+            flatc_command.arg(&path);
 
             processed_files += 1;
         }
@@ -66,6 +62,16 @@ fn build_flat_buffers() {
     if processed_files == 0 {
         println!("cargo:warning=No .fbs files found in {}", schema_dir.display());
     } else {
+        println!("flatc command: {:?}", flatc_command);
+
+        let status = flatc_command
+            .status()
+            .expect("Failed to execute flatc");
+
+        if !status.success() {
+            panic!("flatc failed with exit code: {}", status);
+        }
+
         println!("cargo:info=Processed {} .fbs files", processed_files);
     }
 }
