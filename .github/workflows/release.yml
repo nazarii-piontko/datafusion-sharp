@@ -60,6 +60,9 @@ jobs:
           restore-keys: |
             ${{ matrix.os }}-cargo-
           save-always: 'true'
+          
+      - name: Setup Protoc
+        uses: arduino/setup-protoc@v3
 
       - name: Build Native Library
         working-directory: native

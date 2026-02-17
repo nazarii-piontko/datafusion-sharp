@@ -55,6 +55,9 @@ jobs:
             ${{ matrix.os }}-cargo-
           save-always: 'true'
 
+      - name: Setup Protoc
+        uses: arduino/setup-protoc@v3
+
       - name: Run Build
         run: dotnet build -c Release
 
@@ -106,6 +109,9 @@ jobs:
           restore-keys: |
             ubuntu-24.04-cargo-
           save-always: 'true'
+
+      - name: Setup Protoc
+        uses: arduino/setup-protoc@v3
 
       - name: Install SonarQube Tools
         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
