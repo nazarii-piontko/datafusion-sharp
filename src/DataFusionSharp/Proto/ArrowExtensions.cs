@@ -12,6 +12,8 @@ public static class ArrowExtensions
     /// <returns>The corresponding Apache Arrow schema.</returns>
     public static Apache.Arrow.Schema ToArrow(this Schema schema)
     {
+        ArgumentNullException.ThrowIfNull(schema);
+        
         var columns = schema.Columns.Select(c =>
         {
             return new Apache.Arrow.Field(
@@ -33,6 +35,8 @@ public static class ArrowExtensions
     /// <returns>The corresponding Apache Arrow field type.</returns>
     public static Apache.Arrow.Types.IArrowType ToArrow(this ArrowType type, IEnumerable<Field> children)
     {
+        ArgumentNullException.ThrowIfNull(type);
+        
         return type.ArrowTypeEnumCase switch
         {
             ArrowType.ArrowTypeEnumOneofCase.NONE => Apache.Arrow.Types.NullType.Default,
@@ -63,7 +67,7 @@ public static class ArrowExtensions
                 TimeUnit.Millisecond => Apache.Arrow.Types.DurationType.Millisecond,
                 TimeUnit.Microsecond => Apache.Arrow.Types.DurationType.Microsecond,
                 TimeUnit.Nanosecond => Apache.Arrow.Types.DurationType.Nanosecond,
-                _ => throw new ArgumentOutOfRangeException(nameof(type.DURATION), type.DURATION, "Unknown TimeUnit")
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type.DURATION, "Unknown Duration TimeUnit")
             },
             ArrowType.ArrowTypeEnumOneofCase.TIMESTAMP => type.TIMESTAMP.TimeUnit switch
             {
@@ -71,26 +75,26 @@ public static class ArrowExtensions
                 TimeUnit.Millisecond => new Apache.Arrow.Types.TimestampType(Apache.Arrow.Types.TimeUnit.Millisecond, type.TIMESTAMP.Timezone),
                 TimeUnit.Microsecond => new Apache.Arrow.Types.TimestampType(Apache.Arrow.Types.TimeUnit.Microsecond, type.TIMESTAMP.Timezone),
                 TimeUnit.Nanosecond => new Apache.Arrow.Types.TimestampType(Apache.Arrow.Types.TimeUnit.Nanosecond, type.TIMESTAMP.Timezone),
-                _ => throw new ArgumentOutOfRangeException(nameof(type.TIMESTAMP.TimeUnit), type.TIMESTAMP.TimeUnit, "Unknown TimeUnit")
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type.TIMESTAMP.TimeUnit, "Unknown Timestamp TimeUnit")
             },
             ArrowType.ArrowTypeEnumOneofCase.TIME32 => type.TIME32 switch
             {
                 TimeUnit.Second => Apache.Arrow.Types.TimeType.Second,
                 TimeUnit.Millisecond => Apache.Arrow.Types.TimeType.Millisecond,
-                _ => throw new ArgumentOutOfRangeException(nameof(type.TIME32), type.TIME32, "TIME32 only supports Second and Millisecond")
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type.TIME32, "Unknown TimeUnit for TIME32")
             },
             ArrowType.ArrowTypeEnumOneofCase.TIME64 => type.TIME64 switch
             {
                 TimeUnit.Microsecond => Apache.Arrow.Types.TimeType.Microsecond,
                 TimeUnit.Nanosecond => Apache.Arrow.Types.TimeType.Nanosecond,
-                _ => throw new ArgumentOutOfRangeException(nameof(type.TIME64), type.TIME64, "TIME64 only supports Microsecond and Nanosecond")
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type.TIME64, "Unknown TimeUnit for TIME64")
             },
             ArrowType.ArrowTypeEnumOneofCase.INTERVAL => type.INTERVAL switch
             {
                 IntervalUnit.YearMonth => Apache.Arrow.Types.IntervalType.YearMonth,
                 IntervalUnit.DayTime => Apache.Arrow.Types.IntervalType.DayTime,
                 IntervalUnit.MonthDayNano => Apache.Arrow.Types.IntervalType.MonthDayNanosecond,
-                _ => throw new ArgumentOutOfRangeException(nameof(type.INTERVAL), type.INTERVAL, "Unknown IntervalUnit")
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type.INTERVAL, "Unknown IntervalUnit for INTERVAL")
             },
             ArrowType.ArrowTypeEnumOneofCase.DECIMAL => new Apache.Arrow.Types.Decimal128Type((int)type.DECIMAL.Precision, type.DECIMAL.Scale),
             ArrowType.ArrowTypeEnumOneofCase.DECIMAL256 => new Apache.Arrow.Types.Decimal256Type((int)type.DECIMAL256.Precision, type.DECIMAL256.Scale),
@@ -148,7 +152,7 @@ public static class ArrowExtensions
                     )).ToList(),
                     type.UNION.TypeIds
                 ),
-                _ => throw new ArgumentOutOfRangeException(nameof(type.UNION.UnionMode), type.UNION.UnionMode, "Unknown UnionMode")
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type.UNION.UnionMode, "Unknown UnionMode for UNION")
             },
             ArrowType.ArrowTypeEnumOneofCase.DICTIONARY => new Apache.Arrow.Types.DictionaryType(
                 type.DICTIONARY.Key.ToArrow(Enumerable.Empty<Field>()),
@@ -164,7 +168,7 @@ public static class ArrowExtensions
                 ),
                 type.MAP.KeysSorted
             ),
-            _ => throw new ArgumentOutOfRangeException(nameof(type.ArrowTypeEnumCase), type.ArrowTypeEnumCase, "Unknown ArrowType")
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type.ArrowTypeEnumCase, "Unknown ArrowType enum case")
         };
     }
 
@@ -175,6 +179,8 @@ public static class ArrowExtensions
     /// <returns>The corresponding DataFusion schema.</returns>
     public static Schema ToProto(this Apache.Arrow.Schema schema)
     {
+        ArgumentNullException.ThrowIfNull(schema);
+        
         var protoSchema = new Schema();
         
         foreach (var field in schema.FieldsList)
@@ -218,6 +224,8 @@ public static class ArrowExtensions
     /// <returns>The corresponding DataFusion ArrowType proto message.</returns>
     public static ArrowType ToProto(this Apache.Arrow.Types.IArrowType arrowType)
     {
+        ArgumentNullException.ThrowIfNull(arrowType);
+        
         var protoType = new ArrowType();
         
         switch (arrowType.TypeId)
@@ -290,7 +298,7 @@ public static class ArrowExtensions
                         Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
                         Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
                         Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
-                        _ => throw new ArgumentOutOfRangeException(nameof(timestamp.Unit))
+                        _ => throw new ArgumentOutOfRangeException(nameof(arrowType), timestamp.Unit, "Unknown TimeUnit for TimestampType")
                     },
                     Timezone = timestamp.Timezone ?? string.Empty
                 };
@@ -301,7 +309,7 @@ public static class ArrowExtensions
                 {
                     Apache.Arrow.Types.TimeUnit.Second => TimeUnit.Second,
                     Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
-                    _ => throw new ArgumentOutOfRangeException(nameof(time32.Unit))
+                    _ => throw new ArgumentOutOfRangeException(nameof(arrowType), time32.Unit, "Unknown TimeUnit for Time32Type")
                 };
                 break;
             case Apache.Arrow.Types.ArrowTypeId.Time64:
@@ -310,7 +318,7 @@ public static class ArrowExtensions
                 {
                     Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
                     Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
-                    _ => throw new ArgumentOutOfRangeException(nameof(time64.Unit))
+                    _ => throw new ArgumentOutOfRangeException(nameof(arrowType), time64.Unit, "Unknown TimeUnit for Time64Type")
                 };
                 break;
             case Apache.Arrow.Types.ArrowTypeId.Interval:
@@ -320,7 +328,7 @@ public static class ArrowExtensions
                     Apache.Arrow.Types.IntervalUnit.YearMonth => IntervalUnit.YearMonth,
                     Apache.Arrow.Types.IntervalUnit.DayTime => IntervalUnit.DayTime,
                     Apache.Arrow.Types.IntervalUnit.MonthDayNanosecond => IntervalUnit.MonthDayNano,
-                    _ => throw new ArgumentOutOfRangeException(nameof(interval.Unit))
+                    _ => throw new ArgumentOutOfRangeException(nameof(arrowType), interval.Unit, "Unknown IntervalUnit for IntervalType")
                 };
                 break;
             case Apache.Arrow.Types.ArrowTypeId.Duration:
@@ -331,7 +339,7 @@ public static class ArrowExtensions
                     Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
                     Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
                     Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
-                    _ => throw new ArgumentOutOfRangeException(nameof(duration.Unit))
+                    _ => throw new ArgumentOutOfRangeException(nameof(arrowType), duration.Unit, "Unknown TimeUnit for DurationType")
                 };
                 break;
             case Apache.Arrow.Types.ArrowTypeId.Decimal128:
@@ -369,7 +377,7 @@ public static class ArrowExtensions
                     {
                         Apache.Arrow.Types.UnionMode.Dense => UnionMode.Dense,
                         Apache.Arrow.Types.UnionMode.Sparse => UnionMode.Sparse,
-                        _ => throw new ArgumentOutOfRangeException(nameof(union.Mode))
+                        _ => throw new ArgumentOutOfRangeException(nameof(arrowType), union.Mode, "Unknown UnionMode for UnionType")
                     }
                 };
                 protoType.UNION.TypeIds.AddRange(union.TypeIds);
@@ -419,7 +427,7 @@ public static class ArrowExtensions
                 protoType.UTF8VIEW = new EmptyMessage();
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(arrowType.TypeId), arrowType.TypeId, "Unknown Arrow type");
+                throw new ArgumentOutOfRangeException(nameof(arrowType), arrowType.TypeId, "Unsupported ArrowTypeId");
         }
         
         return protoType;

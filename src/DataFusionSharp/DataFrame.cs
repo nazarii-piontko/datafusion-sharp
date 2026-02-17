@@ -111,11 +111,11 @@ public sealed class DataFrame : IDisposable
     /// <summary>
     /// Collects all data from this DataFrame into memory.
     /// </summary>
-    /// <returns>A task containing the <see cref="CollectedRecords"/> with all record batches and schema.</returns>
+    /// <returns>A task containing the <see cref="DataFrameCollectedData"/> with all record batches and schema.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task<CollectedRecords> CollectAsync()
+    public Task<DataFrameCollectedData> CollectAsync()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<CollectedRecords>();
+        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedData>();
         var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
@@ -141,7 +141,7 @@ public sealed class DataFrame : IDisposable
             throw new DataFusionException(result, "Failed to start executing stream on DataFrame");
         }
 
-        var streamHandle = await tcs.Task;
+        var streamHandle = await tcs.Task.ConfigureAwait(false);
         return new DataFrameStream(this, streamHandle);
     }
 
@@ -149,14 +149,17 @@ public sealed class DataFrame : IDisposable
     /// Writes the DataFrame contents to a CSV file.
     /// </summary>
     /// <param name="path">The output file path.</param>
+    /// <param name="options">Optional CSV writing options.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteCsvAsync(string path)
+    public unsafe Task WriteCsvAsync(string path, Proto.CsvOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         
+        using var optionsData = PinnedProtobufData.FromMessage(options);
+
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteCsv(_handle, path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteCsv(_handle, path, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -260,15 +263,15 @@ public sealed class DataFrame : IDisposable
                 while (reader.ReadNextRecordBatch() is {} batch)
                     batches.Add(batch);
                 
-                AsyncOperations.Instance.CompleteWithResult(handle, new CollectedRecords(batches, reader.Schema));
+                AsyncOperations.Instance.CompleteWithResult(handle, new DataFrameCollectedData(batches, reader.Schema));
             }
             catch (Exception ex)
             {
-                AsyncOperations.Instance.CompleteWithError<CollectedRecords>(handle, ex);
+                AsyncOperations.Instance.CompleteWithError<DataFrameCollectedData>(handle, ex);
             }
         }
         else
-            AsyncOperations.Instance.CompleteWithError<CollectedRecords>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedData>(handle, ErrorInfoData.FromIntPtr(error).ToException());
     }
     private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollectResult;
     private static readonly IntPtr CallbackForCollectResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
@@ -283,11 +286,11 @@ public sealed class DataFrame : IDisposable
         
         NativeMethods.DataFrameDestroy(handle);
     }
-    
-    /// <summary>
-    /// Contains the collected record batches and schema from a DataFrame.
-    /// </summary>
-    /// <param name="Batches">The list of collected record batches.</param>
-    /// <param name="Schema">The Arrow schema of the data.</param>
-    public record CollectedRecords(List<RecordBatch> Batches, Schema Schema);
 }
+
+/// <summary>
+/// Contains the collected record batches and schema from a DataFrame.
+/// </summary>
+/// <param name="Batches">The list of collected record batches.</param>
+/// <param name="Schema">The Arrow schema of the data.</param>
+public record DataFrameCollectedData(IList<RecordBatch> Batches, Schema Schema);

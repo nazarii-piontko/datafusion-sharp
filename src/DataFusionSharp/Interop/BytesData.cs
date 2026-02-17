@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.InteropServices;
 
 namespace DataFusionSharp.Interop;
@@ -5,37 +6,26 @@ namespace DataFusionSharp.Interop;
 [StructLayout(LayoutKind.Sequential)]
 internal struct BytesData
 {
-    /// <summary>
-    /// String data pointer, UTF-8 encoded, *const u8
-    /// </summary>
-    public IntPtr DataPtr;
+    internal static BytesData Empty = new()
+    {
+        DataPtr = 0,
+        Length = 0
+    };
     
     /// <summary>
-    /// String data length, u32
+    /// Data pointer, UTF-8 encoded, *const u8
+    /// </summary>
+    public nint DataPtr;
+    
+    /// <summary>
+    /// Data length, u32
     /// </summary>
     public int Length;
-
-    public BytesData()
-    {
-    }
-    
-    public BytesData(IntPtr dataPtr, int length)
-    {
-        DataPtr = dataPtr;
-        Length = length;
-    }
-    
-    public unsafe BytesData(byte* ptr, int length)
-    {
-        DataPtr = new IntPtr(ptr);
-        Length = length;
-    }
     
     /// <summary>
-    /// Gets the message as a managed string.
+    /// Interpret bytes as a managed string.
     /// </summary>
-    /// <returns></returns>
-    public string GetAsUtf8()
+    public readonly string GetAsUtf8()
     {
         if (DataPtr == IntPtr.Zero || Length == 0)
             return string.Empty;
@@ -44,9 +34,36 @@ internal struct BytesData
         return message;
     }
     
+    /// <summary>
+    /// Interpret bytes as a managed byte array.
+    /// </summary>
+    public readonly byte[] ToArray()
+    {
+        if (DataPtr == 0 || Length <= 0)
+            return [];
+
+        var arr = new byte[Length];
+        Marshal.Copy(DataPtr, arr, 0, Length);
+        return arr;
+    }
+    
     public static BytesData FromIntPtr(IntPtr ptr)
     {
         var data = Marshal.PtrToStructure<BytesData>(ptr);
+        return data;
+    }
+    
+    public static BytesData FromPinned(MemoryHandle handle, int length)
+    {
+        BytesData data = new();
+        
+        unsafe
+        {
+            data.DataPtr = (nint)handle.Pointer;
+        }
+
+        data.Length = length;
+
         return data;
     }
 }

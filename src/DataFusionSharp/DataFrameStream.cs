@@ -13,7 +13,9 @@ namespace DataFusionSharp;
 /// Each iteration yields a <see cref="RecordBatch"/> containing a subset of the result rows.
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
+#pragma warning disable CA1711
 public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
+#pragma warning restore CA1711
 {
     private IntPtr _handle;
     private NativeMemoryStream? _nativeMemoryStream;
@@ -45,7 +47,7 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
     /// <returns>An async enumerator of <see cref="RecordBatch"/>.</returns>
     public async IAsyncEnumerator<RecordBatch> GetAsyncEnumerator(CancellationToken cancellationToken = default)
     {
-        while (await NextAsync() is { } batch)
+        while (await NextAsync().ConfigureAwait(false) is { } batch)
         {
             cancellationToken.ThrowIfCancellationRequested();
             yield return batch;
@@ -80,7 +82,7 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
             throw new DataFusionException(result, "Failed to start getting next batch from stream");
         }
 
-        var data = await tcs.Task;
+        var data = await tcs.Task.ConfigureAwait(false);
         if (data is null)
             return null;
         
@@ -93,7 +95,7 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
         else
             _nativeMemoryStream.SetNativeMemory(new NativeMemoryManager(data.Value.DataPtr, data.Value.Length));
         
-        return await _reader!.ReadNextRecordBatchAsync();
+        return await _reader!.ReadNextRecordBatchAsync().ConfigureAwait(false);
     }
 
     private static void CallbackForNextResult(IntPtr result, IntPtr error, ulong handle)

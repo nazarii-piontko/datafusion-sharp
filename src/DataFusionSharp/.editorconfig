@@ -1,2 +1,7 @@
+[*.{cs}]
+dotnet_diagnostic.CA5392.severity = none
+dotnet_diagnostic.ca1031.severity = none
+dotnet_diagnostic.ca1032.severity = none
+
 [*.generated.cs]
 dotnet_diagnostic.CS1591.severity = none

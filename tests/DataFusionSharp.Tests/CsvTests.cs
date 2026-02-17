@@ -1,6 +1,7 @@
 using Apache.Arrow;
 using Apache.Arrow.Types;
 using DataFusionSharp.Proto;
+using Google.Protobuf;
 using Xunit.Abstractions;
 using Field = Apache.Arrow.Field;
 using Schema = Apache.Arrow.Schema;
@@ -91,7 +92,7 @@ public sealed class CsvTests : FileFormatTests
             ]);
         var options = new CsvReadOptions
         {
-            Delimiter = ";"
+            Delimiter = ";".AsByteString()
         };
 
         // Act
@@ -119,7 +120,7 @@ public sealed class CsvTests : FileFormatTests
             ]);
         var options = new CsvReadOptions
         {
-            Quote = "~"
+            Quote = "~".AsByteString()
         };
 
         // Act
@@ -146,7 +147,7 @@ public sealed class CsvTests : FileFormatTests
             ]);
         var options = new CsvReadOptions
         {
-            Comment = "#"
+            Comment = "#".AsByteString()
         };
 
         // Act
@@ -234,7 +235,7 @@ public sealed class CsvTests : FileFormatTests
             ]);
         var options = new CsvReadOptions
         {
-            NullRegex = "^NULL$|^$"
+            NullRegex = "^NULL$|^$".AsByteString()
         };
 
         // Act
@@ -286,7 +287,7 @@ public sealed class CsvTests : FileFormatTests
             ]);
         var options = new CsvReadOptions
         {
-            FileExtension = ".txt"
+            FileExtension = ".txt".AsByteString()
         };
 
         // Act
@@ -321,5 +322,28 @@ public sealed class CsvTests : FileFormatTests
 
         // Assert
         Assert.Equal(2UL, count);
+    }
+    
+    [Fact]
+    public async Task WriteAsync_WithOptions_WritesFileSuccessfully()
+    {
+        // Arrange
+        await Context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
+        using var df = await Context.SqlAsync("SELECT * FROM customers ORDER BY customer_id DESC LIMIT 2");
+        var options = new CsvOptions
+        {
+            Delimiter = ByteString.CopyFromUtf8(";")
+        };
+        using var tempFile = await TempInputFile.CreateAsync(FileExtension);
+        
+        // Act
+        await df.WriteCsvAsync(tempFile.Path, options);
+
+        // Assert
+        Assert.True(File.Exists(tempFile.Path), "Output file should be created");
+        
+        var content = await File.ReadAllTextAsync(tempFile.Path);
+        Assert.Contains("customer_id;customer_name;country;city;signup_date;customer_segment", content);
+        Assert.Contains("10;Vehement Capital Partners;France;Paris;2022-06-20;SMB", content);
     }
 }

@@ -2,12 +2,12 @@ using System.Collections.Concurrent;
 
 namespace DataFusionSharp.Interop;
 
-internal class AsyncOperations
+internal sealed class AsyncOperations
 {
     public static AsyncOperations Instance { get; } = new();
     
     private readonly ConcurrentDictionary<ulong, object> _operations = new();
-    private ulong _nextId = 0;
+    private ulong _nextId;
     
     public (ulong Id, TaskCompletionSource TaskCompletionSource) Create()
     {

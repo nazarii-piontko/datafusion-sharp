@@ -44,6 +44,11 @@ public abstract class FileFormatTests : IDisposable
     protected abstract Task RegisterOrdersTableAsync(string tableName = "orders");
     
     protected abstract Task WriteTableAsync(DataFrame dataFrame, string path);
+    
+    protected string GenerateTempFileName(string fileNamePart = "")
+    {
+        return Path.Combine(Path.GetTempPath(), $"datafusion-sharp-write-test-output-{fileNamePart}-{Guid.NewGuid():N}{FileExtension}");
+    }
 
     [Fact]
     public async Task RegisterTableAsync_CompletesSuccessfully()
@@ -102,7 +107,7 @@ public abstract class FileFormatTests : IDisposable
         // Arrange
         await RegisterCustomersTableAsync();
         using var df = await Context.SqlAsync("SELECT * FROM customers ORDER BY customer_id DESC LIMIT 2");
-        var tempPath = Path.Combine(Path.GetTempPath(), $"datafusion-sharp-write-test-output-{fileNamePart}-{Guid.NewGuid():N}{FileExtension}");
+        var tempPath = GenerateTempFileName(fileNamePart);
         
         try
         {

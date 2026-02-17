@@ -9,9 +9,18 @@ public class DataFusionException : Exception
     /// Gets the error code associated with this exception.
     /// </summary>
     public DataFusionErrorCode ErrorCode { get; }
+    
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DataFusionException"/> class with a default message and error code.
+    /// </summary>
+    public DataFusionException()
+        : base("An unknown DataFusion error occurred.")
+    {
+        ErrorCode = DataFusionErrorCode.Panic;
+    }
 
     /// <summary>
-    /// Initializes a new instance with the specified error code.
+    /// Initializes a new instance with the specified error code and a default message.
     /// </summary>
     /// <param name="errorCode">The error code.</param>
     public DataFusionException(DataFusionErrorCode errorCode)

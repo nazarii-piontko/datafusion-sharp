@@ -43,23 +43,19 @@ public sealed class SessionContext : IDisposable
     /// <param name="options">Optional CSV read options to customize parsing behavior.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
-    public unsafe Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null)
+    public Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null)
     {
-        var optionsData = (options ?? CsvReadOptions.Default).ToByteArray();
-        fixed (byte* optionsDataPtr = optionsData)
+        using var optionsData = PinnedProtobufData.FromMessage(options);
+        
+        var (id, tcs) = AsyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        if (result != DataFusionErrorCode.Ok)
         {
-            var optionsBytes = new BytesData(optionsDataPtr, optionsData.Length);
-
-            var (id, tcs) = AsyncOperations.Instance.Create();
-            var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, &optionsBytes, AsyncOperationGenericCallbacks.VoidResultHandler, id);
-            if (result != DataFusionErrorCode.Ok)
-            {
-                AsyncOperations.Instance.Abort(id);
-                throw new DataFusionException(result, "Failed to start registering CSV file");
-            }
-
-            return tcs.Task;
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to start registering CSV file");
         }
+
+        return tcs.Task;
     }
     
     /// <summary>
@@ -116,7 +112,7 @@ public sealed class SessionContext : IDisposable
             throw new DataFusionException(result, "Failed to start executing SQL query");
         }
         
-        var dataFrameHandle = await tcs.Task;
+        var dataFrameHandle = await tcs.Task.ConfigureAwait(false);
 
         return new DataFrame(this, dataFrameHandle);
     }
