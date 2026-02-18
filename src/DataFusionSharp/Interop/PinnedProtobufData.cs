@@ -3,6 +3,9 @@ using Google.Protobuf;
 
 namespace DataFusionSharp.Interop;
 
+/// <summary>
+/// A helper struct that pins the byte array of a protobuf message in memory and provides a way to convert it to a BytesData struct for interop.
+/// </summary>
 internal readonly ref struct PinnedProtobufData : IDisposable
 {
     private readonly MemoryHandle? _handle;
@@ -29,7 +32,7 @@ internal readonly ref struct PinnedProtobufData : IDisposable
     public static PinnedProtobufData FromMessage<TMessage>(TMessage? message)
         where TMessage : class, IMessage<TMessage>
     {
-        if (message == null)
+        if (message is null)
             return new PinnedProtobufData(null, 0);
         
         var bytes = message.ToByteArray();

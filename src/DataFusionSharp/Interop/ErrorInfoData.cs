@@ -23,7 +23,7 @@ internal struct ErrorInfoData
     
     public Exception ToException()
     {
-        var message = Message.GetAsUtf8();
+        var message = Message.ToUtf8String();
         return new DataFusionException(Code, message);
     }
 }

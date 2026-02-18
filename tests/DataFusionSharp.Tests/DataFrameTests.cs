@@ -107,14 +107,16 @@ public sealed class DataFrameTests : IDisposable
         Assert.Equal(2, collected.Schema.FieldsList.Count);
         Assert.Equal("id", collected.Schema.FieldsList[0].Name);
         Assert.Equal("value", collected.Schema.FieldsList[1].Name);
-
-        if (rowsCount == 0)
-            Assert.Empty(collected.Batches);
-        else
-            Assert.NotEmpty(collected.Batches);
-        Assert.Equal(rowsCount, GetIds(collected.Batches).Count);
-        Assert.Equal(rowsCount, GetValues(collected.Batches).Count);
-        Assert.Equal((long) (1 + rowsCount) * rowsCount / 2, GetIds(collected.Batches).Sum());
+        
+        var rows = GetRows(collected.Batches);
+        Assert.Equal(rowsCount, rows.Count);
+        
+        var expectedRows = GetExpectedRows(rowsCount);
+        for (int i = 0; i < rowsCount; i++)
+        {
+            Assert.Equal(expectedRows[i].Id, rows[i].Id);
+            Assert.Equal(expectedRows[i].Value, rows[i].Value, precision: 5);
+        }
     }
 
     [Theory]
@@ -139,13 +141,15 @@ public sealed class DataFrameTests : IDisposable
             batches.Add(batch);
 
         // Assert
-        if (rowsCount == 0)
-            Assert.Empty(batches);
-        else
-            Assert.NotEmpty(batches);
-        Assert.Equal(rowsCount, GetIds(batches).Count);
-        Assert.Equal(rowsCount, GetValues(batches).Count);
-        Assert.Equal((long) (1 + rowsCount) * rowsCount / 2, GetIds(batches).Sum());
+        var rows = GetRows(batches);
+        Assert.Equal(rowsCount, rows.Count);
+        
+        var expectedRows = GetExpectedRows(rowsCount);
+        for (int i = 0; i < rowsCount; i++)
+        {
+            Assert.Equal(expectedRows[i].Id, rows[i].Id);
+            Assert.Equal(expectedRows[i].Value, rows[i].Value, precision: 5);
+        }
     }
 
     public void Dispose()
@@ -158,12 +162,30 @@ public sealed class DataFrameTests : IDisposable
     {
         return $"SELECT s.value AS id, sin(s.value) AS value FROM generate_series(1, {Math.Max(1, rowsCount)}) AS s WHERE {rowsCount > 0}";
     }
+    
 
-    private static IList<long> GetIds(RecordBatch batch) => ((Int64Array)batch.Column("id")).Values.ToArray();
+    private static List<(long Id, double Value)> GetRows(RecordBatch batch)
+    {
+        var rows = new List<(long Id, double Value)>(batch.Length);
+        
+        for (int i = 0; i < batch.Length; ++i)
+        {
+            var id = ((Int64Array)batch.Column("id")).GetValue(i)!.Value;
+            var value = ((DoubleArray)batch.Column("value")).GetValue(i)!.Value;
+            rows.Add((id, value));
+        }
+        rows.Sort((x, y) => x.Id.CompareTo(y.Id));
+
+        return rows;
+    }
     
-    private static List<long> GetIds(IEnumerable<RecordBatch> batches) => batches.SelectMany(GetIds).ToList();
-    
-    private static IList<double> GetValues(RecordBatch batch) => ((DoubleArray)batch.Column("value")).Values.ToArray();
-    
-    private static List<double> GetValues(IEnumerable<RecordBatch> batches) => batches.SelectMany(GetValues).ToList();
+    private static List<(long Id, double Value)> GetRows(IEnumerable<RecordBatch> batches) => batches.SelectMany(GetRows).OrderBy(x => x.Id).ToList();
+
+    private static List<(long Id, double Value)> GetExpectedRows(int rowsCount)
+    {
+        var rows = new List<(long Id, double Value)>(rowsCount);
+        for (int i = 1; i <= rowsCount; ++i)
+            rows.Add((i, Math.Sin(i)));
+        return rows;
+    }
 }

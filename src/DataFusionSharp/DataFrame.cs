@@ -152,7 +152,7 @@ public sealed class DataFrame : IDisposable
     /// <param name="options">Optional CSV writing options.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public unsafe Task WriteCsvAsync(string path, Proto.CsvOptions? options = null)
+    public Task WriteCsvAsync(string path, Proto.CsvOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         

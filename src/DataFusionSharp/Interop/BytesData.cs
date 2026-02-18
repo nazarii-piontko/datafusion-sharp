@@ -6,9 +6,12 @@ namespace DataFusionSharp.Interop;
 [StructLayout(LayoutKind.Sequential)]
 internal struct BytesData
 {
-    internal static BytesData Empty = new()
+    /// <summary>
+    /// An empty BytesData instance with a null data pointer and zero length.
+    /// </summary>
+    internal static readonly BytesData Empty = new()
     {
-        DataPtr = 0,
+        DataPtr = IntPtr.Zero,
         Length = 0
     };
     
@@ -25,7 +28,7 @@ internal struct BytesData
     /// <summary>
     /// Interpret bytes as a managed string.
     /// </summary>
-    public readonly string GetAsUtf8()
+    public readonly string ToUtf8String()
     {
         if (DataPtr == IntPtr.Zero || Length == 0)
             return string.Empty;
@@ -47,12 +50,28 @@ internal struct BytesData
         return arr;
     }
     
-    public static BytesData FromIntPtr(IntPtr ptr)
+    /// <summary>
+    /// Create a BytesData from an unmanaged pointer.
+    /// The caller is responsible for ensuring the pointer is valid and remains valid for the lifetime of the BytesData.
+    /// </summary>
+    /// <param name="ptr">Pointer to the unmanaged data.</param>
+    public static BytesData FromIntPtr(nint ptr)
     {
-        var data = Marshal.PtrToStructure<BytesData>(ptr);
+        // Manually read the struct fields from the pointer since Marshal.PtrToStructure is slow,
+        // and we want to avoid unnecessary copying of the data.
+        var data = new BytesData
+        {
+            DataPtr = Marshal.ReadIntPtr(ptr, 0),
+            Length = Marshal.ReadInt32(ptr, IntPtr.Size)
+        };
         return data;
     }
     
+    /// <summary>
+    /// Create a BytesData from a pinned memory handle.
+    /// </summary>
+    /// <param name="handle">Memory handle containing the pinned data.</param>
+    /// <param name="length">Length of the data in bytes.</param>
     public static BytesData FromPinned(MemoryHandle handle, int length)
     {
         BytesData data = new();

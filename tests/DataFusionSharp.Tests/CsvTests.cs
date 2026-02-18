@@ -67,7 +67,7 @@ public sealed class CsvTests : FileFormatTests
             Assert.Equal(4UL, count);
             Assert.Equal(3, records.Schema.FieldsList.Count);
             Assert.Equivalent(new[] { "id", "name", "value" }, records.Schema.FieldsList.Select(f => f.Name));
-            Assert.Equivalent(new[] { "Alice", "Bob", "Charlie", "Diana" }, records.Batches.SelectMany(b => b.Column("name").GetStringValues()));
+            Assert.Equivalent(new[] { "Alice", "Bob", "Charlie", "Diana" }, records.Batches.SelectMany(b => b.Column("name").AsString()));
         }
         finally
         {
@@ -130,7 +130,7 @@ public sealed class CsvTests : FileFormatTests
 
         // Assert
         Assert.Equal(3, records.Schema.FieldsList.Count);
-        Assert.Equivalent(new[] {"Alice", "Bob"}, records.Batches.SelectMany(b => b.Column("name").GetStringValues()));
+        Assert.Equivalent(new[] {"Alice", "Bob"}, records.Batches.SelectMany(b => b.Column("name").AsString()));
     }
 
     [Fact]
@@ -218,7 +218,7 @@ public sealed class CsvTests : FileFormatTests
         // Assert
         Assert.Equal(3, records.Schema.FieldsList.Count);
         Assert.Contains("name", records.Schema.FieldsList.Select(f => f.Name));
-        Assert.Equivalent(new[] {"Alice", "Bob"}, records.Batches.SelectMany(b => b.Column("name").GetStringValues()));
+        Assert.Equivalent(new[] {"Alice", "Bob"}, records.Batches.SelectMany(b => b.Column("name").AsString()));
     }
 
     [Fact]

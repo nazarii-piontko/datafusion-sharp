@@ -37,7 +37,7 @@ internal static class AsyncOperationGenericCallbacks
         if (error == IntPtr.Zero)
         {
             var data = BytesData.FromIntPtr(result);
-            AsyncOperations.Instance.CompleteWithResult(handle, data.GetAsUtf8());
+            AsyncOperations.Instance.CompleteWithResult(handle, data.ToUtf8String());
         }
         else
             AsyncOperations.Instance.CompleteWithError<string>(handle, ErrorInfoData.FromIntPtr(error).ToException());
