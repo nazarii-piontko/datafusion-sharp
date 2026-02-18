@@ -40,8 +40,9 @@ jobs:
         with:
           components: clippy
 
-      - name: Setup Rust Cargo Cache
-        uses: actions/cache@v5
+      - name: Restore Rust Cargo Cache
+        id: cache-rust-cargo
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -52,7 +53,6 @@ jobs:
           key: ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}
           restore-keys: |
             ${{ matrix.os }}-cargo-
-          save-always: 'true'
 
       - name: Setup Protoc
         uses: arduino/setup-protoc@v3
@@ -67,6 +67,17 @@ jobs:
       - name: Run Rust Cargo Clippy
         working-directory: native
         run: cargo clippy --release --all-targets -- -D warnings
+      
+      - name: Save Rust Cargo Cache
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            native/target/
+          key: ${{ steps.cache-rust-cargo.outputs.cache-primary-key }}
 
   sonar:
     name: SonarCloud
@@ -95,8 +106,9 @@ jobs:
           java-version: 17
           distribution: 'zulu'
 
-      - name: Setup Rust Cargo Cache
-        uses: actions/cache@v5
+      - name: Restore Rust Cargo Cache
+        id: cache-rust-cargo
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -104,10 +116,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.*') }}
+          key: ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}
           restore-keys: |
-            ubuntu-24.04-cargo-
-          save-always: 'true'
+            ${{ matrix.os }}-cargo-
 
       - name: Setup Protoc
         uses: arduino/setup-protoc@v3
@@ -135,3 +146,14 @@ jobs:
           dotnet coverage collect "dotnet test --no-build -c Release" -f xml -o "coverage.xml"
           
           dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+
+      - name: Save Rust Cargo Cache
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            native/target/
+          key: ${{ steps.cache-rust-cargo.outputs.cache-primary-key }}
