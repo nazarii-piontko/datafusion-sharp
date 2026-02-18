@@ -1,10 +1,9 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 
-fn first_byte(field: &'static str, bytes: &Vec<u8>) -> Result<u8> {
+fn first_byte(field: &'static str, bytes: &[u8]) -> Result<u8> {
     if bytes.len() != 1 {
-        anyhow::bail!("{field} must contain exactly one byte");
+        bail!("{field} must contain exactly one byte");
     }
-
     Ok(bytes[0])
 }
 
@@ -31,18 +30,15 @@ pub fn from_proto_csv_options<'a>(
     if let Some(has_header) = pbo.has_header {
         dfo.has_header = has_header;
     }
-
     if let Some(delimiter) = pbo.delimiter.as_ref() && !delimiter.is_empty() {
         dfo.delimiter = first_byte("delimiter", delimiter)?;
     }
     if let Some(quote) = pbo.quote.as_ref() && !quote.is_empty() {
         dfo.quote = first_byte("quote", quote)?;
     }
-
     dfo.terminator = opt_first_byte("terminator", &pbo.terminator)?;
     dfo.escape = opt_first_byte("escape", &pbo.escape)?;
     dfo.comment = opt_first_byte("comment", &pbo.comment)?;
-
     dfo.newlines_in_values = pbo.newlines_in_values;
     dfo.schema = schema;
     if let Some(schema_infer_max_records) = pbo.schema_infer_max_records {
@@ -51,7 +47,6 @@ pub fn from_proto_csv_options<'a>(
     if let Some(file_extension) = pbo.file_extension.as_ref() && !file_extension.is_empty() {
         dfo.file_extension = std::str::from_utf8(file_extension)?;
     }
-
     dfo.table_partition_cols = pbo
         .table_partition_cols
         .iter()
@@ -65,7 +60,6 @@ pub fn from_proto_csv_options<'a>(
             Ok((c.name.clone(), data_type))
         })
         .collect::<Result<_>>()?;
-
     if let Some(file_compression_type) = pbo.file_compression_type {
         dfo.file_compression_type = from_proto_file_compression(file_compression_type)?;
     }

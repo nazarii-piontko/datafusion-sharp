@@ -79,10 +79,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     let csv_options_proto = match csv_options_bytes.as_opt_slice() {
         Some(b) => match crate::proto::CsvReadOptions::decode(b) {
             Ok(opts) => Some(opts),
-            Err(e) => {
-                dev_msg!("Failed to decode CSV options for table '{}': {}", table_ref, e);
-                return crate::ErrorCode::InvalidArgument;
-            }
+            Err(_) => return crate::ErrorCode::InvalidArgument
         },
         None => None
     };
@@ -95,9 +92,9 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
             let Some(pb_schema) = csv_options.schema.as_ref() {
                 let schema = match datafusion::arrow::datatypes::Schema::try_from(pb_schema) {
                     Ok(s) => s,
-                    Err(e) => {
-                        dev_msg!("Failed to parse schema from options for CSV table '{}': {}", table_ref, e);
-                        crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options"), callback, user_data);
+                    Err(_) => {
+                        let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options");
+                        crate::invoke_callback_error(&error_info, callback, user_data);
                         return;
                     }
                 };
@@ -112,11 +109,10 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
                     .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
 
                 crate::invoke_callback(result, callback, user_data);
-                dev_msg!("Finished registering CSV table '{}' from path '{}'", table_ref, table_path);
             },
             Err(e) => {
-                crate::invoke_callback_error(&crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, format!("Failed to convert CSV options: {e}")), callback, user_data);
-                dev_msg!("Failed to convert CSV options for table '{}': {}", table_ref, e);
+                let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, format!("Failed to convert CSV options: {e}"));
+                crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
     });

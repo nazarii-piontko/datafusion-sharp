@@ -240,8 +240,6 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    dev_msg!("Executing execute_stream on DataFrame: {:p}", df_ptr);
-
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
         let result = df
@@ -260,8 +258,6 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
                     })
                     .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
             });
-
-        dev_msg!("Finished executing execute_stream");
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -303,8 +299,6 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
     user_data: u64
 ) -> crate::ErrorCode {
     let stream_wrapper = ffi_ref_mut!(stream_ptr);
-
-    dev_msg!("Executing next on DataFrameStream: {:p}", stream_ptr);
     
     let runtime = Arc::clone(&stream_wrapper.runtime);
 
@@ -358,14 +352,11 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     let path = ffi_cstr_to_string!(path_ptr);
 
     let Ok(csv_options) = csv_options_bytes.as_opt_slice()
-        .map(|b|
-            datafusion_proto::protobuf::CsvOptions::decode(b)
-                .map_err(|_| crate::ErrorCode::InvalidArgument)
-                .map(|pbo| datafusion::common::config::CsvOptions::from(&pbo))
+        .map(|b| datafusion_proto::protobuf::CsvOptions::decode(b)
+            .map(|pbo| datafusion::common::config::CsvOptions::from(&pbo))
+            .map_err(|_| crate::ErrorCode::InvalidArgument)
         )
         .transpose() else { return crate::ErrorCode::InvalidArgument };
-
-    dev_msg!("Executing write_csv on DataFrame: {:p} to path: {}", df_ptr, path);
 
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
@@ -373,8 +364,6 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
             .write_csv(&path, datafusion::dataframe::DataFrameWriteOptions::default(), csv_options)
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
-
-        dev_msg!("Finished executing write_csv");
 
         crate::invoke_callback(result, callback, user_data);
     });

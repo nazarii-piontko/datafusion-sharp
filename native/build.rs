@@ -6,16 +6,9 @@ fn generate_proto() -> Result<(), Box<dyn std::error::Error>> {
     use std::fs;
     use std::path::PathBuf;
 
-    let mut cfg = prost_build::Config::new();
-
-    cfg
-        .extern_path(".datafusion_common", "::datafusion_proto::protobuf")
-        .extern_path(".datafusion", "::datafusion_proto::protobuf");
-
     // Collect all .proto files in ../proto directory (excluding vendor subdirectory)
     let proto_dir = PathBuf::from("../proto");
     let mut proto_files = Vec::new();
-
     for entry in fs::read_dir(&proto_dir)? {
         let path = entry?.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("proto") {
@@ -23,18 +16,25 @@ fn generate_proto() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    cfg.compile_protos(
-        &proto_files,
-        &["../proto", "../proto/vendor"],
-    )?;
-
+    // Tell Cargo to watch proto files for changes
     for proto_file in &proto_files {
         println!("cargo:rerun-if-changed={}", proto_file);
     }
 
-    // Also watch vendor proto files
     println!("cargo:rerun-if-changed=../proto/vendor/datafusion_common.proto");
     println!("cargo:rerun-if-changed=../proto/vendor/datafusion.proto");
+
+    // Compile the proto files
+    let mut cfg = prost_build::Config::new();
+
+    cfg
+        .extern_path(".datafusion_common", "::datafusion_proto::protobuf")
+        .extern_path(".datafusion", "::datafusion_proto::protobuf");
+
+    cfg.compile_protos(
+        &proto_files,
+        &["../proto", "../proto/vendor"],
+    )?;
 
     Ok(())
 }

@@ -23,8 +23,7 @@ impl BytesData {
         if self.data.is_null() {
             None
         } else {
-            let slice = unsafe { std::slice::from_raw_parts( self.data, self.len as usize) };
-            Some(slice)
+            Some(unsafe { std::slice::from_raw_parts( self.data, self.len as usize) })
         }
     }
 }
