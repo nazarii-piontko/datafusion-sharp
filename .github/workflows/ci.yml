@@ -12,6 +12,10 @@ on:
         description: "Checks passed"
         value: ${{ jobs.check.outputs.status }}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   DOTNET_NOLOGO: true
@@ -53,6 +57,7 @@ jobs:
           key: ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}
           restore-keys: |
             ${{ matrix.os }}-cargo-
+        continue-on-error: true
 
       - name: Setup Protoc
         uses: arduino/setup-protoc@v3
@@ -78,6 +83,7 @@ jobs:
             ~/.cargo/git/db/
             native/target/
           key: ${{ steps.cache-rust-cargo.outputs.cache-primary-key }}
+        continue-on-error: true
 
   sonar:
     name: SonarCloud
@@ -119,6 +125,7 @@ jobs:
           key: ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}
           restore-keys: |
             ${{ matrix.os }}-cargo-
+        continue-on-error: true
 
       - name: Setup Protoc
         uses: arduino/setup-protoc@v3
@@ -157,3 +164,4 @@ jobs:
             ~/.cargo/git/db/
             native/target/
           key: ${{ steps.cache-rust-cargo.outputs.cache-primary-key }}
+        continue-on-error: true

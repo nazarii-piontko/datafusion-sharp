@@ -3,5 +3,7 @@ dotnet_diagnostic.ca5392.severity = none # Use DefaultDllImportSearchPaths attri
 dotnet_diagnostic.ca1031.severity = none # Do not catch general exception types
 dotnet_diagnostic.ca1032.severity = none # Implement standard exception constructors
 
+dotnet_diagnostic.s4456.severity = none # SonarQube: Split this method into two, one handling parameters check and the other handling the iterator.
+
 [*.generated.cs]
 dotnet_diagnostic.cs1591.severity = none # Missing XML comment for publicly visible type or member
