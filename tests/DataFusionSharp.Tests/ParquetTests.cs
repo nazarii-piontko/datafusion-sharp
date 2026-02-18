@@ -2,7 +2,7 @@ using Xunit.Abstractions;
 
 namespace DataFusionSharp.Tests;
 
-public sealed class ParquetTests : FileFormatTests
+internal sealed class ParquetTests : FileFormatTests
 {
     protected override string FileExtension => ".parquet";
     

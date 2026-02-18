@@ -343,7 +343,7 @@ public sealed class CsvTests : FileFormatTests
         Assert.True(File.Exists(tempFile.Path), "Output file should be created");
         
         var content = await File.ReadAllTextAsync(tempFile.Path);
-        Assert.Contains("customer_id;customer_name;country;city;signup_date;customer_segment", content);
-        Assert.Contains("10;Vehement Capital Partners;France;Paris;2022-06-20;SMB", content);
+        Assert.Contains("customer_id;customer_name;country;city;signup_date;customer_segment", content, StringComparison.Ordinal);
+        Assert.Contains("10;Vehement Capital Partners;France;Paris;2022-06-20;SMB", content, StringComparison.Ordinal);
     }
 }

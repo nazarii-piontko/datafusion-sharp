@@ -2,7 +2,7 @@ using Xunit.Abstractions;
 
 namespace DataFusionSharp.Tests;
 
-public sealed class JsonTests : FileFormatTests
+internal sealed class JsonTests : FileFormatTests
 {
     protected override string FileExtension => ".json";
     

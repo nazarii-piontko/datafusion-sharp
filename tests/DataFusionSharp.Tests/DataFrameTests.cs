@@ -63,8 +63,8 @@ public sealed class DataFrameTests : IDisposable
         // Assert
         Assert.NotNull(str);
         Assert.NotEmpty(str);
-        Assert.Contains("| id | value ", str);
-        Assert.Contains("| 1  | 0.8414", str);
+        Assert.Contains("| id | value ", str, StringComparison.Ordinal);
+        Assert.Contains("| 1  | 0.8414", str, StringComparison.Ordinal);
     }
 
     [Fact]

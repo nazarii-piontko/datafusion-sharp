@@ -43,7 +43,7 @@ public sealed class SessionContextTests : IDisposable
             using var df = await context.SqlAsync($"SELECT * FROM {tableName}");
         });
         
-        Assert.Contains(tableName, exception.Message);
+        Assert.Contains(tableName, exception.Message, StringComparison.Ordinal);
     }
     
     /// <summary>

@@ -1,0 +1,6 @@
+[*.cs]
+dotnet_diagnostic.ca1031.severity = none # Do not catch general exception types
+dotnet_diagnostic.ca1707.severity = none # Identifiers should not contain underscores
+dotnet_diagnostic.ca1812.severity = none # Avoid uninstantiated internal classes
+dotnet_diagnostic.ca1861.severity = none # Avoid constant arrays as arguments
+dotnet_diagnostic.ca2007.severity = none # Do not directly await a Task without calling ConfigureAwait
