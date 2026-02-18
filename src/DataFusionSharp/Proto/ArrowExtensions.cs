@@ -335,14 +335,7 @@ public static class ArrowExtensions
                 protoType.UTF8 = new EmptyMessage();
                 break;
             case ArrowTypeId.Binary:
-                if (arrowType is FixedSizeBinaryType fixedSizeBinary)
-                {
-                    protoType.FIXEDSIZEBINARY = fixedSizeBinary.ByteWidth;
-                }
-                else
-                {
-                    protoType.BINARY = new EmptyMessage();
-                }
+                ToProtoBinary(arrowType, protoType);
                 break;
             case ArrowTypeId.Date32:
                 protoType.DATE32 = new EmptyMessage();
@@ -351,58 +344,19 @@ public static class ArrowExtensions
                 protoType.DATE64 = new EmptyMessage();
                 break;
             case ArrowTypeId.Timestamp:
-                var timestamp = (TimestampType)arrowType;
-                protoType.TIMESTAMP = new Timestamp
-                {
-                    TimeUnit = timestamp.Unit switch
-                    {
-                        Apache.Arrow.Types.TimeUnit.Second => TimeUnit.Second,
-                        Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
-                        Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
-                        Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
-                        _ => throw new ArgumentOutOfRangeException(nameof(arrowType), timestamp.Unit, "Unknown TimeUnit for TimestampType")
-                    },
-                    Timezone = timestamp.Timezone ?? string.Empty
-                };
+                ToProtoTimestamp(arrowType, protoType);
                 break;
             case ArrowTypeId.Time32:
-                var time32 = (Time32Type)arrowType;
-                protoType.TIME32 = time32.Unit switch
-                {
-                    Apache.Arrow.Types.TimeUnit.Second => TimeUnit.Second,
-                    Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
-                    _ => throw new ArgumentOutOfRangeException(nameof(arrowType), time32.Unit, "Unknown TimeUnit for Time32Type")
-                };
+                ToProtoTime32(arrowType, protoType);
                 break;
             case ArrowTypeId.Time64:
-                var time64 = (Time64Type)arrowType;
-                protoType.TIME64 = time64.Unit switch
-                {
-                    Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
-                    Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
-                    _ => throw new ArgumentOutOfRangeException(nameof(arrowType), time64.Unit, "Unknown TimeUnit for Time64Type")
-                };
+                ToProtoTime64(arrowType, protoType);
                 break;
             case ArrowTypeId.Interval:
-                var interval = (IntervalType)arrowType;
-                protoType.INTERVAL = interval.Unit switch
-                {
-                    Apache.Arrow.Types.IntervalUnit.YearMonth => IntervalUnit.YearMonth,
-                    Apache.Arrow.Types.IntervalUnit.DayTime => IntervalUnit.DayTime,
-                    Apache.Arrow.Types.IntervalUnit.MonthDayNanosecond => IntervalUnit.MonthDayNano,
-                    _ => throw new ArgumentOutOfRangeException(nameof(arrowType), interval.Unit, "Unknown IntervalUnit for IntervalType")
-                };
+                ToProtoInterval(arrowType, protoType);
                 break;
             case ArrowTypeId.Duration:
-                var duration = (DurationType)arrowType;
-                protoType.DURATION = duration.Unit switch
-                {
-                    Apache.Arrow.Types.TimeUnit.Second => TimeUnit.Second,
-                    Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
-                    Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
-                    Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
-                    _ => throw new ArgumentOutOfRangeException(nameof(arrowType), duration.Unit, "Unknown TimeUnit for DurationType")
-                };
+                ToProtoDuration(arrowType, protoType);
                 break;
             case ArrowTypeId.Decimal128:
                 var decimal128 = (Decimal128Type)arrowType;
@@ -432,18 +386,7 @@ public static class ArrowExtensions
                 // Children are handled separately
                 break;
             case ArrowTypeId.Union:
-                var union = (UnionType)arrowType;
-                protoType.UNION = new Union
-                {
-                    UnionMode = union.Mode switch
-                    {
-                        Apache.Arrow.Types.UnionMode.Dense => UnionMode.Dense,
-                        Apache.Arrow.Types.UnionMode.Sparse => UnionMode.Sparse,
-                        _ => throw new ArgumentOutOfRangeException(nameof(arrowType), union.Mode, "Unknown UnionMode for UnionType")
-                    }
-                };
-                protoType.UNION.TypeIds.AddRange(union.TypeIds);
-                // Children are handled separately
+                ToProtoUnion(arrowType, protoType);
                 break;
             case ArrowTypeId.Dictionary:
                 var dictionary = (DictionaryType)arrowType;
@@ -493,6 +436,94 @@ public static class ArrowExtensions
         }
         
         return protoType;
+    }
+
+    private static void ToProtoBinary(IArrowType arrowType, ArrowType protoType)
+    {
+        if (arrowType is FixedSizeBinaryType fixedSizeBinary)
+            protoType.FIXEDSIZEBINARY = fixedSizeBinary.ByteWidth;
+        else
+            protoType.BINARY = new EmptyMessage();
+    }
+
+    private static void ToProtoTimestamp(IArrowType arrowType, ArrowType protoType)
+    {
+        var timestamp = (TimestampType)arrowType;
+        protoType.TIMESTAMP = new Timestamp
+        {
+            TimeUnit = timestamp.Unit switch
+            {
+                Apache.Arrow.Types.TimeUnit.Second => TimeUnit.Second,
+                Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
+                Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
+                Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
+                _ => throw new ArgumentOutOfRangeException(nameof(arrowType), timestamp.Unit, "Unknown TimeUnit for TimestampType")
+            },
+            Timezone = timestamp.Timezone ?? string.Empty
+        };
+    }
+
+    private static void ToProtoTime32(IArrowType arrowType, ArrowType protoType)
+    {
+        var time32 = (Time32Type)arrowType;
+        protoType.TIME32 = time32.Unit switch
+        {
+            Apache.Arrow.Types.TimeUnit.Second => TimeUnit.Second,
+            Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
+            _ => throw new ArgumentOutOfRangeException(nameof(arrowType), time32.Unit, "Unknown TimeUnit for Time32Type")
+        };
+    }
+
+    private static void ToProtoTime64(IArrowType arrowType, ArrowType protoType)
+    {
+        var time64 = (Time64Type)arrowType;
+        protoType.TIME64 = time64.Unit switch
+        {
+            Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
+            Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
+            _ => throw new ArgumentOutOfRangeException(nameof(arrowType), time64.Unit, "Unknown TimeUnit for Time64Type")
+        };
+    }
+
+    private static void ToProtoInterval(IArrowType arrowType, ArrowType protoType)
+    {
+        var interval = (IntervalType)arrowType;
+        protoType.INTERVAL = interval.Unit switch
+        {
+            Apache.Arrow.Types.IntervalUnit.YearMonth => IntervalUnit.YearMonth,
+            Apache.Arrow.Types.IntervalUnit.DayTime => IntervalUnit.DayTime,
+            Apache.Arrow.Types.IntervalUnit.MonthDayNanosecond => IntervalUnit.MonthDayNano,
+            _ => throw new ArgumentOutOfRangeException(nameof(arrowType), interval.Unit, "Unknown IntervalUnit for IntervalType")
+        };
+    }
+
+    private static void ToProtoDuration(IArrowType arrowType, ArrowType protoType)
+    {
+        var duration = (DurationType)arrowType;
+        protoType.DURATION = duration.Unit switch
+        {
+            Apache.Arrow.Types.TimeUnit.Second => TimeUnit.Second,
+            Apache.Arrow.Types.TimeUnit.Millisecond => TimeUnit.Millisecond,
+            Apache.Arrow.Types.TimeUnit.Microsecond => TimeUnit.Microsecond,
+            Apache.Arrow.Types.TimeUnit.Nanosecond => TimeUnit.Nanosecond,
+            _ => throw new ArgumentOutOfRangeException(nameof(arrowType), duration.Unit, "Unknown TimeUnit for DurationType")
+        };
+    }
+
+    private static void ToProtoUnion(IArrowType arrowType, ArrowType protoType)
+    {
+        var union = (UnionType)arrowType;
+        protoType.UNION = new Union
+        {
+            UnionMode = union.Mode switch
+            {
+                Apache.Arrow.Types.UnionMode.Dense => UnionMode.Dense,
+                Apache.Arrow.Types.UnionMode.Sparse => UnionMode.Sparse,
+                _ => throw new ArgumentOutOfRangeException(nameof(arrowType), union.Mode, "Unknown UnionMode for UnionType")
+            }
+        };
+        protoType.UNION.TypeIds.AddRange(union.TypeIds);
+        // Children are handled separately
     }
 
     private static Field FieldToProto(Apache.Arrow.Field field)
