@@ -151,6 +151,14 @@
               Pack="false" Visible="false" />
     </ItemGroup>
     
+    <!-- Source generator reference -->
+    <ItemGroup>
+        <ProjectReference
+            Include="../DataFusionSharp.SourceGenerators/DataFusionSharp.SourceGenerators.csproj"
+            OutputItemType="Analyzer"
+            ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
     <!-- NuGet package dependencies -->
     <ItemGroup>
         <PackageReference Include="Apache.Arrow" Version="22.1.0" />

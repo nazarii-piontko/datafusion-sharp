@@ -13,7 +13,7 @@ namespace DataFusionSharp;
 /// is called (e.g., <see cref="CollectAsync"/>, <see cref="ExecuteStreamAsync"/>, or one of the Write methods).
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
-public sealed class DataFrame : IDisposable
+public sealed partial class DataFrame : IDisposable
 {
     private IntPtr _handle;
 
@@ -221,6 +221,7 @@ public sealed class DataFrame : IDisposable
         GC.SuppressFinalize(this);
     }
     
+    [NativeCallback]
     private static void CallbackForSchemaResult(IntPtr result, IntPtr error, ulong handle)
     {
         if (error == IntPtr.Zero)
@@ -241,9 +242,8 @@ public sealed class DataFrame : IDisposable
         else
             AsyncOperations.Instance.CompleteWithError<Schema>(handle, ErrorInfoData.FromIntPtr(error).ToException());
     }
-    private static readonly NativeMethods.Callback CallbackForSchemaResultDelegate = CallbackForSchemaResult;
-    private static readonly IntPtr CallbackForSchemaResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForSchemaResultDelegate);
-    
+
+    [NativeCallback]
     private static void CallbackForCollectResult(IntPtr result, IntPtr error, ulong handle)
     {
         if (error == IntPtr.Zero)
@@ -274,9 +274,7 @@ public sealed class DataFrame : IDisposable
         else
             AsyncOperations.Instance.CompleteWithError<DataFrameCollectedData>(handle, ErrorInfoData.FromIntPtr(error).ToException());
     }
-    private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollectResult;
-    private static readonly IntPtr CallbackForCollectResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
-    
+
     private void DestroyDataFrame()
     {
         var handle = _handle;

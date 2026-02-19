@@ -14,7 +14,7 @@ namespace DataFusionSharp;
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
 #pragma warning disable CA1711
-public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
+public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 #pragma warning restore CA1711
 {
     private IntPtr _handle;
@@ -98,6 +98,7 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
         return await _reader!.ReadNextRecordBatchAsync().ConfigureAwait(false);
     }
 
+    [NativeCallback]
     private static void CallbackForNextResult(IntPtr result, IntPtr error, ulong handle)
     {
         if (result == IntPtr.Zero && error == IntPtr.Zero)
@@ -122,8 +123,6 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
             AsyncOperations.Instance.CompleteWithError<BytesData?>(handle, ErrorInfoData.FromIntPtr(error).ToException());
         }
     }
-    private static readonly NativeMethods.Callback CallbackForNextResultDelegate = CallbackForNextResult;
-    private static readonly IntPtr CallbackForNextResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForNextResultDelegate);
 
     private void DestroyStream()
     {
