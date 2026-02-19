@@ -22,6 +22,10 @@ impl DataFrameWrapper {
     }
 }
 
+
+const IPC_SCHEMA_VEC_CAPACITY: usize = 1024 * 8; // 8KB
+const IPC_DATA_VEC_CAPACITY: usize = 1024 * 64; // 64KB
+
 /// Destroys a `DataFrame` and frees its resources.
 ///
 /// # Safety
@@ -161,7 +165,7 @@ pub unsafe extern "C" fn datafusion_dataframe_schema(
     let df = &df_wrapper.inner;
     let schema = df.schema().as_arrow();
 
-    let mut serialized_data = Vec::new();
+    let mut serialized_data = Vec::with_capacity(IPC_SCHEMA_VEC_CAPACITY);
 
     let result = datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialized_data, schema)
         .and_then(|mut s| s.flush())
@@ -193,7 +197,7 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
     dev_msg!("Executing collect on DataFrame: {:p}", df_ptr);
 
     df_wrapper.runtime.spawn(async move {
-        let mut serialization_buffer = Vec::new();
+        let mut serialization_buffer = Vec::with_capacity(IPC_DATA_VEC_CAPACITY);
 
         let df = df_wrapper.inner.clone();
         let schema = df.schema().as_arrow();
@@ -247,7 +251,7 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
             .and_then(|stream| {
-                datafusion::arrow::ipc::writer::StreamWriter::try_new(Vec::new(), &Arc::clone(&stream.schema()))
+                datafusion::arrow::ipc::writer::StreamWriter::try_new(Vec::with_capacity(IPC_DATA_VEC_CAPACITY), &Arc::clone(&stream.schema()))
                     .map(|writer| {
                         let stream_w = DataFrameStreamWrapper {
                             runtime: Arc::clone(&df_wrapper.runtime),

@@ -11,7 +11,7 @@ internal sealed class AsyncOperations
     
     public (ulong Id, TaskCompletionSource TaskCompletionSource) Create()
     {
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.None);
         
         var id = Interlocked.Increment(ref _nextId);
         while (!_operations.TryAdd(id, tcs))
@@ -22,7 +22,7 @@ internal sealed class AsyncOperations
     
     public (ulong Id, TaskCompletionSource<T> Source) Create<T>()
     {
-        var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource<T>(TaskCreationOptions.None);
         
         var id = Interlocked.Increment(ref _nextId);
         while (!_operations.TryAdd(id, tcs))

@@ -81,21 +81,29 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start getting next batch from stream");
         }
+        
+        var task = tcs.Task.ContinueWith<RecordBatch?>(t =>
+            {
+                var data = t.Result;
+                if (data is null)
+                    return null;
 
-        var data = await tcs.Task.ConfigureAwait(false);
-        if (data is null)
-            return null;
-        
-        if (_nativeMemoryStream is null)
-        {
-            _nativeMemoryStream = new NativeMemoryStream();
-            _nativeMemoryStream.SetNativeMemory(new NativeMemoryManager(data.Value.DataPtr, data.Value.Length));
-            _reader = new ArrowStreamReader(_nativeMemoryStream);
-        }
-        else
-            _nativeMemoryStream.SetNativeMemory(new NativeMemoryManager(data.Value.DataPtr, data.Value.Length));
-        
-        return await _reader!.ReadNextRecordBatchAsync().ConfigureAwait(false);
+                if (_nativeMemoryStream is null)
+                {
+                    _nativeMemoryStream = new NativeMemoryStream();
+                    _nativeMemoryStream.SetNativeMemory(new NativeMemoryManager(data.Value.DataPtr, data.Value.Length));
+                    _reader = new ArrowStreamReader(_nativeMemoryStream);
+                }
+                else
+                    _nativeMemoryStream.SetNativeMemory(new NativeMemoryManager(data.Value.DataPtr, data.Value.Length));
+
+                return _reader!.ReadNextRecordBatch();
+            }, 
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion,
+            TaskScheduler.Current);
+
+        return await task.ConfigureAwait(false);
     }
 
     private static void CallbackForNextResult(IntPtr result, IntPtr error, ulong handle)
