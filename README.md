@@ -1,7 +1,6 @@
 # DataFusionSharp
 
 [![CI](https://github.com/nazarii-piontko/datafusion-sharp/actions/workflows/ci.yml/badge.svg)](https://github.com/nazarii-piontko/datafusion-sharp/actions/workflows/ci.yml)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
 [![.NET](https://img.shields.io/badge/.NET-8.0+-purple.svg)](https://dotnet.microsoft.com/download)
 [![Rust](https://img.shields.io/badge/Rust-1.93+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.txt)
@@ -133,6 +132,24 @@ TODO: Documentation is in progress. Please refer to the [source code](src/DataFu
 - [**tests/DataFusionSharp.Tests/**](tests/DataFusionSharp.Tests) - Integration tests
 - [**tests/DataFusionSharp.Benchmark/**](tests/DataFusionSharp.Benchmark) - Performance benchmarks with native reference implementation
 - [**examples/**](examples) - Example usage and sample data
+
+## SonarQube
+
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=bugs)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=coverage)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
+
 
 ## Contributing
 
