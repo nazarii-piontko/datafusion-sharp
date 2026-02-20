@@ -22,8 +22,6 @@ impl DataFrameWrapper {
     }
 }
 
-
-const IPC_SCHEMA_VEC_CAPACITY: usize = 1024 * 8; // 8KB
 const IPC_DATA_VEC_CAPACITY: usize = 1024 * 64; // 64KB
 
 /// Destroys a `DataFrame` and frees its resources.
@@ -160,21 +158,12 @@ pub unsafe extern "C" fn datafusion_dataframe_schema(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    dev_msg!("Executing schema on DataFrame: {:p}", df_ptr);
-
     let df = &df_wrapper.inner;
     let schema = df.schema().as_arrow();
-
-    let mut serialized_data = Vec::with_capacity(IPC_SCHEMA_VEC_CAPACITY);
-
-    let result = datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialized_data, schema)
-        .and_then(|mut s| s.flush())
-        .map(|()| crate::BytesData::new(serialized_data.as_slice()))
+    let ffi_schema = arrow_array::ffi::FFI_ArrowSchema::try_from(schema)
         .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
 
-    dev_msg!("Finished executing schema on DataFrame: {:p}, schema size: {}", df_ptr, serialized_data.len());
-
-    crate::invoke_callback(result, callback, user_data);
+    crate::invoke_callback(ffi_schema, callback, user_data);
 
     crate::ErrorCode::Ok
 }

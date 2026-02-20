@@ -221,17 +221,14 @@ public sealed class DataFrame : IDisposable
         GC.SuppressFinalize(this);
     }
     
-    private static void CallbackForSchemaResult(IntPtr result, IntPtr error, ulong handle)
+    private static unsafe void CallbackForSchemaResult(IntPtr result, IntPtr error, ulong handle)
     {
         if (error == IntPtr.Zero)
         {
             try
             {
-                var data = BytesData.FromIntPtr(result);
-
-                using var nativeMemoryManager = new NativeMemoryManager(data.DataPtr, data.Length);
-                using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(nativeMemoryManager.Memory);
-                AsyncOperations.Instance.CompleteWithResult(handle, reader.Schema);
+                var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema((Apache.Arrow.C.CArrowSchema*) result.ToPointer());
+                AsyncOperations.Instance.CompleteWithResult(handle, schema);
             }
             catch (Exception ex)
             {

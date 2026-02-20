@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0.101"
 chrono = "0.4.43"
+arrow-array = { version = "57.3.0", features = ["ffi"] }
 datafusion = "52.1.0"
 datafusion-proto = "52.1.0"
 futures = "0.3.31"
