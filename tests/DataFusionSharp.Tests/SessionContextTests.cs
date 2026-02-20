@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Apache.Arrow;
 
 namespace DataFusionSharp.Tests;
 
@@ -61,23 +62,34 @@ public sealed class SessionContextTests : IDisposable
     {
         var activeTasks = new ConcurrentDictionary<int, bool>();
         
-        async Task QueryAsync()
+        async Task QueryAsync(int rows)
         {
             // Track the number of concurrent threads executing queries to ensure we have meaningful concurrency.
             activeTasks.TryAdd(Environment.CurrentManagedThreadId, true);
             
             using var context = _runtime.CreateSessionContext();
-            using var dataFrame = await context.SqlAsync("SELECT s.value AS id FROM generate_series(1, 3) AS s");
+            using var dataFrame = await context.SqlAsync($"SELECT s.value AS id FROM generate_series(1, {rows}) AS s");
             
             var schema = await dataFrame.GetSchemaAsync();
             Assert.NotNull(schema); // Simple check to ensure the query executed properly.
             
-            var collectedData = await dataFrame.CollectAsync();
-            Assert.Single(collectedData.Batches); // Simple check to ensure we got any batches back.
+            using var collected = await dataFrame.CollectAsync();
+            Assert.NotEmpty(collected.Batches); // Simple check to ensure we got any batches back.
+
+            var ids = new List<long>();
+            foreach (var batch in collected.Batches)
+                ids.AddRange(((Int64Array)batch.Column("id")).Values);
+            ids.Sort();
+
+            for (var i = 0; i < rows; i++)
+            {
+                if (i + 1 != ids[i])
+                    Assert.Fail($"Expected id {i + 1} but got {ids[i]} in query with {rows} rows");
+            }
         }
 
         // Force running the query on a thread pool thread to simulate concurrent access from multiple threads.
-        Task RunQueryAsync() => Task.Run(QueryAsync);
+        Task RunQueryAsync(int rows) => Task.Run(() => QueryAsync(rows));
 
         // Ensure meaningful concurrency.
         var concurrencyLevel = Math.Max(Environment.ProcessorCount * 2, 8);
@@ -85,8 +97,13 @@ public sealed class SessionContextTests : IDisposable
         // Limit total queries but allow for a large number to increase the chance of catching concurrency issues.
         var totalQueries = Math.Min(concurrencyLevel * 2_000, 64_000);
         
+        // Use a fixed seed to make the test deterministic
+        var rnd = new Random(42);
+        const int minRows = 2;
+        const int maxRows = 64_000;
+        
         // Start with concurrencyLevel queries and then, as each query completes, start a new one until totalQueries queries in total.
-        var tasks = Enumerable.Range(0, concurrencyLevel).Select(_ => RunQueryAsync()).ToHashSet();
+        var tasks = Enumerable.Range(0, concurrencyLevel).Select(_ => RunQueryAsync(rnd.Next(minRows, maxRows))).ToHashSet();
         for (var i = concurrencyLevel; i < totalQueries; ++i)
         {
             var task = await Task.WhenAny(tasks);
@@ -96,8 +113,19 @@ public sealed class SessionContextTests : IDisposable
             if (task.IsFaulted || task.IsCanceled)
                 break;
             
+            // Start a new query to maintain the concurrency level, but only if the previous task completed successfully.
             tasks.Remove(task);
-            tasks.Add(RunQueryAsync());
+            tasks.Add(RunQueryAsync(rnd.Next(minRows, maxRows)));
+
+            // Periodically force a Gen 1 GC collection to increase the chance of catching issues related to memory management and finalization under concurrent load.
+            if (i % (concurrencyLevel * 200) == 0)
+            {
+                _ = Task.Factory.StartNew(
+                    () => GC.Collect(1, GCCollectionMode.Forced),
+                    cancellationToken: CancellationToken.None,
+                    creationOptions: TaskCreationOptions.LongRunning,
+                    scheduler: TaskScheduler.Current);
+            }
         }
         
         // Wait for all remaining tasks to complete.

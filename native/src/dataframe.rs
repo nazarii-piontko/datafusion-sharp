@@ -22,6 +22,13 @@ impl DataFrameWrapper {
     }
 }
 
+#[repr(C)]
+pub struct CollectedRecordBatches {
+    pub schema: *const arrow_array::ffi::FFI_ArrowSchema,
+    pub num_batches: i32,
+    pub batches: *const arrow_array::ffi::FFI_ArrowArray, // Contiguous array of FFI_ArrowArray, one per batch
+}
+
 const IPC_DATA_VEC_CAPACITY: usize = 1024 * 64; // 64KB
 
 /// Destroys a `DataFrame` and frees its resources.
@@ -183,34 +190,50 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    dev_msg!("Executing collect on DataFrame: {:p}", df_ptr);
-
     df_wrapper.runtime.spawn(async move {
-        let mut serialization_buffer = Vec::with_capacity(IPC_DATA_VEC_CAPACITY);
-
         let df = df_wrapper.inner.clone();
-        let schema = df.schema().as_arrow();
-        let result = match datafusion::arrow::ipc::writer::StreamWriter::try_new(&mut serialization_buffer, schema) {
-            Ok(mut s) => {
-                df
-                    .collect()
-                    .await
-                    .map(|batches| -> datafusion::error::Result<()> {
-                        for batch in batches {
-                            s.write(&batch)?;
-                        }
-                        Ok(())
-                    })
-                    .map(|_| s.flush())
-                    .map(|_| crate::BytesData::new(serialization_buffer.as_slice()))
-                    .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
-            }
-            Err(e) => Err(crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
+
+        let ff_schema: arrow_array::ffi::FFI_ArrowSchema;
+        {
+            let schema = df.schema();
+            if let Ok(ffi_schema_t) = arrow_array::ffi::FFI_ArrowSchema::try_from(schema.as_arrow()) {
+                ff_schema = ffi_schema_t;
+            } else {
+                let error = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, "Failed to convert schema to FFI format");
+                crate::invoke_callback_error(&error, callback, user_data);
+                return;
+            };
+        }
+
+        let Ok(batches) = df.collect().await else {
+            let error = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, "Failed to collect record batches");
+            crate::invoke_callback_error(&error, callback, user_data);
+            return;
         };
 
-        dev_msg!("Finished executing collect, serialized size: {}", serialization_buffer.len());
+        let mut vec: Vec<arrow_array::ffi::FFI_ArrowArray> = Vec::with_capacity(batches.len());
 
-        crate::invoke_callback(result, callback, user_data);
+        use arrow_array::Array;
+
+        for batch in batches {
+            let struct_array = arrow_array::StructArray::new(
+                batch.schema().fields().clone(),
+                batch.columns().to_vec(),
+                None);
+            let struct_array_data = struct_array.to_data();
+
+            let ffi_batch = arrow_array::ffi::FFI_ArrowArray::new(&struct_array_data);
+
+            vec.push(ffi_batch);
+        }
+
+        let result = CollectedRecordBatches {
+            schema: &raw const ff_schema,
+            num_batches: vec.len() as i32,
+            batches: vec.as_slice().as_ptr(),
+        };
+
+        crate::invoke_callback(Ok(result), callback, user_data);
     });
 
     crate::ErrorCode::Ok

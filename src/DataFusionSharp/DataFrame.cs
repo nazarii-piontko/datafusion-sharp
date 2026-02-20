@@ -241,27 +241,24 @@ public sealed class DataFrame : IDisposable
     private static readonly NativeMethods.Callback CallbackForSchemaResultDelegate = CallbackForSchemaResult;
     private static readonly IntPtr CallbackForSchemaResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForSchemaResultDelegate);
     
-    private static void CallbackForCollectResult(IntPtr result, IntPtr error, ulong handle)
+    private static unsafe void CallbackForCollectResult(IntPtr result, IntPtr error, ulong handle)
     {
         if (error == IntPtr.Zero)
         {
             try
             {
-                var data = BytesData.FromIntPtr(result);
-                
-                // Important note about memory management:
-                // Use NativeMemoryStream instead of NativeMemoryManager directly, because the data needs to be copied into managed memory.
-                // When using NativeMemoryManager directly, ArrowStreamReader will keep references to the native memory for each ArrowArray it creates.
-                // This causes segmentation fault when native memory is released after callback returns.
-                using var nativeMemoryManager = new NativeMemoryManager(data.DataPtr, data.Length);
-                using var nativeMemoryStream = new NativeMemoryStream(nativeMemoryManager);
-                using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(nativeMemoryStream);
-                
-                var batches = new List<RecordBatch>();
-                while (reader.ReadNextRecordBatch() is {} batch)
+                var data = (CollectedRecordBatches*) result.ToPointer();
+                var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
+                var batches = new List<RecordBatch>(data->NumBatches);
+                for (var i = 0; i < data->NumBatches; i++)
+                {
+                    var batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data->Batches + i, schema);
                     batches.Add(batch);
+                }
                 
-                AsyncOperations.Instance.CompleteWithResult(handle, new DataFrameCollectedData(batches, reader.Schema));
+#pragma warning disable CA2000
+                AsyncOperations.Instance.CompleteWithResult(handle, new DataFrameCollectedData(batches.AsReadOnly(), schema));
+#pragma warning restore CA2000
             }
             catch (Exception ex)
             {
@@ -291,4 +288,12 @@ public sealed class DataFrame : IDisposable
 /// </summary>
 /// <param name="Batches">The list of collected record batches.</param>
 /// <param name="Schema">The Arrow schema of the data.</param>
-public record DataFrameCollectedData(IList<RecordBatch> Batches, Schema Schema);
+public sealed record DataFrameCollectedData(IReadOnlyList<RecordBatch> Batches, Schema Schema) : IDisposable
+{
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        foreach(var batch in Batches)
+            batch.Dispose();
+    }
+}
