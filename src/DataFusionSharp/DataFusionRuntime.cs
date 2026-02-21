@@ -12,10 +12,8 @@ namespace DataFusionSharp;
 /// shared across multiple threads. Create multiple <see cref="SessionContext"/> instances from a single runtime
 /// for concurrent query execution.
 /// </remarks>
-public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
+public sealed class DataFusionRuntime : IDisposable
 {
-    private static readonly TimeSpan DefaultShutdownTimeout = TimeSpan.FromMilliseconds(500);
-    
     private IntPtr _handle;
 
     private DataFusionRuntime(IntPtr handle)
@@ -28,7 +26,7 @@ public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
     /// </summary>
     ~DataFusionRuntime()
     {
-        ShutdownRuntime(DefaultShutdownTimeout);
+        ShutdownRuntime();
     }
 
     /// <summary>
@@ -71,24 +69,11 @@ public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
     /// </summary>
     public void Dispose()
     {
-        ShutdownRuntime(DefaultShutdownTimeout);
+        ShutdownRuntime();
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>
-    /// Asynchronously shuts down the runtime and releases all resources.
-    /// </summary>
-    /// <returns>A task representing the asynchronous dispose operation.</returns>
-    public ValueTask DisposeAsync()
-    {
-        var disposeTask = Task.Run(() => ShutdownRuntime(DefaultShutdownTimeout));
-        
-        GC.SuppressFinalize(this);
-        
-        return new ValueTask(disposeTask);
-    }
-
-    private void ShutdownRuntime(TimeSpan timeout)
+    private void ShutdownRuntime()
     {
         var handle = _handle;
         if (handle == IntPtr.Zero)
@@ -96,6 +81,6 @@ public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
         
         _handle = IntPtr.Zero;
         
-        NativeMethods.RuntimeShutdown(handle, (ulong) timeout.TotalMilliseconds);
+        NativeMethods.RuntimeShutdown(handle);
     }
 }

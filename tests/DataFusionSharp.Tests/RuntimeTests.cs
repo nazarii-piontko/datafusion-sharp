@@ -11,16 +11,6 @@ public sealed class RuntimeTests
         // Assert
         Assert.NotNull(runtime);
     }
-    
-    [Fact]
-    public async Task Create_WithAsyncDispose_ReturnsRuntime()
-    {
-        // Act
-        await using var runtime = DataFusionRuntime.Create();
-
-        // Assert
-        Assert.NotNull(runtime);
-    }
 
     [Fact]
     public void Create_MultipleRuntimes_AllValid()

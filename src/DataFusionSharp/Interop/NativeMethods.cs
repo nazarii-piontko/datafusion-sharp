@@ -17,7 +17,7 @@ internal static partial class NativeMethods
     public static partial DataFusionErrorCode RuntimeNew(uint workerThreads, uint maxBlockingThreads, out IntPtr runtimeHandle);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_runtime_destroy")]
-    public static partial DataFusionErrorCode RuntimeShutdown(IntPtr runtimeHandle, ulong timeoutMillis);
+    public static partial DataFusionErrorCode RuntimeShutdown(IntPtr runtimeHandle);
     
     // Context
     
