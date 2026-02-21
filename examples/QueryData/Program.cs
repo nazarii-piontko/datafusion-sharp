@@ -40,8 +40,29 @@ foreach (var field in schema.FieldsList)
 Console.WriteLine();
 
 Console.WriteLine("=== Collected Data ===");
-var collectedData = await df.CollectAsync();
+using var collectedData = await df.CollectAsync();
 foreach (var batch in collectedData.Batches)
+{
+    for (var r = 0; r < batch.Length; r++)
+    {
+        for (var c = 0; c < batch.ColumnCount; c++)
+        {
+            var v = batch.Column(c) switch
+            {
+                StringArray a => (object)a.GetString(r),
+                StringViewArray a => a.GetString(r),
+                Int64Array a => a.GetValue(r),
+                _ => null
+            };
+            Console.Write($"{v}\t");
+        }
+        Console.WriteLine();
+    }
+}
+
+Console.WriteLine("=== Streamed Data ===");
+using var stream = await df.ExecuteStreamAsync();
+await foreach (var batch in stream)
 {
     for (var r = 0; r < batch.Length; r++)
     {

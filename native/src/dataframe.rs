@@ -241,6 +241,8 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
+    dev_msg!("Executing dataframe stream on DataFrame: {:p}", df_ptr);
+
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
 
@@ -267,6 +269,8 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
             stream_ptr: stream_w,
             schema: &raw const ffi_schema,
         };
+
+        dev_msg!("Successfully executed dataframe stream on DataFrame: {:p}, stream wrapper pointer: {:p}", df_wrapper, stream_w);
 
         crate::invoke_callback_success(result, callback, user_data);
     });
@@ -314,7 +318,10 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
     runtime.spawn(async move {
         match stream_wrapper.stream.next().await {
             Some(result) => match result {
-                Ok(batch) => crate::invoke_callback_success(convert_batch_to_ffi(&batch), callback, user_data),
+                Ok(batch) => {
+                    let ffi_batch = convert_batch_to_ffi(&batch);
+                    crate::invoke_callback_success(ffi_batch, callback, user_data);
+                },
                 Err(err) => {
                     let error = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, err);
                     crate::invoke_callback_error(&error, callback, user_data);

@@ -245,11 +245,12 @@ public sealed class DataFrame : IDisposable
     {
         if (error == IntPtr.Zero)
         {
+            var data = (NativeDataFrameCollectedData*) result.ToPointer();
+            List<RecordBatch>? batches = null;
             try
             {
-                var data = (NativeDataFrameCollectedData*) result.ToPointer();
                 var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
-                var batches = new List<RecordBatch>(data->NumBatches);
+                batches = new List<RecordBatch>(data->NumBatches);
                 for (var i = 0; i < data->NumBatches; i++)
                 {
                     var batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data->Batches + i, schema);
@@ -262,6 +263,20 @@ public sealed class DataFrame : IDisposable
             }
             catch (Exception ex)
             {
+                try
+                {
+                    for (var i = 0; i < data->NumBatches; i++)
+                        Apache.Arrow.C.CArrowArray.CallReleaseFunc(data->Batches + i);
+                    if (batches is not null)
+                    {
+                        foreach (var batch in batches)
+                            batch.Dispose();
+                    }
+                }
+                catch
+                {
+                    // Ignore exceptions from release functions - we are already handling another exception and there's not much we can do about it.
+                }
                 AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
             }
         }

@@ -101,16 +101,12 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
         }
         else if (error == IntPtr.Zero)
         {
+            var data = (Apache.Arrow.C.CArrowArray*) result.ToPointer();
             try
             {
-                var data = (Apache.Arrow.C.CArrowArray*) result.ToPointer();
-                
                 var schema = AsyncOperations.Instance.GetUserData<Schema>(userData);
                 if (schema is null)
-                {
-                    Apache.Arrow.C.CArrowArray.CallReleaseFunc(data);
                     throw new InvalidOperationException("Failed to retrieve schema for next batch retrieval operation");
-                }
                 
                 var batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data, schema);
                 
@@ -118,6 +114,15 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
             }
             catch (Exception ex)
             {
+                try
+                {
+                    Apache.Arrow.C.CArrowArray.CallReleaseFunc(data);
+                }
+                catch
+                {
+                    // Ignore exceptions from release function - we are already handling another exception and there's not much we can do about it.
+                }
+                
                 AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
             }
         }

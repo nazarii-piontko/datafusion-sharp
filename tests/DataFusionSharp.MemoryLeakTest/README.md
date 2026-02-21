@@ -8,7 +8,7 @@ Library author uses [`heattrack`](https://github.com/KDE/heaptrack) for this pur
 ## Prerequisites
 - Linux
 - `dotnet` SDK
-- `heaptrack` (and optionally `heaptrack_gui`) or another memory profiler that supports native code
+- `heaptrack` (and optionally `heaptrack_gui`) or another memory profiler that supports native code (e.g. `valgrind`)
 
 ## Build
 Run from the repository root:
@@ -40,4 +40,10 @@ GUI (optional):
 
 ```bash
 heaptrack_gui heaptrack.<process>.<pid>.gz
+```
+
+## Run with `valgrind`
+Run from the repository root. Use the built executable from `bin/Release` so `valgrind` profiles the app directly:
+```bash
+valgrind --leak-check=full --track-origins=yes tests/DataFusionSharp.MemoryLeakTest/bin/Release/net10.0/DataFusionSharp.MemoryLeakTest
 ```
