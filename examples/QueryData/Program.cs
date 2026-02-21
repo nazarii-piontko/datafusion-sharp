@@ -1,7 +1,7 @@
 using Apache.Arrow;
 using DataFusionSharp;
 
-await using var runtime = DataFusionRuntime.Create();
+using var runtime = DataFusionRuntime.Create();
 using var context = runtime.CreateSessionContext();
 
 // Register data from CSV format
