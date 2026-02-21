@@ -7,12 +7,6 @@ pub struct DataFrameWrapper {
     inner: datafusion::prelude::DataFrame,
 }
 
-pub struct DataFrameStreamWrapper {
-    runtime: crate::RuntimeHandle,
-    writer: datafusion::arrow::ipc::writer::StreamWriter<Vec<u8>>,
-    stream: datafusion::execution::SendableRecordBatchStream
-}
-
 impl DataFrameWrapper {
     pub fn new(runtime: crate::RuntimeHandle, inner: datafusion::prelude::DataFrame) -> Self {
         Self {
@@ -21,15 +15,6 @@ impl DataFrameWrapper {
         }
     }
 }
-
-#[repr(C)]
-pub struct CollectedRecordBatches {
-    pub schema: *const arrow_array::ffi::FFI_ArrowSchema,
-    pub num_batches: i32,
-    pub batches: *const arrow_array::ffi::FFI_ArrowArray, // Contiguous array of FFI_ArrowArray, one per batch
-}
-
-const IPC_DATA_VEC_CAPACITY: usize = 1024 * 64; // 64KB
 
 /// Destroys a `DataFrame` and frees its resources.
 ///
@@ -175,6 +160,14 @@ pub unsafe extern "C" fn datafusion_dataframe_schema(
     crate::ErrorCode::Ok
 }
 
+/// Struct to hold collected record batches in FFI-compatible format.
+#[repr(C)]
+pub struct CollectedData {
+    pub schema: *const arrow_array::ffi::FFI_ArrowSchema,
+    pub num_batches: i32,
+    pub batches: *const arrow_array::ffi::FFI_ArrowArray, // Contiguous array of FFI_ArrowArray, one per batch
+}
+
 /// Materializes all records as a serialized Arrow IPC stream.
 ///
 /// This is an async operation. The callback is invoked on completion with the serialized bytes.
@@ -193,50 +186,42 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
 
-        let ff_schema: arrow_array::ffi::FFI_ArrowSchema;
-        {
-            let schema = df.schema();
-            if let Ok(ffi_schema_t) = arrow_array::ffi::FFI_ArrowSchema::try_from(schema.as_arrow()) {
-                ff_schema = ffi_schema_t;
-            } else {
-                let error = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, "Failed to convert schema to FFI format");
-                crate::invoke_callback_error(&error, callback, user_data);
+        let ffi_schema = match convert_schema_to_ffi(&df) {
+            Ok(s) => s,
+            Err(e) => {
+                crate::invoke_callback_error(&e, callback, user_data);
                 return;
-            };
-        }
+            }
+        };
 
         let Ok(batches) = df.collect().await else {
             let error = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, "Failed to collect record batches");
             crate::invoke_callback_error(&error, callback, user_data);
             return;
         };
+        let ffi_batches = batches.iter().map(convert_batch_to_ffi).collect::<Vec<_>>();
 
-        let mut vec: Vec<arrow_array::ffi::FFI_ArrowArray> = Vec::with_capacity(batches.len());
-
-        use arrow_array::Array;
-
-        for batch in batches {
-            let struct_array = arrow_array::StructArray::new(
-                batch.schema().fields().clone(),
-                batch.columns().to_vec(),
-                None);
-            let struct_array_data = struct_array.to_data();
-
-            let ffi_batch = arrow_array::ffi::FFI_ArrowArray::new(&struct_array_data);
-
-            vec.push(ffi_batch);
-        }
-
-        let result = CollectedRecordBatches {
-            schema: &raw const ff_schema,
-            num_batches: vec.len() as i32,
-            batches: vec.as_slice().as_ptr(),
+        let result = CollectedData {
+            schema: &raw const ffi_schema,
+            num_batches: ffi_batches.len() as i32,
+            batches: ffi_batches.as_ptr(),
         };
 
-        crate::invoke_callback(Ok(result), callback, user_data);
+        crate::invoke_callback_success(result, callback, user_data);
     });
 
     crate::ErrorCode::Ok
+}
+
+pub struct DataFrameStreamWrapper {
+    runtime: crate::RuntimeHandle,
+    stream: datafusion::execution::SendableRecordBatchStream
+}
+
+#[repr(C)]
+pub struct ExecutedStreamData {
+    pub stream_ptr: *mut DataFrameStreamWrapper,
+    pub schema: *const arrow_array::ffi::FFI_ArrowSchema,
 }
 
 /// Executes the `DataFrame` and returns a stream of record batches as serialized Arrow IPC data.
@@ -258,24 +243,32 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
-        let result = df
-            .execute_stream()
-            .await
-            .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
-            .and_then(|stream| {
-                datafusion::arrow::ipc::writer::StreamWriter::try_new(Vec::with_capacity(IPC_DATA_VEC_CAPACITY), &Arc::clone(&stream.schema()))
-                    .map(|writer| {
-                        let stream_w = DataFrameStreamWrapper {
-                            runtime: Arc::clone(&df_wrapper.runtime),
-                            writer,
-                            stream,
-                        };
-                        Box::into_raw(Box::new(stream_w))
-                    })
-                    .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
-            });
 
-        crate::invoke_callback(result, callback, user_data);
+        let ffi_schema = match convert_schema_to_ffi(&df) {
+            Ok(s) => s,
+            Err(e) => {
+                crate::invoke_callback_error(&e, callback, user_data);
+                return;
+            }
+        };
+
+        let Ok(stream) = df.execute_stream().await else {
+            let error = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, "Failed to execute dataframe stream");
+            crate::invoke_callback_error(&error, callback, user_data);
+            return;
+        };
+
+        let stream_w = Box::into_raw(Box::new(DataFrameStreamWrapper {
+            runtime: Arc::clone(&df_wrapper.runtime),
+            stream,
+        }));
+
+        let result = ExecutedStreamData {
+            stream_ptr: stream_w,
+            schema: &raw const ffi_schema,
+        };
+
+        crate::invoke_callback_success(result, callback, user_data);
     });
 
     crate::ErrorCode::Ok
@@ -319,30 +312,16 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
     let runtime = Arc::clone(&stream_wrapper.runtime);
 
     runtime.spawn(async move {
-        let result_opt = stream_wrapper.stream
-            .next()
-            .await
-            .map(|batch_res| batch_res
-                .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
-                .and_then(|batch| {
-                    stream_wrapper.writer
-                        .write(&batch)
-                        .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e))
-                }));
-
-        match result_opt {
-            Some(result) => {
-                let r = result.map(|()| crate::BytesData::new(stream_wrapper.writer.get_ref()));
-
-                crate::invoke_callback(r, callback, user_data);
-
-                // Clear the writer buffer for the next call
-                stream_wrapper.writer.get_mut().clear();
-            }
-            None => {
-                crate::invoke_callback_null_result(callback, user_data);
-            }
-        }
+        match stream_wrapper.stream.next().await {
+            Some(result) => match result {
+                Ok(batch) => crate::invoke_callback_success(convert_batch_to_ffi(&batch), callback, user_data),
+                Err(err) => {
+                    let error = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, err);
+                    crate::invoke_callback_error(&error, callback, user_data);
+                }
+            },
+            None => crate::invoke_callback_null_result(callback, user_data)
+        };
     });
 
     crate::ErrorCode::Ok
@@ -455,4 +434,21 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
     });
 
     crate::ErrorCode::Ok
+}
+
+/// Helper function to convert a DataFrame schema to FFI format.
+fn convert_schema_to_ffi(df: &datafusion::dataframe::DataFrame) -> Result<arrow_array::ffi::FFI_ArrowSchema, crate::ErrorInfo> {
+    let schema = df.schema();
+    arrow_array::ffi::FFI_ArrowSchema::try_from(schema.as_arrow())
+        .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, format!("Failed to convert schema to FFI format: {}", e)))
+}
+
+/// Helper function to convert a RecordBatch to FFI format.
+fn convert_batch_to_ffi(batch: &arrow_array::RecordBatch) -> arrow_array::ffi::FFI_ArrowArray {
+    let fields = batch.schema().fields().clone();
+    let arrays = batch.columns().to_vec();
+    let st = arrow_array::StructArray::new(fields, arrays, None);
+
+    use arrow_array::Array;
+    arrow_array::ffi::FFI_ArrowArray::new(&st.to_data())
 }

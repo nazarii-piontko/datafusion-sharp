@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using Apache.Arrow;
-using Apache.Arrow.Ipc;
 using DataFusionSharp.Interop;
 
 namespace DataFusionSharp;
@@ -17,19 +16,24 @@ namespace DataFusionSharp;
 public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 #pragma warning restore CA1711
 {
-    private IntPtr _handle;
-    private NativeMemoryStream? _nativeMemoryStream;
-    private ArrowStreamReader? _reader;
+    private IntPtr _streamHandle;
+    private readonly List<RecordBatch> _batches = [];
 
     /// <summary>
-    /// Gets the DataFrame that created this stream.
+    /// Gets the <see cref="DataFusionSharp.DataFrame"/> that created this stream.
     /// </summary>
     public DataFrame DataFrame { get; }
 
-    internal DataFrameStream(DataFrame dataFrame, IntPtr handle)
+    /// <summary>
+    /// Gets the <see cref="Apache.Arrow.Schema" /> of the record batches produced by this stream.
+    /// </summary>
+    public Schema Schema { get; }
+    
+    internal DataFrameStream(DataFrame dataFrame, Schema schema, IntPtr streamHandle)
     {
         DataFrame = dataFrame;
-        _handle = handle;
+        Schema = schema;
+        _streamHandle = streamHandle;
     }
 
     /// <summary>
@@ -59,11 +63,8 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
     /// </summary>
     public void Dispose()
     {
-        _reader?.Dispose();
-        _reader = null;
-
-        _nativeMemoryStream?.Dispose();
-        _nativeMemoryStream = null;
+        _batches.ForEach(batch => batch.Dispose());
+        _batches.Clear();
 
         DestroyStream();
 
@@ -72,74 +73,69 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
     
     private async Task<RecordBatch?> NextAsync()
     {
-        ObjectDisposedException.ThrowIf(_handle == IntPtr.Zero, nameof(DataFrameStream));
+        ObjectDisposedException.ThrowIf(_streamHandle == IntPtr.Zero, nameof(DataFrameStream));
 
-        var (id, tcs) = AsyncOperations.Instance.Create<BytesData?>();
-        var result = NativeMethods.DataFrameStreamNext(_handle, CallbackForNextResultHandler, id);
+        var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema);
+        
+        var result = NativeMethods.DataFrameStreamNext(_streamHandle, CallbackForNextResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start getting next batch from stream");
         }
         
-        var task = tcs.Task.ContinueWith<RecordBatch?>(t =>
-            {
-                var data = t.Result;
-                if (data is null)
-                    return null;
+        var batch = await tcs.Task.ConfigureAwait(false);
 
-                if (_nativeMemoryStream is null)
-                {
-                    _nativeMemoryStream = new NativeMemoryStream();
-                    _nativeMemoryStream.SetNativeMemory(new NativeMemoryManager(data.Value.DataPtr, data.Value.Length));
-                    _reader = new ArrowStreamReader(_nativeMemoryStream);
-                }
-                else
-                    _nativeMemoryStream.SetNativeMemory(new NativeMemoryManager(data.Value.DataPtr, data.Value.Length));
-
-                return _reader!.ReadNextRecordBatch();
-            }, 
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion,
-            TaskScheduler.Current);
-
-        return await task.ConfigureAwait(false);
+        if (batch is not null)
+            _batches.Add(batch); // Keep track of batches to dispose them when the stream is disposed.
+        
+        return batch;
     }
 
-    private static void CallbackForNextResult(IntPtr result, IntPtr error, ulong handle)
+    private static unsafe void CallbackForNextResult(IntPtr result, IntPtr error, ulong userData)
     {
         if (result == IntPtr.Zero && error == IntPtr.Zero)
         {
             // Null result - end of stream
-            AsyncOperations.Instance.CompleteWithResult<BytesData?>(handle, null);
+            AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, null);
         }
         else if (error == IntPtr.Zero)
         {
             try
             {
-                var data = BytesData.FromIntPtr(result);
-                AsyncOperations.Instance.CompleteWithResult<BytesData?>(handle, data);
+                var data = (Apache.Arrow.C.CArrowArray*) result.ToPointer();
+                
+                var schema = AsyncOperations.Instance.GetUserData<Schema>(userData);
+                if (schema is null)
+                {
+                    Apache.Arrow.C.CArrowArray.CallReleaseFunc(data);
+                    throw new InvalidOperationException("Failed to retrieve schema for next batch retrieval operation");
+                }
+                
+                var batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data, schema);
+                
+                AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, batch);
             }
             catch (Exception ex)
             {
-                AsyncOperations.Instance.CompleteWithError<BytesData?>(handle, ex);
+                AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
             }
         }
         else
         {
-            AsyncOperations.Instance.CompleteWithError<BytesData?>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+            AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ErrorInfoData.FromIntPtr(error).ToException());
         }
     }
     private static readonly NativeMethods.Callback CallbackForNextResultDelegate = CallbackForNextResult;
-    private static readonly IntPtr CallbackForNextResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForNextResultDelegate);
+    private static readonly IntPtr CallbackForNextResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForNextResultDelegate);
 
     private void DestroyStream()
     {
-        var handle = _handle;
+        var handle = _streamHandle;
         if (handle == IntPtr.Zero)
             return;
 
-        _handle = IntPtr.Zero;
+        _streamHandle = IntPtr.Zero;
 
         NativeMethods.DataFrameStreamDestroy(handle);
     }

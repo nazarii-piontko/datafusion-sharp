@@ -99,7 +99,7 @@ public sealed class DataFrame : IDisposable
     public Task<Schema> GetSchemaAsync()
     {
         var (id, tcs) = AsyncOperations.Instance.Create<Schema>();
-        var result = NativeMethods.DataFrameSchema(_handle, CallbackForSchemaResultHandler, id);
+        var result = NativeMethods.DataFrameSchema(_handle, CallbackForSchemaResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -112,12 +112,12 @@ public sealed class DataFrame : IDisposable
     /// <summary>
     /// Collects all data from this DataFrame into memory.
     /// </summary>
-    /// <returns>A task containing the <see cref="DataFrameCollectedData"/> with all record batches and schema.</returns>
+    /// <returns>A task containing the <see cref="DataFrameCollectedResult"/> with all record batches and schema.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task<DataFrameCollectedData> CollectAsync()
+    public Task<DataFrameCollectedResult> CollectAsync()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedData>();
-        var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectResultHandler, id);
+        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>();
+        var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -134,16 +134,16 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public async Task<DataFrameStream> ExecuteStreamAsync()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<IntPtr>();
-        var result = NativeMethods.DataFrameExecuteStream(_handle, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
+        var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, IntPtr StreamHandle)>();
+        var result = NativeMethods.DataFrameExecuteStream(_handle, CallbackForExecutedStreamHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start executing stream on DataFrame");
         }
 
-        var streamHandle = await tcs.Task.ConfigureAwait(false);
-        return new DataFrameStream(this, streamHandle);
+        var (schema, streamHandle) = await tcs.Task.ConfigureAwait(false);
+        return new DataFrameStream(this, schema, streamHandle);
     }
 
     /// <summary>
@@ -221,7 +221,7 @@ public sealed class DataFrame : IDisposable
         GC.SuppressFinalize(this);
     }
     
-    private static unsafe void CallbackForSchemaResult(IntPtr result, IntPtr error, ulong handle)
+    private static unsafe void CallbackForGetSchema(IntPtr result, IntPtr error, ulong handle)
     {
         if (error == IntPtr.Zero)
         {
@@ -238,16 +238,16 @@ public sealed class DataFrame : IDisposable
         else
             AsyncOperations.Instance.CompleteWithError<Schema>(handle, ErrorInfoData.FromIntPtr(error).ToException());
     }
-    private static readonly NativeMethods.Callback CallbackForSchemaResultDelegate = CallbackForSchemaResult;
-    private static readonly IntPtr CallbackForSchemaResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForSchemaResultDelegate);
+    private static readonly NativeMethods.Callback CallbackForSchemaResultDelegate = CallbackForGetSchema;
+    private static readonly IntPtr CallbackForSchemaResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForSchemaResultDelegate);
     
-    private static unsafe void CallbackForCollectResult(IntPtr result, IntPtr error, ulong handle)
+    private static unsafe void CallbackForCollect(IntPtr result, IntPtr error, ulong handle)
     {
         if (error == IntPtr.Zero)
         {
             try
             {
-                var data = (CollectedRecordBatches*) result.ToPointer();
+                var data = (NativeDataFrameCollectedData*) result.ToPointer();
                 var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
                 var batches = new List<RecordBatch>(data->NumBatches);
                 for (var i = 0; i < data->NumBatches; i++)
@@ -257,19 +257,41 @@ public sealed class DataFrame : IDisposable
                 }
                 
 #pragma warning disable CA2000
-                AsyncOperations.Instance.CompleteWithResult(handle, new DataFrameCollectedData(batches.AsReadOnly(), schema));
+                AsyncOperations.Instance.CompleteWithResult(handle, new DataFrameCollectedResult(batches.AsReadOnly(), schema));
 #pragma warning restore CA2000
             }
             catch (Exception ex)
             {
-                AsyncOperations.Instance.CompleteWithError<DataFrameCollectedData>(handle, ex);
+                AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
             }
         }
         else
-            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedData>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ErrorInfoData.FromIntPtr(error).ToException());
     }
-    private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollectResult;
-    private static readonly IntPtr CallbackForCollectResultHandler = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
+    private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollect;
+    private static readonly IntPtr CallbackForCollectResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
+    
+    private static unsafe void CallbackForExecutedStream(IntPtr result, IntPtr error, ulong handle)
+    {
+        if (error == IntPtr.Zero)
+        {
+            try
+            {
+                var data = (NativeDataFrameExecutedStreamData*) result.ToPointer();
+                var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
+                
+                AsyncOperations.Instance.CompleteWithResult(handle, ValueTuple.Create(schema, data->StreamHandle));
+            }
+            catch (Exception ex)
+            {
+                AsyncOperations.Instance.CompleteWithError<(Schema, IntPtr)>(handle, ex);
+            }
+        }
+        else
+            AsyncOperations.Instance.CompleteWithError<(Schema, IntPtr)>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+    }
+    private static readonly NativeMethods.Callback CallbackForExecutedStreamDelegate = CallbackForExecutedStream;
+    private static readonly IntPtr CallbackForExecutedStreamHandle = Marshal.GetFunctionPointerForDelegate(CallbackForExecutedStreamDelegate);
     
     private void DestroyDataFrame()
     {
@@ -285,11 +307,26 @@ public sealed class DataFrame : IDisposable
 
 /// <summary>
 /// Contains the collected record batches and schema from a DataFrame.
+/// This class implements <see cref="IDisposable"/> to ensure that all record batches are properly disposed of when no longer needed.
 /// </summary>
-/// <param name="Batches">The list of collected record batches.</param>
-/// <param name="Schema">The Arrow schema of the data.</param>
-public sealed record DataFrameCollectedData(IReadOnlyList<RecordBatch> Batches, Schema Schema) : IDisposable
+public sealed class DataFrameCollectedResult : IDisposable
 {
+    /// <summary>
+    /// The collected record batches.
+    /// </summary>
+    public IReadOnlyList<RecordBatch> Batches { get; }
+    
+    /// <summary>
+    /// The schema of the collected record batches.
+    /// </summary>
+    public Schema Schema { get; }
+    
+    internal DataFrameCollectedResult(IReadOnlyList<RecordBatch> batches, Schema schema)
+    {
+        Batches = batches;
+        Schema = schema;
+    }
+    
     /// <inheritdoc />
     public void Dispose()
     {

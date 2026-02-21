@@ -46,6 +46,19 @@ public sealed class SessionContextTests : IDisposable
         
         Assert.Contains(tableName, exception.Message, StringComparison.Ordinal);
     }
+
+    public void Dispose()
+    {
+        _runtime.Dispose();
+    }
+}
+
+[Trait("Category", "Stress")]
+public sealed class StressTests : IDisposable
+{
+    private readonly DataFusionRuntime _runtime = DataFusionRuntime.Create();
+
+    public delegate Task QueryFunc(DataFusionRuntime runtime, int rows);
     
     /// <summary>
     /// Tests that the runtime can handle multiple concurrent sessions executing queries simultaneously.
@@ -56,40 +69,20 @@ public sealed class SessionContextTests : IDisposable
     /// but it can also fail due to other reasons (e.g., resource exhaustion).
     /// Therefore, if this test fails, it should be investigated further to determine the root cause.
     /// </remarks>
-    [Fact(Timeout = 300_000)]
-    [Trait("Category", "Stress")]
-    public async Task ConcurrentSessions_HandleMultipleQueries_Successfully()
+    [Theory(Timeout = 300_000)]
+    [MemberData(nameof(ConcurrentSessions_HandleMultipleQueries_Successfully_Cases))]
+    public async Task ConcurrentSessions_HandleMultipleQueries_Successfully(QueryFunc queryFunc)
     {
         var activeTasks = new ConcurrentDictionary<int, bool>();
-        
-        async Task QueryAsync(int rows)
+
+        // Force running the query on a thread pool thread to simulate concurrent access from multiple threads.
+        Task RunQueryAsync(int rows) => Task.Run(() =>
         {
             // Track the number of concurrent threads executing queries to ensure we have meaningful concurrency.
             activeTasks.TryAdd(Environment.CurrentManagedThreadId, true);
             
-            using var context = _runtime.CreateSessionContext();
-            using var dataFrame = await context.SqlAsync($"SELECT s.value AS id FROM generate_series(1, {rows}) AS s");
-            
-            var schema = await dataFrame.GetSchemaAsync();
-            Assert.NotNull(schema); // Simple check to ensure the query executed properly.
-            
-            using var collected = await dataFrame.CollectAsync();
-            Assert.NotEmpty(collected.Batches); // Simple check to ensure we got any batches back.
-
-            var ids = new List<long>();
-            foreach (var batch in collected.Batches)
-                ids.AddRange(((Int64Array)batch.Column("id")).Values);
-            ids.Sort();
-
-            for (var i = 0; i < rows; i++)
-            {
-                if (i + 1 != ids[i])
-                    Assert.Fail($"Expected id {i + 1} but got {ids[i]} in query with {rows} rows");
-            }
-        }
-
-        // Force running the query on a thread pool thread to simulate concurrent access from multiple threads.
-        Task RunQueryAsync(int rows) => Task.Run(() => QueryAsync(rows));
+            return queryFunc(_runtime, rows);
+        });
 
         // Ensure meaningful concurrency.
         var concurrencyLevel = Math.Max(Environment.ProcessorCount * 2, 8);
@@ -134,6 +127,53 @@ public sealed class SessionContextTests : IDisposable
         
         Assert.True(activeTasks.Count >= Environment.ProcessorCount, 
             $"Expected at least {Environment.ProcessorCount} concurrent threads, but got {activeTasks.Count}");
+    }
+    
+    // ReSharper disable once InconsistentNaming
+    public static IEnumerable<object[]> ConcurrentSessions_HandleMultipleQueries_Successfully_Cases =>
+    [
+        [new QueryFunc(Query_WithCollect)],
+        [new QueryFunc(Query_WithStream)]
+    ];
+    
+    private static async Task Query_WithCollect(DataFusionRuntime runtime, int rows)
+    {    
+        using var context = runtime.CreateSessionContext();
+        using var dataFrame = await context.SqlAsync($"SELECT s.value AS id FROM generate_series(1, {rows}) AS s");
+            
+        using var collected = await dataFrame.CollectAsync();
+        Assert.NotEmpty(collected.Batches); // Simple check to ensure we got any batches back.
+
+        var ids = new List<long>();
+        foreach (var batch in collected.Batches)
+            ids.AddRange(((Int64Array)batch.Column("id")).Values);
+        ids.Sort();
+
+        for (var i = 0; i < rows; i++)
+        {
+            if (i + 1 != ids[i])
+                Assert.Fail($"Expected id {i + 1} but got {ids[i]} in query with {rows} rows");
+        }
+    }
+    
+    private static async Task Query_WithStream(DataFusionRuntime runtime, int rows)
+    {    
+        using var context = runtime.CreateSessionContext();
+        using var dataFrame = await context.SqlAsync($"SELECT s.value AS id FROM generate_series(1, {rows}) AS s");
+        
+        using var stream = await dataFrame.ExecuteStreamAsync();
+        Assert.NotNull(stream);
+
+        var ids = new List<long>();
+        await foreach (var batch in stream)
+            ids.AddRange(((Int64Array)batch.Column("id")).Values);
+        ids.Sort();
+
+        for (var i = 0; i < rows; i++)
+        {
+            if (i + 1 != ids[i])
+                Assert.Fail($"Expected id {i + 1} but got {ids[i]} in query with {rows} rows");
+        }
     }
 
     public void Dispose()
