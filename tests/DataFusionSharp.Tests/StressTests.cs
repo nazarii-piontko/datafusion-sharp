@@ -61,6 +61,8 @@ public sealed class StressTests : IDisposable
     
     public void Dispose()
     {
+        // Use shutdown as we want to fail the test if the runtime fails.
+        _runtime.Shutdown();
         _runtime.Dispose();
     }
 }

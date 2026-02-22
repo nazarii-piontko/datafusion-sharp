@@ -57,6 +57,19 @@ public sealed class DataFusionRuntime : IDisposable
         return new SessionContext(this, new SessionContextSafeHandle(contextHandle));
     }
     
+    /// <summary>
+    /// Shuts down the runtime and releases all resources.
+    /// After calling this method, the runtime cannot be used to create new session contexts or execute queries.
+    /// </summary>
+    /// <remarks>
+    /// It is not necessary to call this method explicitly, as the runtime will be automatically shut down when the instance is disposed.
+    /// </remarks>
+    /// <exception cref="DataFusionException">Thrown when shutdown fails.</exception>
+    public void Shutdown()
+    {
+        _handle.Shutdown();
+    }
+    
     /// <inheritdoc />
     public void Dispose()
     {

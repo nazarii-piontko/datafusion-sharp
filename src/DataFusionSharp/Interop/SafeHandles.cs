@@ -19,10 +19,32 @@ internal sealed class RuntimeSafeHandle : DataFusionSafeHandle
         : base(handle)
     {
     }
+    
+    /// <summary>
+    /// Shuts down the DataFusion runtime and releases all associated resources.
+    /// </summary>
+    /// <exception cref="DataFusionException">Thrown when shutdown fails.</exception>
+    internal void Shutdown()
+    {
+        ObjectDisposedException.ThrowIf(IsClosed, this);
+        
+        var errorCode = ShutdownInternal();
+        DataFusionException.ThrowIfError(errorCode, "Failed to shutdown DataFusion runtime");
+        
+        SetHandleAsInvalid();
+        
+        Close();
+        
+    }
 
     protected override bool ReleaseHandle()
     {
-        return NativeMethods.RuntimeShutdown(handle) == DataFusionErrorCode.Ok;
+        return ShutdownInternal() == DataFusionErrorCode.Ok;
+    }
+    
+    private DataFusionErrorCode ShutdownInternal()
+    {
+        return NativeMethods.RuntimeShutdown(handle);
     }
 }
 

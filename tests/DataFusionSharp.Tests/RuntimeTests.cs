@@ -43,4 +43,17 @@ public sealed class RuntimeTests
         // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => runtime.CreateSessionContext());
     }
+    
+    [Fact]
+    public void Shutdown_SuccessfullyShutsDownRuntime()
+    {
+        // Arrange
+        using var runtime = DataFusionRuntime.Create();
+
+        // Act
+        runtime.Shutdown();
+
+        // Assert
+        Assert.Throws<ObjectDisposedException>(() => runtime.CreateSessionContext());
+    }
 }
