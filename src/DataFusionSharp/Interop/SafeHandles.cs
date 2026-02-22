@@ -25,3 +25,16 @@ internal sealed class RuntimeSafeHandle : DataFusionSafeHandle
         return NativeMethods.RuntimeShutdown(handle) == DataFusionErrorCode.Ok;
     }
 }
+
+internal sealed class SessionContextSafeHandle : DataFusionSafeHandle
+{
+    internal SessionContextSafeHandle(IntPtr handle)
+        : base(handle)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        return NativeMethods.ContextDestroy(handle) == DataFusionErrorCode.Ok;
+    }
+}

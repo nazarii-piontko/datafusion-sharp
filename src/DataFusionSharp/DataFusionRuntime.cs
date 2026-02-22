@@ -54,7 +54,7 @@ public sealed class DataFusionRuntime : IDisposable
         var errorCode = NativeMethods.ContextNew(_handle.DangerousGetHandle(), out var contextHandle);
         DataFusionException.ThrowIfError(errorCode, "Failed to create DataFusion context");
         
-        return new SessionContext(this, contextHandle);
+        return new SessionContext(this, new SessionContextSafeHandle(contextHandle));
     }
     
     /// <inheritdoc />
