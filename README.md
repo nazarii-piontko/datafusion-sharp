@@ -34,7 +34,7 @@
 |                  | Explain plan                                 | ❌      |                                           |
 |                  | Write to file                                | 🟡      | Basic                                     |
 | **Arrow**        | Apache Arrow support                         | ✅      | Via Apache.Arrow nuget package            |
-|                  | Zero copy support                            | ❌      | In progress                              |
+|                  | Zero copy support                            | ❌      |                                           |
 | **Advanced**     | UDF registration                             | ❌      |                                           |
 |                  | Catalog management                           | ❌      |                                           |
 |                  | Table providers                              | ❌      |                                           |

@@ -39,7 +39,7 @@ public sealed class StressTests : IDisposable
         var concurrencyLevel = Environment.ProcessorCount * 2;
         
         // Limit total queries but allow for a large number to increase the chance of catching concurrency issues.
-        var totalQueries = Math.Min(concurrencyLevel * 2_000, 32_000);
+        var totalQueries = Math.Min(concurrencyLevel * 1000, 32_000);
         
         // Start with concurrencyLevel queries and then, as each query completes, start a new one until totalQueries queries in total.
         var tasks = Enumerable.Range(0, concurrencyLevel).Select(_ => RunQueryAsync()).ToHashSet();

@@ -5,13 +5,22 @@ using DataFusionSharp.Interop;
 namespace DataFusionSharp;
 
 /// <summary>
-/// An async stream of Arrow record batches from a DataFrame query execution.
+/// An async stream of Arrow arrays as batches from a DataFrame query execution.
+/// Uses zero-copy Arrow import, so the data is not copied into .NET-owned memory -
+///   reference the memory allocated by native DataFusion runtime.
 /// </summary>
 /// <remarks>
-/// Use this class to process query results incrementally without loading all data into memory.
-/// Each iteration yields a <see cref="RecordBatch"/> containing a subset of the result rows.
-/// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
+/// It is important to dispose of the <see cref="DataFrameStream"/> when it is no longer needed to free the native resources.
+/// Do not use the Arrow data after disposing, as it references memory owned by DataFusion that will be freed upon disposal.
+/// To access the data after disposal, a cloning is necessary.
 /// </remarks>
+/// <example>
+/// <code lang="csharp">
+/// using var stream = dataFrame.ExecuteStream();
+/// await foreach (var batch in stream)
+///     ...
+/// </code>
+/// </example>
 #pragma warning disable CA1711
 public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 #pragma warning restore CA1711

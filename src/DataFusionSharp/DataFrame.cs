@@ -321,9 +321,22 @@ public sealed class DataFrame : IDisposable
 }
 
 /// <summary>
-/// Contains the collected record batches and schema from a DataFrame.
-/// This class implements <see cref="IDisposable"/> to ensure that all record batches are properly disposed of when no longer needed.
+/// Contains the collected Arrow arrays as batches and schema from a DataFrame.
+/// Uses zero-copy Arrow import, so the data is not copied into .NET-owned memory -
+///   reference the memory allocated by native DataFusion runtime.
 /// </summary>
+/// <remarks>
+/// It is important to dispose of the <see cref="DataFrameCollectedResult"/> when it is no longer needed to free the native resources.
+/// Do not use the Arrow data after disposing, as it references memory owned by DataFusion that will be freed upon disposal.
+/// To access the data after disposal, a cloning is necessary.
+/// </remarks>
+/// <example>
+/// <code language="csharp">
+/// using var result = await dataFrame.CollectAsync();
+/// var batches = result.Batches; // Access the collected record batches
+/// var schema = result.Schema; // Access the schema of the collected batches
+/// </code>
+/// </example>
 public sealed class DataFrameCollectedResult : IDisposable
 {
     /// <summary>
