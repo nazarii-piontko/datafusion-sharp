@@ -149,7 +149,7 @@ public sealed class DataFrame : IDisposable
         }
 
         var (schema, streamHandle) = await tcs.Task.ConfigureAwait(false);
-        return new DataFrameStream(this, schema, streamHandle);
+        return new DataFrameStream(this, schema, new DataFrameStreamSafeHandle(streamHandle));
     }
 
     /// <summary>

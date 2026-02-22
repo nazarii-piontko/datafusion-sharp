@@ -25,7 +25,7 @@ namespace DataFusionSharp;
 public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 #pragma warning restore CA1711
 {
-    private IntPtr _streamHandle;
+    private readonly DataFrameStreamSafeHandle _handle;
     private readonly List<RecordBatch> _batches = [];
 
     /// <summary>
@@ -38,19 +38,11 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
     /// </summary>
     public Schema Schema { get; }
     
-    internal DataFrameStream(DataFrame dataFrame, Schema schema, IntPtr streamHandle)
+    internal DataFrameStream(DataFrame dataFrame, Schema schema, DataFrameStreamSafeHandle handle)
     {
         DataFrame = dataFrame;
         Schema = schema;
-        _streamHandle = streamHandle;
-    }
-
-    /// <summary>
-    /// Releases unmanaged resources if <see cref="Dispose"/> was not called.
-    /// </summary>
-    ~DataFrameStream()
-    {
-        DestroyStream();
+        _handle = handle;
     }
 
     /// <summary>
@@ -75,18 +67,16 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
         _batches.ForEach(batch => batch.Dispose());
         _batches.Clear();
 
-        DestroyStream();
-
-        GC.SuppressFinalize(this);
+        _handle.Dispose();
     }
     
     private async Task<RecordBatch?> NextAsync()
     {
-        ObjectDisposedException.ThrowIf(_streamHandle == IntPtr.Zero, nameof(DataFrameStream));
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
 
         var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema);
         
-        var result = NativeMethods.DataFrameStreamNext(_streamHandle, CallbackForNextResultHandle, id);
+        var result = NativeMethods.DataFrameStreamNext(_handle.DangerousGetHandle(), CallbackForNextResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -142,15 +132,4 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
     }
     private static readonly NativeMethods.Callback CallbackForNextResultDelegate = CallbackForNextResult;
     private static readonly IntPtr CallbackForNextResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForNextResultDelegate);
-
-    private void DestroyStream()
-    {
-        var handle = _streamHandle;
-        if (handle == IntPtr.Zero)
-            return;
-
-        _streamHandle = IntPtr.Zero;
-
-        NativeMethods.DataFrameStreamDestroy(handle);
-    }
 }
