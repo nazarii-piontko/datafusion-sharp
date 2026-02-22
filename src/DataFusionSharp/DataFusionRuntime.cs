@@ -12,23 +12,13 @@ namespace DataFusionSharp;
 /// shared across multiple threads. Create multiple <see cref="SessionContext"/> instances from a single runtime
 /// for concurrent query execution.
 /// </remarks>
-public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
+public sealed class DataFusionRuntime : IDisposable
 {
-    private static readonly TimeSpan DefaultShutdownTimeout = TimeSpan.FromMilliseconds(500);
-    
-    private IntPtr _handle;
+    private readonly RuntimeSafeHandle _handle;
 
-    private DataFusionRuntime(IntPtr handle)
+    private DataFusionRuntime(RuntimeSafeHandle handle)
     {
         _handle = handle;
-    }
-    
-    /// <summary>
-    /// Releases unmanaged resources if <see cref="Dispose"/> was not called.
-    /// </summary>
-    ~DataFusionRuntime()
-    {
-        ShutdownRuntime(DefaultShutdownTimeout);
     }
 
     /// <summary>
@@ -49,7 +39,7 @@ public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
         if (result != DataFusionErrorCode.Ok)
             throw new DataFusionException(result, "Failed to create DataFusion runtime");
 
-        return new DataFusionRuntime(handle);
+        return new DataFusionRuntime(new RuntimeSafeHandle(handle));
     }
     
     /// <summary>
@@ -59,43 +49,30 @@ public sealed class DataFusionRuntime : IAsyncDisposable, IDisposable
     /// <exception cref="DataFusionException">Thrown when context creation fails.</exception>
     public SessionContext CreateSessionContext()
     {
-        var result = NativeMethods.ContextNew(_handle, out var contextHandle);
-        if (result != DataFusionErrorCode.Ok)
-            throw new DataFusionException(result, "Failed to create DataFusion session context");
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
         
-        return new SessionContext(this, contextHandle);
+        var errorCode = NativeMethods.ContextNew(_handle.DangerousGetHandle(), out var contextHandle);
+        DataFusionException.ThrowIfError(errorCode, "Failed to create DataFusion context");
+        
+        return new SessionContext(this, new SessionContextSafeHandle(contextHandle));
     }
     
     /// <summary>
     /// Shuts down the runtime and releases all resources.
+    /// After calling this method, the runtime cannot be used to create new session contexts or execute queries.
     /// </summary>
+    /// <remarks>
+    /// It is not necessary to call this method explicitly, as the runtime will be automatically shut down when the instance is disposed.
+    /// </remarks>
+    /// <exception cref="DataFusionException">Thrown when shutdown fails.</exception>
+    public void Shutdown()
+    {
+        _handle.Shutdown();
+    }
+    
+    /// <inheritdoc />
     public void Dispose()
     {
-        ShutdownRuntime(DefaultShutdownTimeout);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Asynchronously shuts down the runtime and releases all resources.
-    /// </summary>
-    /// <returns>A task representing the asynchronous dispose operation.</returns>
-    public ValueTask DisposeAsync()
-    {
-        var disposeTask = Task.Run(() => ShutdownRuntime(DefaultShutdownTimeout));
-        
-        GC.SuppressFinalize(this);
-        
-        return new ValueTask(disposeTask);
-    }
-
-    private void ShutdownRuntime(TimeSpan timeout)
-    {
-        var handle = _handle;
-        if (handle == IntPtr.Zero)
-            return;
-        
-        _handle = IntPtr.Zero;
-        
-        NativeMethods.RuntimeShutdown(handle, (ulong) timeout.TotalMilliseconds);
+        _handle.Dispose();
     }
 }

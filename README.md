@@ -34,7 +34,7 @@
 |                  | Explain plan                                 | ❌      |                                           |
 |                  | Write to file                                | 🟡      | Basic                                     |
 | **Arrow**        | Apache Arrow support                         | ✅      | Via Apache.Arrow nuget package            |
-|                  | Zero copy support                            | ❌      | In progress                              |
+|                  | Zero copy support                            | ❌      |                                           |
 | **Advanced**     | UDF registration                             | ❌      |                                           |
 |                  | Catalog management                           | ❌      |                                           |
 |                  | Table providers                              | ❌      |                                           |
@@ -93,8 +93,9 @@ foreach (var batch in data.Batches)
 
 ### Prerequisites
 
-- .NET 10.0 SDK or later
-- Rust toolchain (1.93+) - Install from https://rustup.rs
+- .NET 10.0 SDK or later (how to install: https://learn.microsoft.com/en-us/dotnet/core/install/)
+- Rust 1.93+ toolchain (how to install: https://rustup.rs)
+- Protobuf compiler `protoc` (how to install: https://protobuf.dev/installation/)
 
 ### Build Steps
 

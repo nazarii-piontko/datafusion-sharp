@@ -13,25 +13,17 @@ namespace DataFusionSharp;
 /// </remarks>
 public sealed class SessionContext : IDisposable
 {
-    private IntPtr _handle;
+    private readonly SessionContextSafeHandle _handle;
 
     /// <summary>
     /// Gets the runtime that owns this session context.
     /// </summary>
     public DataFusionRuntime Runtime { get; }
     
-    internal SessionContext(DataFusionRuntime runtime, IntPtr handle)
+    internal SessionContext(DataFusionRuntime runtime, SessionContextSafeHandle handle)
     {
         Runtime = runtime;
         _handle = handle;
-    }
-    
-    /// <summary>
-    /// Releases unmanaged resources if <see cref="Dispose"/> was not called.
-    /// </summary>
-    ~SessionContext()
-    {
-        DestroyContext();
     }
 
     /// <summary>
@@ -44,10 +36,12 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null)
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterCsv(_handle.DangerousGetHandle(), tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -66,8 +60,10 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterJsonAsync(string tableName, string filePath)
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterJson(_handle.DangerousGetHandle(), tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -85,8 +81,10 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterParquetAsync(string tableName, string filePath)
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterParquet(_handle.DangerousGetHandle(), tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -103,8 +101,10 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
     public async Task<DataFrame> SqlAsync(string sql)
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         var (id, tcs) = AsyncOperations.Instance.Create<IntPtr>();
-        var result = NativeMethods.ContextSql(_handle, sql, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
+        var result = NativeMethods.ContextSql(_handle.DangerousGetHandle(), sql, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -113,26 +113,12 @@ public sealed class SessionContext : IDisposable
         
         var dataFrameHandle = await tcs.Task.ConfigureAwait(false);
 
-        return new DataFrame(this, dataFrameHandle);
+        return new DataFrame(this, new DataFrameSafeHandle(dataFrameHandle));
     }
     
-    /// <summary>
-    /// Releases all resources used by this session context.
-    /// </summary>
+    /// <inheritdoc />
     public void Dispose()
     {
-        DestroyContext();
-        GC.SuppressFinalize(this);
-    }
-    
-    private void DestroyContext()
-    {
-        var handle = _handle;
-        if (handle == IntPtr.Zero)
-            return;
-        
-        _handle = IntPtr.Zero;
-        
-        NativeMethods.ContextDestroy(handle);
+        _handle.Dispose();
     }
 }

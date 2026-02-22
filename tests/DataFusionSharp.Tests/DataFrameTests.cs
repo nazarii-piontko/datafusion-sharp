@@ -98,7 +98,7 @@ public sealed class DataFrameTests : IDisposable
         using var df = await _context.SqlAsync(GetIdValueTableSelectSql(rowsCount));
 
         // Act
-        var collected = await df.CollectAsync();
+        using var collected = await df.CollectAsync();
 
         // Assert
         Assert.NotNull(collected);

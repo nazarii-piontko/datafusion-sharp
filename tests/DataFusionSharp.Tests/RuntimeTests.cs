@@ -11,16 +11,6 @@ public sealed class RuntimeTests
         // Assert
         Assert.NotNull(runtime);
     }
-    
-    [Fact]
-    public async Task Create_WithAsyncDispose_ReturnsRuntime()
-    {
-        // Act
-        await using var runtime = DataFusionRuntime.Create();
-
-        // Assert
-        Assert.NotNull(runtime);
-    }
 
     [Fact]
     public void Create_MultipleRuntimes_AllValid()
@@ -41,5 +31,29 @@ public sealed class RuntimeTests
     {
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => DataFusionRuntime.Create(workerThreads, maxBlockingThreads));
+    }
+    
+    [Fact]
+    public void CreateSession_WithDisposed_Throws()
+    {
+        // Arrange
+        var runtime = DataFusionRuntime.Create();
+        runtime.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => runtime.CreateSessionContext());
+    }
+    
+    [Fact]
+    public void Shutdown_SuccessfullyShutsDownRuntime()
+    {
+        // Arrange
+        using var runtime = DataFusionRuntime.Create();
+
+        // Act
+        runtime.Shutdown();
+
+        // Assert
+        Assert.Throws<ObjectDisposedException>(() => runtime.CreateSessionContext());
     }
 }
