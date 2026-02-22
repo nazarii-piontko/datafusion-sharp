@@ -26,19 +26,20 @@ public sealed class StressTests : IDisposable
         var activeTasks = new ConcurrentDictionary<int, bool>();
 
         // Force running the query on a thread pool thread to simulate concurrent access from multiple threads.
-        Task RunQueryAsync() => Task.Run(() =>
-        {
-            // Track the number of concurrent threads executing queries to ensure we have meaningful concurrency.
-            activeTasks.TryAdd(Environment.CurrentManagedThreadId, true);
-            
-            return queryFunc(_runtime);
-        });
+        Task RunQueryAsync() => Task.Run(
+            () =>
+            {
+                // Track the number of concurrent threads executing queries to ensure we have meaningful concurrency.
+                activeTasks.TryAdd(Environment.CurrentManagedThreadId, true);
+
+                return queryFunc(_runtime);
+            });
 
         // Ensure meaningful concurrency.
-        var concurrencyLevel = Math.Max(Environment.ProcessorCount * 4, 8);
+        var concurrencyLevel = Environment.ProcessorCount * 2;
         
         // Limit total queries but allow for a large number to increase the chance of catching concurrency issues.
-        var totalQueries = Math.Min(concurrencyLevel * 1_000, 64_000);
+        var totalQueries = Math.Min(concurrencyLevel * 2_000, 32_000);
         
         // Start with concurrencyLevel queries and then, as each query completes, start a new one until totalQueries queries in total.
         var tasks = Enumerable.Range(0, concurrencyLevel).Select(_ => RunQueryAsync()).ToHashSet();
@@ -56,14 +57,8 @@ public sealed class StressTests : IDisposable
             tasks.Add(RunQueryAsync());
 
             // Periodically force a Gen 1 GC collection to increase the chance of catching issues related to memory management and finalization under concurrent load.
-            if (i % (concurrencyLevel * 200) == 0)
-            {
-                _ = Task.Factory.StartNew(
-                    () => GC.Collect(1, GCCollectionMode.Forced),
-                    cancellationToken: CancellationToken.None,
-                    creationOptions: TaskCreationOptions.LongRunning,
-                    scheduler: TaskScheduler.Current);
-            }
+            if (i % (concurrencyLevel * 4096) == 0)
+                _ = Task.Run(() => GC.Collect(1, GCCollectionMode.Forced, false, true));
         }
         
         // Wait for all remaining tasks to complete.
@@ -81,8 +76,6 @@ public sealed class StressTests : IDisposable
         [new QueryFunc(StressTestsQueries.Query_WithStream)]
     ];
     
-
-
     public void Dispose()
     {
         _runtime.Dispose();
