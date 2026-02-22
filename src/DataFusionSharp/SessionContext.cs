@@ -113,7 +113,7 @@ public sealed class SessionContext : IDisposable
         
         var dataFrameHandle = await tcs.Task.ConfigureAwait(false);
 
-        return new DataFrame(this, dataFrameHandle);
+        return new DataFrame(this, new DataFrameSafeHandle(dataFrameHandle));
     }
     
     /// <inheritdoc />

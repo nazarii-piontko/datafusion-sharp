@@ -15,25 +15,17 @@ namespace DataFusionSharp;
 /// </remarks>
 public sealed class DataFrame : IDisposable
 {
-    private IntPtr _handle;
+    private readonly DataFrameSafeHandle _handle;
 
     /// <summary>
     /// Gets the session context that created this DataFrame.
     /// </summary>
     public SessionContext Context { get; }
     
-    internal DataFrame(SessionContext sessionContext, IntPtr handle)
+    internal DataFrame(SessionContext sessionContext, DataFrameSafeHandle handle)
     {
         Context = sessionContext;
         _handle = handle;
-    }
-    
-    /// <summary>
-    /// Releases unmanaged resources if <see cref="Dispose"/> was not called.
-    /// </summary>
-    ~DataFrame()
-    {
-        DestroyDataFrame();
     }
     
     /// <summary>
@@ -43,13 +35,16 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<ulong> CountAsync()
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         var (id, tcs) = AsyncOperations.Instance.Create<ulong>();
-        var result = NativeMethods.DataFrameCount(_handle, AsyncOperationGenericCallbacks.UInt64ResultHandler, id);
+        var result = NativeMethods.DataFrameCount(_handle.DangerousGetHandle(), AsyncOperationGenericCallbacks.UInt64ResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start counting rows in DataFrame");
         }
+        
         return tcs.Task;
     }
 
@@ -63,14 +58,16 @@ public sealed class DataFrame : IDisposable
     {
         if (limit.HasValue)
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit.Value);
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameShow(_handle.DangerousGetHandle(), limit ?? 0, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start showing DataFrame");
         }
+        
         return tcs.Task;
     }
     
@@ -81,13 +78,16 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<string> ToStringAsync()
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         var (id, tcs) = AsyncOperations.Instance.Create<string>();
-        var result = NativeMethods.DataFrameToString(_handle, AsyncOperationGenericCallbacks.StringResultHandler, id);
+        var result = NativeMethods.DataFrameToString(_handle.DangerousGetHandle(), AsyncOperationGenericCallbacks.StringResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start converting DataFrame to string");
         }
+        
         return tcs.Task;
     }
     
@@ -98,8 +98,10 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<Schema> GetSchemaAsync()
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         var (id, tcs) = AsyncOperations.Instance.Create<Schema>();
-        var result = NativeMethods.DataFrameSchema(_handle, CallbackForSchemaResultHandle, id);
+        var result = NativeMethods.DataFrameSchema(_handle.DangerousGetHandle(), CallbackForSchemaResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -116,8 +118,10 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<DataFrameCollectedResult> CollectAsync()
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>();
-        var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectResultHandle, id);
+        var result = NativeMethods.DataFrameCollect(_handle.DangerousGetHandle(), CallbackForCollectResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -134,8 +138,10 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public async Task<DataFrameStream> ExecuteStreamAsync()
     {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
         var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, IntPtr StreamHandle)>();
-        var result = NativeMethods.DataFrameExecuteStream(_handle, CallbackForExecutedStreamHandle, id);
+        var result = NativeMethods.DataFrameExecuteStream(_handle.DangerousGetHandle(), CallbackForExecutedStreamHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -156,11 +162,12 @@ public sealed class DataFrame : IDisposable
     public Task WriteCsvAsync(string path, CsvWriteOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
 
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteCsv(_handle, path, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteCsv(_handle.DangerousGetHandle(), path, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -179,9 +186,10 @@ public sealed class DataFrame : IDisposable
     public Task WriteJsonAsync(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteJson(_handle, path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteJson(_handle.DangerousGetHandle(), path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -200,9 +208,10 @@ public sealed class DataFrame : IDisposable
     public Task WriteParquetAsync(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteParquet(_handle, path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteParquet(_handle.DangerousGetHandle(), path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -212,13 +221,10 @@ public sealed class DataFrame : IDisposable
         return tcs.Task;
     }
     
-    /// <summary>
-    /// Releases all resources used by this DataFrame.
-    /// </summary>
+    /// <inheritdoc />
     public void Dispose()
     {
-        DestroyDataFrame();
-        GC.SuppressFinalize(this);
+        _handle.Dispose();
     }
     
     private static unsafe void CallbackForGetSchema(IntPtr result, IntPtr error, ulong handle)
@@ -307,17 +313,6 @@ public sealed class DataFrame : IDisposable
     }
     private static readonly NativeMethods.Callback CallbackForExecutedStreamDelegate = CallbackForExecutedStream;
     private static readonly IntPtr CallbackForExecutedStreamHandle = Marshal.GetFunctionPointerForDelegate(CallbackForExecutedStreamDelegate);
-    
-    private void DestroyDataFrame()
-    {
-        var handle = _handle;
-        if (handle == IntPtr.Zero)
-            return;
-        
-        _handle = IntPtr.Zero;
-        
-        NativeMethods.DataFrameDestroy(handle);
-    }
 }
 
 /// <summary>

@@ -60,3 +60,16 @@ internal sealed class SessionContextSafeHandle : DataFusionSafeHandle
         return NativeMethods.ContextDestroy(handle) == DataFusionErrorCode.Ok;
     }
 }
+
+internal sealed class DataFrameSafeHandle : DataFusionSafeHandle
+{
+    internal DataFrameSafeHandle(IntPtr handle)
+        : base(handle)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        return NativeMethods.DataFrameDestroy(handle) == DataFusionErrorCode.Ok;
+    }
+}
