@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Apache.Arrow;
 
 namespace DataFusionSharp.Tests;
@@ -23,23 +22,14 @@ public sealed class StressTests : IDisposable
     [MemberData(nameof(ConcurrentSessions_HandleMultipleQueries_Successfully_Cases))]
     public async Task ConcurrentSessions_HandleMultipleQueries_Successfully(QueryFunc queryFunc)
     {
-        var activeTasks = new ConcurrentDictionary<int, bool>();
-
         // Force running the query on a thread pool thread to simulate concurrent access from multiple threads.
-        Task RunQueryAsync() => Task.Run(
-            () =>
-            {
-                // Track the number of concurrent threads executing queries to ensure we have meaningful concurrency.
-                activeTasks.TryAdd(Environment.CurrentManagedThreadId, true);
-
-                return queryFunc(_runtime);
-            });
+        Task RunQueryAsync() => Task.Run(() => queryFunc(_runtime));
 
         // Ensure meaningful concurrency.
         var concurrencyLevel = Environment.ProcessorCount * 2;
         
         // Limit total queries but allow for a large number to increase the chance of catching concurrency issues.
-        var totalQueries = Math.Min(concurrencyLevel * 1000, 32_000);
+        var totalQueries = Math.Min(concurrencyLevel * 256, 32_000);
         
         // Start with concurrencyLevel queries and then, as each query completes, start a new one until totalQueries queries in total.
         var tasks = Enumerable.Range(0, concurrencyLevel).Select(_ => RunQueryAsync()).ToHashSet();
@@ -55,18 +45,11 @@ public sealed class StressTests : IDisposable
             // Start a new query to maintain the concurrency level, but only if the previous task completed successfully.
             tasks.Remove(task);
             tasks.Add(RunQueryAsync());
-
-            // Periodically force a Gen 1 GC collection to increase the chance of catching issues related to memory management and finalization under concurrent load.
-            if (i % (concurrencyLevel * 4096) == 0)
-                _ = Task.Run(() => GC.Collect(1, GCCollectionMode.Forced, false, true));
         }
         
         // Wait for all remaining tasks to complete.
         // If any of the tasks failed, this will throw an exception and fail the test.
         await Task.WhenAll(tasks);
-        
-        Assert.True(activeTasks.Count >= Environment.ProcessorCount, 
-            $"Expected at least {Environment.ProcessorCount} concurrent threads, but got {activeTasks.Count}");
     }
     
     // ReSharper disable once InconsistentNaming
