@@ -32,4 +32,15 @@ public sealed class RuntimeTests
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => DataFusionRuntime.Create(workerThreads, maxBlockingThreads));
     }
+    
+    [Fact]
+    public void CreateSession_WithDisposed_Throws()
+    {
+        // Arrange
+        var runtime = DataFusionRuntime.Create();
+        runtime.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => runtime.CreateSessionContext());
+    }
 }

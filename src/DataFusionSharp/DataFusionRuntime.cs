@@ -14,19 +14,11 @@ namespace DataFusionSharp;
 /// </remarks>
 public sealed class DataFusionRuntime : IDisposable
 {
-    private IntPtr _handle;
+    private readonly RuntimeSafeHandle _handle;
 
-    private DataFusionRuntime(IntPtr handle)
+    private DataFusionRuntime(RuntimeSafeHandle handle)
     {
         _handle = handle;
-    }
-    
-    /// <summary>
-    /// Releases unmanaged resources if <see cref="Dispose"/> was not called.
-    /// </summary>
-    ~DataFusionRuntime()
-    {
-        ShutdownRuntime();
     }
 
     /// <summary>
@@ -47,7 +39,7 @@ public sealed class DataFusionRuntime : IDisposable
         if (result != DataFusionErrorCode.Ok)
             throw new DataFusionException(result, "Failed to create DataFusion runtime");
 
-        return new DataFusionRuntime(handle);
+        return new DataFusionRuntime(new RuntimeSafeHandle(handle));
     }
     
     /// <summary>
@@ -57,30 +49,17 @@ public sealed class DataFusionRuntime : IDisposable
     /// <exception cref="DataFusionException">Thrown when context creation fails.</exception>
     public SessionContext CreateSessionContext()
     {
-        var result = NativeMethods.ContextNew(_handle, out var contextHandle);
-        if (result != DataFusionErrorCode.Ok)
-            throw new DataFusionException(result, "Failed to create DataFusion session context");
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        
+        var errorCode = NativeMethods.ContextNew(_handle.DangerousGetHandle(), out var contextHandle);
+        DataFusionException.ThrowIfError(errorCode, "Failed to create DataFusion context");
         
         return new SessionContext(this, contextHandle);
     }
     
-    /// <summary>
-    /// Shuts down the runtime and releases all resources.
-    /// </summary>
+    /// <inheritdoc />
     public void Dispose()
     {
-        ShutdownRuntime();
-        GC.SuppressFinalize(this);
-    }
-
-    private void ShutdownRuntime()
-    {
-        var handle = _handle;
-        if (handle == IntPtr.Zero)
-            return;
-        
-        _handle = IntPtr.Zero;
-        
-        NativeMethods.RuntimeShutdown(handle);
+        _handle.Dispose();
     }
 }
