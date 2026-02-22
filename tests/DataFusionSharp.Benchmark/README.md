@@ -25,76 +25,47 @@ Tests DataFrame operations with varying row counts (1, 100, 10,000, 1,000,000 ro
 
 ```
 BenchmarkDotNet v0.15.8, Linux Ubuntu 24.04.3 LTS (Noble Numbat)
-Intel Xeon Platinum 8275CL CPU 3.00GHz, 1 CPU, 2 logical cores and 1 physical core
-.NET SDK 10.0.102
-  [Host]     : .NET 8.0.23 (8.0.23, 8.0.2325.60607), X64 RyuJIT x86-64-v4
-  DefaultJob : .NET 8.0.23 (8.0.23, 8.0.2325.60607), X64 RyuJIT x86-64-v4
+Neoverse-N1, 2 physical cores
+.NET SDK 10.0.103
+[Host]     : .NET 10.0.3 (10.0.3, 10.0.326.7603), Arm64 RyuJIT armv8.0-a
+DefaultJob : .NET 10.0.3 (10.0.3, 10.0.326.7603), Arm64 RyuJIT armv8.0-a
 ```
 
-| Method         | RowCount |         Mean |      Error |     StdDev |   Gen0 | Allocated |
-|----------------|----------|-------------:|-----------:|-----------:|-------:|----------:|
-| CountAsync     | 1        |   500.201 us |  0.3151 us |  0.2631 us |      - |     208 B |
-| GetSchemaAsync | 1        |     4.112 us |  0.0136 us |  0.0120 us | 0.0534 |    1112 B |
-| CollectAsync   | 1        |   324.755 us |  0.7113 us |  0.6306 us |      - |    1712 B |
-| CountAsync     | 100      |   500.173 us |  0.2189 us |  0.1828 us |      - |     208 B |
-| GetSchemaAsync | 100      |     4.059 us |  0.0168 us |  0.0157 us | 0.0534 |    1112 B |
-| CollectAsync   | 100      |   323.459 us |  0.7462 us |  0.6231 us |      - |    1712 B |
-| CountAsync     | 10000    |   537.283 us |  0.9703 us |  0.8601 us |      - |     208 B |
-| GetSchemaAsync | 10000    |     3.914 us |  0.0087 us |  0.0072 us | 0.0534 |    1112 B |
-| CollectAsync   | 10000    |   357.141 us |  1.4852 us |  1.3893 us |      - |    2128 B |
-| CountAsync     | 1000000  | 3,358.221 us | 25.1665 us | 23.5408 us |      - |     208 B |
-| GetSchemaAsync | 1000000  |     3.919 us |  0.0103 us |  0.0091 us | 0.0534 |    1112 B |
-| CollectAsync   | 1000000  | 3,318.863 us | 65.2399 us | 84.8303 us |      - |   54569 B |
+| Method         | RowCount | Mean         | Error     | StdDev    | Gen0      | Gen1      | Gen2      | Allocated |
+|--------------- |--------- |-------------:|----------:|----------:|----------:|----------:|----------:|----------:|
+| CountAsync     | 1        |   617.201 us | 2.8458 us | 2.5227 us |         - |         - |         - |     240 B |
+| GetSchemaAsync | 1        |     1.809 us | 0.0029 us | 0.0027 us |    0.0687 |         - |         - |    1176 B |
+| CollectAsync   | 1        |   361.289 us | 3.7899 us | 3.5451 us |         - |         - |         - |    1824 B |
+| CountAsync     | 100      |   616.386 us | 3.4186 us | 3.1978 us |         - |         - |         - |     240 B |
+| GetSchemaAsync | 100      |     1.726 us | 0.0031 us | 0.0029 us |    0.0687 |         - |         - |    1176 B |
+| CollectAsync   | 100      |   361.824 us | 3.0167 us | 2.8218 us |         - |         - |         - |    1824 B |
+| CountAsync     | 10000    |   620.959 us | 1.8969 us | 1.7743 us |         - |         - |         - |     240 B |
+| GetSchemaAsync | 10000    |     1.828 us | 0.0023 us | 0.0022 us |    0.0687 |         - |         - |    1176 B |
+| CollectAsync   | 10000    |   385.928 us | 1.3691 us | 1.2137 us |   18.0664 |   18.0664 |   18.0664 |    2302 B |
+| CountAsync     | 1000000  | 3,415.513 us | 8.8833 us | 8.3094 us |         - |         - |         - |     240 B |
+| GetSchemaAsync | 1000000  |     1.685 us | 0.0020 us | 0.0019 us |    0.0687 |         - |         - |    1176 B |
+| CollectAsync   | 1000000  | 3,001.268 us | 5.0928 us | 4.2527 us | 1230.4688 | 1230.4688 | 1230.4688 |   59737 B |
 
 ## Reference Results From Native DataFusion
 
 ```
 dataframe      fastest       │ slowest       │ median        │ mean          │ samples │ iters
 ├─ collect                   │               │               │               │         │
-│  ├─ 1        192.8 µs      │ 742.9 µs      │ 203.6 µs      │ 213.8 µs      │ 100     │ 100
-│  ├─ 100      196 µs        │ 251.6 µs      │ 201.8 µs      │ 209.8 µs      │ 100     │ 100
-│  ├─ 10000    239.7 µs      │ 293.9 µs      │ 246.3 µs      │ 253.3 µs      │ 100     │ 100
-│  ╰─ 1000000  1.878 ms      │ 5.764 ms      │ 5.038 ms      │ 4.523 ms      │ 100     │ 100
+│  ├─ 1        272.6 µs      │ 1.037 ms      │ 292.5 µs      │ 303.6 µs      │ 100     │ 100
+│  ├─ 100      277.9 µs      │ 344.6 µs      │ 292.9 µs      │ 297.6 µs      │ 100     │ 100
+│  ├─ 10000    332.7 µs      │ 407.5 µs      │ 347.7 µs      │ 351.4 µs      │ 100     │ 100
+│  ╰─ 1000000  5.375 ms      │ 5.853 ms      │ 5.514 ms      │ 5.525 ms      │ 100     │ 100
 ├─ count                     │               │               │               │         │
-│  ├─ 1        425.4 µs      │ 753.7 µs      │ 451.4 µs      │ 454.3 µs      │ 100     │ 100
-│  ├─ 100      430.1 µs      │ 489.4 µs      │ 449 µs        │ 451.5 µs      │ 100     │ 100
-│  ├─ 10000    464.7 µs      │ 531.9 µs      │ 489 µs        │ 491.4 µs      │ 100     │ 100
-│  ╰─ 1000000  2.852 ms      │ 3.435 ms      │ 3.19 ms       │ 3.231 ms      │ 100     │ 100
+│  ├─ 1        537.3 µs      │ 1.049 ms      │ 610.9 µs      │ 614.7 µs      │ 100     │ 100
+│  ├─ 100      563.5 µs      │ 679.1 µs      │ 618.8 µs      │ 620.8 µs      │ 100     │ 100
+│  ├─ 10000    564.7 µs      │ 717.8 µs      │ 631.7 µs      │ 629.7 µs      │ 100     │ 100
+│  ╰─ 1000000  3.165 ms      │ 3.443 ms      │ 3.345 ms      │ 3.336 ms      │ 100     │ 100
 ╰─ get_schema                │               │               │               │         │
-   ├─ 1        3.081 ns      │ 3.389 ns      │ 3.356 ns      │ 3.354 ns      │ 100     │ 102400
-   ├─ 100      3.08 ns       │ 3.368 ns      │ 3.355 ns      │ 3.354 ns      │ 100     │ 102400
-   ├─ 10000    3.347 ns      │ 3.367 ns      │ 3.349 ns      │ 3.351 ns      │ 100     │ 102400
-   ╰─ 1000000  3.08 ns       │ 26.05 ns      │ 3.355 ns      │ 3.621 ns      │ 100     │ 102400
+   ├─ 1        5.655 ns      │ 5.687 ns      │ 5.671 ns      │ 5.671 ns      │ 100     │ 51200
+   ├─ 100      5.654 ns      │ 53.5 ns       │ 5.671 ns      │ 6.149 ns      │ 100     │ 51200
+   ├─ 10000    5.654 ns      │ 5.687 ns      │ 5.671 ns      │ 5.67 ns       │ 100     │ 51200
+   ╰─ 1000000  5.654 ns      │ 5.687 ns      │ 5.671 ns      │ 5.67 ns       │ 100     │ 51200
 ```
-
-## Comparison
-
-| Method    |  RowCount | .NET (µs) | Rust (µs) |    Δ Time (µs) |
-|-----------|----------:|----------:|----------:|---------------:|
-| Count     |         1 |   500.201 |   454.300 |    **+45.901** |
-| Count     |       100 |   500.173 |   451.500 |    **+48.673** |
-| Count     |    10,000 |   537.283 |   491.400 |    **+45.883** |
-| Count     | 1,000,000 | 3,358.221 | 3,231.000 |   **+127.221** |
-|           |           |           |           |                |
-| Collect   |         1 |   324.755 |   213.800 |   **+110.955** |
-| Collect   |       100 |   323.459 |   209.800 |   **+113.659** |
-| Collect   |    10,000 |   357.141 |   253.300 |   **+103.841** |
-| Collect   | 1,000,000 | 3,318.863 | 4,523.000 | **−1,204.137** |
-|           |           |           |           |                |
-| GetSchema |         1 |     4.112 |  0.003354 |     **+4.109** |
-| GetSchema |       100 |     4.059 |  0.003354 |     **+4.056** |
-| GetSchema |    10,000 |     3.914 |  0.003351 |     **+3.911** |
-| GetSchema | 1,000,000 |     3.919 |  0.003621 |     **+3.915** |
-
-## Conclusion
-
-Overall, the benchmarks show that the .NET wrapper adds a **mostly constant FFI overhead** on top of the native Rust execution:
-
-* **~4 µs per call** for trivial operations (`GetSchema`).
-* **~45–50 µs** for `Count`.
-* **~100–115 µs** for `Collect` largely independent of row count. 
-
-For small and medium workloads this overhead dominates, clearly visible when compared to nanosecond-level native Rust timings, while for large workloads (1M rows) the execution cost begins to outweigh the boundary cost and results converge, with some variance even allowing .NET to match or exceed Rust in isolated cases.
 
 ## Notes
 
