@@ -5,7 +5,8 @@ namespace DataFusionSharp.Formats.Csv;
 
 internal static class CsvOptionsExtensions
 {
-    private static readonly ByteString TrueByteString = '1'.ToProto();
+    private static readonly ByteString TrueByteString = '\x7f'.ToProto();
+    private static readonly ByteString FalseByteString = '\x00'.ToProto();
 
     internal static Proto.CsvReadOptions ToProto(this CsvReadOptions options)
     {
@@ -57,8 +58,8 @@ internal static class CsvOptionsExtensions
     {
         var proto = new CsvOptions();
 
-        if (options.HasHeader == true)
-            proto.HasHeader = TrueByteString;
+        if (options.HasHeader.HasValue)
+            proto.HasHeader = options.HasHeader.Value ? TrueByteString : FalseByteString;
 
         if (options.Delimiter.HasValue)
             proto.Delimiter = options.Delimiter.Value.ToProto();
@@ -100,11 +101,11 @@ internal static class CsvOptionsExtensions
         if (options.Comment.HasValue)
             proto.Comment = options.Comment.Value.ToProto();
 
-        if (options.DoubleQuote == true)
-            proto.DoubleQuote = TrueByteString;
+        if (options.DoubleQuote.HasValue)
+            proto.DoubleQuote = options.DoubleQuote.Value ? TrueByteString : FalseByteString;
 
-        if (options.NewlinesInValues == true)
-            proto.NewlinesInValues = TrueByteString;
+        if (options.NewlinesInValues.HasValue)
+            proto.NewlinesInValues = options.NewlinesInValues.Value ? TrueByteString : FalseByteString;
 
         if (options.Terminator.HasValue)
             proto.Terminator = options.Terminator.Value.ToProto();

@@ -2,7 +2,7 @@ using Xunit.Abstractions;
 
 namespace DataFusionSharp.Tests;
 
-internal sealed class JsonTests : FileFormatTests
+public sealed class JsonTests : FileFormatTests
 {
     protected override string FileExtension => ".json";
     
@@ -19,6 +19,11 @@ internal sealed class JsonTests : FileFormatTests
     protected override Task RegisterOrdersTableAsync(string tableName = "orders")
     {
         return Context.RegisterJsonAsync(tableName, DataSet.OrdersJsonPath);
+    }
+    
+    protected override Task RegisterTableFromPathAsync(string tableName, string path)
+    {
+        return Context.RegisterJsonAsync(tableName, path);
     }
 
     protected override Task WriteTableAsync(DataFrame dataFrame, string path)

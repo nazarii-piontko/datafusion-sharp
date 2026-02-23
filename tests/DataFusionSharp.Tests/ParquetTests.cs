@@ -2,7 +2,7 @@ using Xunit.Abstractions;
 
 namespace DataFusionSharp.Tests;
 
-internal sealed class ParquetTests : FileFormatTests
+public sealed class ParquetTests : FileFormatTests
 {
     protected override string FileExtension => ".parquet";
     
@@ -19,6 +19,11 @@ internal sealed class ParquetTests : FileFormatTests
     protected override Task RegisterOrdersTableAsync(string tableName = "orders")
     {
         return Context.RegisterParquetAsync(tableName, DataSet.OrdersParquetPath);
+    }
+    
+    protected override Task RegisterTableFromPathAsync(string tableName, string path)
+    {
+        return Context.RegisterParquetAsync(tableName, path);
     }
 
     protected override Task WriteTableAsync(DataFrame dataFrame, string path)

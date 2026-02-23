@@ -152,6 +152,63 @@ public sealed class DataFrameTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task CollectAsync_WithMultipleColumnTypes_MarshalsAllTypesCorrectly()
+    {
+        // Arrange
+        const string sql = """
+            SELECT 
+                CAST(42 AS BIGINT) AS int_col,
+                CAST(3.14 AS DOUBLE) AS double_col,
+                CAST('hello' AS VARCHAR) AS string_col,
+                CAST(true AS BOOLEAN) AS bool_col
+            """;
+        using var df = await _context.SqlAsync(sql);
+
+        // Act
+        using var result = await df.CollectAsync();
+
+        // Assert
+        Assert.Equal(4, result.Schema.FieldsList.Count);
+
+        var batch = result.Batches[0];
+        Assert.Equal(1, batch.Length);
+
+        Assert.IsType<Int64Array>(batch.Column("int_col"));
+        Assert.Equal(42L, batch.Column("int_col").AsInt64().First());
+
+        Assert.IsType<DoubleArray>(batch.Column("double_col"));
+        Assert.Equal(3.14, batch.Column("double_col").AsDouble().First() ?? 0, precision: 10);
+
+        var stringCol = batch.Column("string_col");
+        Assert.True(stringCol is StringArray or StringViewArray or LargeStringArray, $"Expected a string array type but got {stringCol.GetType().Name}");
+        Assert.Equal("hello", stringCol.AsString().First());
+
+        Assert.IsType<BooleanArray>(batch.Column("bool_col"));
+        Assert.True(batch.Column("bool_col").AsBool().First());
+    }
+
+    [Fact]
+    public async Task ExecuteStreamAsync_Schema_MatchesCollectSchema()
+    {
+        // Arrange
+        using var df = await _context.SqlAsync(GetIdValueTableSelectSql(5));
+
+        // Act
+        var dfSchema = await df.GetSchemaAsync();
+        
+        using var stream = await df.ExecuteStreamAsync();
+        var streamSchema = stream.Schema;
+
+        // Assert
+        Assert.Equal(dfSchema.FieldsList.Count, streamSchema.FieldsList.Count);
+        for (var i = 0; i < dfSchema.FieldsList.Count; i++)
+        {
+            Assert.Equal(dfSchema.FieldsList[i].Name, streamSchema.FieldsList[i].Name);
+            Assert.Equal(dfSchema.FieldsList[i].DataType.TypeId, streamSchema.FieldsList[i].DataType.TypeId);
+        }
+    }
+
     public void Dispose()
     {
         _context.Dispose();
