@@ -201,9 +201,15 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
         };
         let ffi_batches = batches.iter().map(convert_batch_to_ffi).collect::<Vec<_>>();
 
+        let Ok(num_batches) = i32::try_from(ffi_batches.len()) else {
+            let error = crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, "Too many record batches to fit in i32");
+            crate::invoke_callback_error(&error, callback, user_data);
+            return;
+        };
+
         let result = CollectedData {
             schema: &raw const ffi_schema,
-            num_batches: ffi_batches.len() as i32,
+            num_batches,
             batches: ffi_batches.as_ptr(),
         };
 
@@ -328,7 +334,7 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
                 }
             },
             None => crate::invoke_callback_null_result(callback, user_data)
-        };
+        }
     });
 
     crate::ErrorCode::Ok
@@ -443,19 +449,20 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
     crate::ErrorCode::Ok
 }
 
-/// Helper function to convert a DataFrame schema to FFI format.
+/// Helper function to convert a `DataFrame` schema to FFI format.
 fn convert_schema_to_ffi(df: &datafusion::dataframe::DataFrame) -> Result<arrow_array::ffi::FFI_ArrowSchema, crate::ErrorInfo> {
     let schema = df.schema();
     arrow_array::ffi::FFI_ArrowSchema::try_from(schema.as_arrow())
-        .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, format!("Failed to convert schema to FFI format: {}", e)))
+        .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, format!("Failed to convert schema to FFI format: {e}")))
 }
 
-/// Helper function to convert a RecordBatch to FFI format.
+/// Helper function to convert a `RecordBatch` to FFI format.
 fn convert_batch_to_ffi(batch: &arrow_array::RecordBatch) -> arrow_array::ffi::FFI_ArrowArray {
+    use arrow_array::Array;
+
     let fields = batch.schema().fields().clone();
     let arrays = batch.columns().to_vec();
     let st = arrow_array::StructArray::new(fields, arrays, None);
 
-    use arrow_array::Array;
     arrow_array::ffi::FFI_ArrowArray::new(&st.to_data())
 }

@@ -72,11 +72,9 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
     
     private async Task<RecordBatch?> NextAsync()
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-
         var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema);
         
-        var result = NativeMethods.DataFrameStreamNext(_handle.DangerousGetHandle(), CallbackForNextResultHandle, id);
+        var result = NativeMethods.DataFrameStreamNext(_handle.GetHandle(), CallbackForNextResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);

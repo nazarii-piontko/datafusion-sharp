@@ -90,13 +90,10 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
         let mut schema_opt: Option<datafusion::arrow::datatypes::Schema> = None;
         if let Some(csv_options) = &csv_options_proto &&
             let Some(pb_schema) = csv_options.schema.as_ref() {
-                let schema = match datafusion::arrow::datatypes::Schema::try_from(pb_schema) {
-                    Ok(s) => s,
-                    Err(_) => {
-                        let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options");
-                        crate::invoke_callback_error(&error_info, callback, user_data);
-                        return;
-                    }
+                let Ok(schema) = datafusion::arrow::datatypes::Schema::try_from(pb_schema) else {
+                    let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options");
+                    crate::invoke_callback_error(&error_info, callback, user_data);
+                    return;
                 };
                 schema_opt = Some(schema);
         }

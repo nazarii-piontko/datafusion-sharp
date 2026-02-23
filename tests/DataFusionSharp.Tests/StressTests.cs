@@ -19,7 +19,7 @@ public sealed class StressTests : IDisposable
     /// Therefore, if this test fails, it should be investigated further to determine the root cause.
     /// </remarks>
     [Theory(Timeout = 300_000)]
-    [MemberData(nameof(ConcurrentSessions_HandleMultipleQueries_Successfully_Cases))]
+    [ClassData(typeof(StressTestsQueriesData))]
     public async Task ConcurrentSessions_HandleMultipleQueries_Successfully(QueryFunc queryFunc)
     {
         // Force running the query on a thread pool thread to simulate concurrent access from multiple threads.
@@ -52,18 +52,20 @@ public sealed class StressTests : IDisposable
         await Task.WhenAll(tasks);
     }
     
-    // ReSharper disable once InconsistentNaming
-    public static IEnumerable<object[]> ConcurrentSessions_HandleMultipleQueries_Successfully_Cases =>
-    [
-        [new QueryFunc(StressTestsQueries.Query_WithCollect)],
-        [new QueryFunc(StressTestsQueries.Query_WithStream)]
-    ];
-    
     public void Dispose()
     {
         // Use shutdown as we want to fail the test if the runtime fails.
         _runtime.Shutdown();
         _runtime.Dispose();
+    }
+}
+
+public sealed class StressTestsQueriesData : TheoryData<StressTests.QueryFunc>
+{
+    public StressTestsQueriesData()
+    {
+        Add(StressTestsQueries.Query_WithCollect);
+        Add(StressTestsQueries.Query_WithStream);
     }
 }
 

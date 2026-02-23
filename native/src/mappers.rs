@@ -8,7 +8,7 @@ fn first_byte(field: &'static str, bytes: &[u8]) -> Result<u8> {
 }
 
 
-fn opt_first_byte(field: &'static str, bytes: &Option<Vec<u8>>) -> Result<Option<u8>> {
+fn opt_first_byte(field: &'static str, bytes: Option<&Vec<u8>>) -> Result<Option<u8>> {
     match bytes {
         Some(b) => Ok(Some(first_byte(field, b)?)),
         None => Ok(None)
@@ -36,9 +36,9 @@ pub fn from_proto_csv_options<'a>(
     if let Some(quote) = pbo.quote.as_ref() && !quote.is_empty() {
         dfo.quote = first_byte("quote", quote)?;
     }
-    dfo.terminator = opt_first_byte("terminator", &pbo.terminator)?;
-    dfo.escape = opt_first_byte("escape", &pbo.escape)?;
-    dfo.comment = opt_first_byte("comment", &pbo.comment)?;
+    dfo.terminator = opt_first_byte("terminator", pbo.terminator.as_ref())?;
+    dfo.escape = opt_first_byte("escape", pbo.escape.as_ref())?;
+    dfo.comment = opt_first_byte("comment", pbo.comment.as_ref())?;
     if let Some(newlines_in_values) = pbo.newlines_in_values {
         dfo.newlines_in_values = newlines_in_values;
     }

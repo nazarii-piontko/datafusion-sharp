@@ -85,7 +85,9 @@ jobs:
   sonar:
     name: SonarCloud
     needs: check
-    if: github.repository == 'nazarii-piontko/datafusion-sharp' && ((github.event_name == 'pull_request' && github.base_ref == 'main') || github.ref == 'refs/heads/main')
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout

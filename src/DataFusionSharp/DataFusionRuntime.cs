@@ -49,9 +49,7 @@ public sealed class DataFusionRuntime : IDisposable
     /// <exception cref="DataFusionException">Thrown when context creation fails.</exception>
     public SessionContext CreateSessionContext()
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
-        var errorCode = NativeMethods.ContextNew(_handle.DangerousGetHandle(), out var contextHandle);
+        var errorCode = NativeMethods.ContextNew(_handle.GetHandle(), out var contextHandle);
         DataFusionException.ThrowIfError(errorCode, "Failed to create DataFusion context");
         
         return new SessionContext(this, new SessionContextSafeHandle(contextHandle));

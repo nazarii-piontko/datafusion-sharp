@@ -35,10 +35,8 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<ulong> CountAsync()
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         var (id, tcs) = AsyncOperations.Instance.Create<ulong>();
-        var result = NativeMethods.DataFrameCount(_handle.DangerousGetHandle(), AsyncOperationGenericCallbacks.UInt64ResultHandler, id);
+        var result = NativeMethods.DataFrameCount(_handle.GetHandle(), AsyncOperationGenericCallbacks.UInt64ResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -58,10 +56,9 @@ public sealed class DataFrame : IDisposable
     {
         if (limit.HasValue)
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit.Value);
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameShow(_handle.DangerousGetHandle(), limit ?? 0, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameShow(_handle.GetHandle(), limit ?? 0, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -78,10 +75,8 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<string> ToStringAsync()
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         var (id, tcs) = AsyncOperations.Instance.Create<string>();
-        var result = NativeMethods.DataFrameToString(_handle.DangerousGetHandle(), AsyncOperationGenericCallbacks.StringResultHandler, id);
+        var result = NativeMethods.DataFrameToString(_handle.GetHandle(), AsyncOperationGenericCallbacks.StringResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -98,10 +93,8 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<Schema> GetSchemaAsync()
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         var (id, tcs) = AsyncOperations.Instance.Create<Schema>();
-        var result = NativeMethods.DataFrameSchema(_handle.DangerousGetHandle(), CallbackForSchemaResultHandle, id);
+        var result = NativeMethods.DataFrameSchema(_handle.GetHandle(), CallbackForSchemaResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -118,10 +111,8 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<DataFrameCollectedResult> CollectAsync()
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>();
-        var result = NativeMethods.DataFrameCollect(_handle.DangerousGetHandle(), CallbackForCollectResultHandle, id);
+        var result = NativeMethods.DataFrameCollect(_handle.GetHandle(), CallbackForCollectResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -138,10 +129,8 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public async Task<DataFrameStream> ExecuteStreamAsync()
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, IntPtr StreamHandle)>();
-        var result = NativeMethods.DataFrameExecuteStream(_handle.DangerousGetHandle(), CallbackForExecutedStreamHandle, id);
+        var result = NativeMethods.DataFrameExecuteStream(_handle.GetHandle(), CallbackForExecutedStreamHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -162,12 +151,11 @@ public sealed class DataFrame : IDisposable
     public Task WriteCsvAsync(string path, CsvWriteOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
 
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteCsv(_handle.DangerousGetHandle(), path, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteCsv(_handle.GetHandle(), path, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -186,10 +174,9 @@ public sealed class DataFrame : IDisposable
     public Task WriteJsonAsync(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteJson(_handle.DangerousGetHandle(), path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteJson(_handle.GetHandle(), path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -208,10 +195,9 @@ public sealed class DataFrame : IDisposable
     public Task WriteParquetAsync(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteParquet(_handle.DangerousGetHandle(), path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteParquet(_handle.GetHandle(), path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -252,16 +238,9 @@ public sealed class DataFrame : IDisposable
         if (error == IntPtr.Zero)
         {
             var data = (NativeDataFrameCollectedData*) result.ToPointer();
-            List<RecordBatch>? batches = null;
             try
             {
-                var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
-                batches = new List<RecordBatch>(data->NumBatches);
-                for (var i = 0; i < data->NumBatches; i++)
-                {
-                    var batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data->Batches + i, schema);
-                    batches.Add(batch);
-                }
+                var (schema, batches) = ImportCollectedData(data);
                 
 #pragma warning disable CA2000
                 AsyncOperations.Instance.CompleteWithResult(handle, new DataFrameCollectedResult(batches.AsReadOnly(), schema));
@@ -269,20 +248,6 @@ public sealed class DataFrame : IDisposable
             }
             catch (Exception ex)
             {
-                try
-                {
-                    for (var i = 0; i < data->NumBatches; i++)
-                        Apache.Arrow.C.CArrowArray.CallReleaseFunc(data->Batches + i);
-                    if (batches is not null)
-                    {
-                        foreach (var batch in batches)
-                            batch.Dispose();
-                    }
-                }
-                catch
-                {
-                    // Ignore exceptions from release functions - we are already handling another exception and there's not much we can do about it.
-                }
                 AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
             }
         }
@@ -291,6 +256,40 @@ public sealed class DataFrame : IDisposable
     }
     private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollect;
     private static readonly IntPtr CallbackForCollectResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
+    
+    private static unsafe (Schema Schema, List<RecordBatch> Batches) ImportCollectedData(NativeDataFrameCollectedData* data)
+    {
+        var batches = new List<RecordBatch>();
+        try
+        {
+            var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
+            batches = new List<RecordBatch>(data->NumBatches);
+            for (var i = 0; i < data->NumBatches; i++)
+            {
+                var batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data->Batches + i, schema);
+                batches.Add(batch);
+            }
+
+            return (schema, batches);
+        }
+        catch
+        {
+            try
+            {
+                for (var i = 0; i < data->NumBatches; i++)
+                    Apache.Arrow.C.CArrowArray.CallReleaseFunc(data->Batches + i);
+                
+                foreach (var batch in batches)
+                    batch.Dispose();
+            }
+            catch
+            {
+                // Ignore exceptions from release functions - we are already handling another exception and there's not much we can do about it.
+            }
+
+            throw;
+        }
+    }
     
     private static unsafe void CallbackForExecutedStream(IntPtr result, IntPtr error, ulong handle)
     {

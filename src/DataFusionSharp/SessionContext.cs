@@ -36,12 +36,10 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null)
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterCsv(_handle.DangerousGetHandle(), tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterCsv(_handle.GetHandle(), tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -60,10 +58,8 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterJsonAsync(string tableName, string filePath)
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterJson(_handle.DangerousGetHandle(), tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterJson(_handle.GetHandle(), tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -81,10 +77,8 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterParquetAsync(string tableName, string filePath)
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterParquet(_handle.DangerousGetHandle(), tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterParquet(_handle.GetHandle(), tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -101,10 +95,8 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
     public async Task<DataFrame> SqlAsync(string sql)
     {
-        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
-        
         var (id, tcs) = AsyncOperations.Instance.Create<IntPtr>();
-        var result = NativeMethods.ContextSql(_handle.DangerousGetHandle(), sql, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
+        var result = NativeMethods.ContextSql(_handle.GetHandle(), sql, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
