@@ -124,9 +124,8 @@ jobs:
             ~/.cargo/git/db/
             native/target/
           key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
-          restore-keys: |
-            ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}
-        continue-on-error: true
+          fail-on-cache-miss: 'true'
+        continue-on-error: false
 
       - name: Setup Protoc
         uses: arduino/setup-protoc@v3
@@ -150,19 +149,8 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
           
-          dotnet build -c Release
+          # Build the project without building the native library, it should be already built in the check job and cached
+          dotnet build -c Release -p:BuildNativeLib=false
           dotnet coverage collect "dotnet test --no-build -c Release" -f xml -o "coverage.xml"
           
           dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
-
-      - name: Save Rust Cargo Cache
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
-        continue-on-error: true
