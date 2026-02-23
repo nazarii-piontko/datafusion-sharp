@@ -37,9 +37,10 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
         with:
           components: clippy
+          toolchain: 'stable'
 
       - name: Restore Rust Cargo Cache
         id: cache-rust-cargo
@@ -51,9 +52,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.*') }}-${{ github.run_id }}
+          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
           restore-keys: |
-            ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.*') }}
+            ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}
         continue-on-error: true
 
       - name: Setup Protoc
@@ -79,7 +80,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.*') }}-${{ github.run_id }}
+          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
         continue-on-error: true
 
   sonar:
@@ -101,10 +102,11 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
         with:
           components: clippy
-          
+          toolchain: 'stable'
+
       - name: Setup JDK 17
         uses: actions/setup-java@v5
         with:
@@ -121,9 +123,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.*') }}-${{ github.run_id }}
+          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
           restore-keys: |
-            ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.*') }}
+            ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}
         continue-on-error: true
 
       - name: Setup Protoc
@@ -162,5 +164,5 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.*') }}-${{ github.run_id }}
+          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
         continue-on-error: true
