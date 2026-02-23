@@ -167,4 +167,9 @@
         <Protobuf Include="../../proto/*.proto" ProtoRoot="../../proto" GrpcServices="None" Visible="false"  />
         <Protobuf Include="../../proto/vendor/*.proto" ProtoRoot="../../proto" GrpcServices="None"  Visible="false" />
     </ItemGroup>
+
+    <!-- InternalsVisibleTo for unit testing -->
+    <ItemGroup>
+        <InternalsVisibleTo Include="DataFusionSharp.Tests" />
+    </ItemGroup>
 </Project>
