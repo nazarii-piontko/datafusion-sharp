@@ -141,7 +141,6 @@ public sealed class SessionContext : IDisposable
             return;
         }
 
-
         var dataFrameHandle = Marshal.ReadIntPtr(result);
 #pragma warning disable CA2000
         var dataFrameSafeHandle = new DataFrameSafeHandle(dataFrameHandle);

@@ -129,7 +129,7 @@ public sealed class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public async Task<DataFrameStream> ExecuteStreamAsync()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, IntPtr StreamHandle)>();
+        var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>();
         var result = NativeMethods.DataFrameExecuteStream(_handle, CallbackForExecutedStreamHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
@@ -138,7 +138,7 @@ public sealed class DataFrame : IDisposable
         }
 
         var (schema, streamHandle) = await tcs.Task.ConfigureAwait(false);
-        return new DataFrameStream(this, schema, new DataFrameStreamSafeHandle(streamHandle));
+        return new DataFrameStream(this, schema, streamHandle);
     }
 
     /// <summary>
@@ -276,8 +276,8 @@ public sealed class DataFrame : IDisposable
         
 #pragma warning disable CA2000
         var collectedResult = new DataFrameCollectedResult(batches.AsReadOnly(), schema);
-        AsyncOperations.Instance.CompleteWithResult(handle, collectedResult);
 #pragma warning restore CA2000
+        AsyncOperations.Instance.CompleteWithResult(handle, collectedResult);
     }
     private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollect;
     private static readonly IntPtr CallbackForCollectResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
@@ -321,7 +321,7 @@ public sealed class DataFrame : IDisposable
         if (error != IntPtr.Zero)
         {
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<(Schema, IntPtr)>(handle, ex);
+            AsyncOperations.Instance.CompleteWithError<(Schema, DataFrameStreamSafeHandle)>(handle, ex);
             return;
         }
 
@@ -333,11 +333,14 @@ public sealed class DataFrame : IDisposable
         }
         catch (Exception ex)
         {
-            AsyncOperations.Instance.CompleteWithError<(Schema, IntPtr)>(handle, ex);
+            AsyncOperations.Instance.CompleteWithError<(Schema, DataFrameStreamSafeHandle)>(handle, ex);
             return;
         }
-        
-        AsyncOperations.Instance.CompleteWithResult(handle, ValueTuple.Create(schema, data->StreamHandle));
+
+#pragma warning disable CA2000
+        var streamSafeHandle = new DataFrameStreamSafeHandle(data->StreamHandle);
+#pragma warning restore CA2000
+        AsyncOperations.Instance.CompleteWithResult(handle, ValueTuple.Create(schema, streamSafeHandle));
     }
     private static readonly NativeMethods.Callback CallbackForExecutedStreamDelegate = CallbackForExecutedStream;
     private static readonly IntPtr CallbackForExecutedStreamHandle = Marshal.GetFunctionPointerForDelegate(CallbackForExecutedStreamDelegate);

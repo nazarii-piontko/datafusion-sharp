@@ -91,42 +91,46 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 
     private static unsafe void CallbackForNextResult(IntPtr result, IntPtr error, ulong userData)
     {
-        if (result == IntPtr.Zero && error == IntPtr.Zero)
+        if (error != IntPtr.Zero)
+        {
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
+            return;
+        }
+        
+        if (result == IntPtr.Zero)
         {
             // Null result - end of stream
             AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, null);
+            return;
         }
-        else if (error == IntPtr.Zero)
+
+        var data = (Apache.Arrow.C.CArrowArray*)result.ToPointer();
+        RecordBatch batch;
+        try
         {
-            var data = (Apache.Arrow.C.CArrowArray*) result.ToPointer();
+            var schema = AsyncOperations.Instance.GetUserData<Schema>(userData);
+            if (schema is null)
+                throw new InvalidOperationException("Failed to retrieve schema for next batch retrieval operation");
+
+            batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data, schema);
+        }
+        catch (Exception ex)
+        {
             try
             {
-                var schema = AsyncOperations.Instance.GetUserData<Schema>(userData);
-                if (schema is null)
-                    throw new InvalidOperationException("Failed to retrieve schema for next batch retrieval operation");
-                
-                var batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data, schema);
-                
-                AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, batch);
+                Apache.Arrow.C.CArrowArray.CallReleaseFunc(data);
             }
-            catch (Exception ex)
+            catch
             {
-                try
-                {
-                    Apache.Arrow.C.CArrowArray.CallReleaseFunc(data);
-                }
-                catch
-                {
-                    // Ignore exceptions from release function - we are already handling another exception and there's not much we can do about it.
-                }
-                
-                AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
+                // Ignore exceptions from release function - we are already handling another exception and there's not much we can do about it.
             }
+
+            AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
+            return;
         }
-        else
-        {
-            AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ErrorInfoData.FromIntPtr(error).ToException());
-        }
+        
+        AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, batch);
     }
     private static readonly NativeMethods.Callback CallbackForNextResultDelegate = CallbackForNextResult;
     private static readonly IntPtr CallbackForNextResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForNextResultDelegate);
