@@ -229,44 +229,55 @@ public sealed class DataFrame : IDisposable
     
     private static unsafe void CallbackForGetSchema(IntPtr result, IntPtr error, ulong handle)
     {
-        if (error == IntPtr.Zero)
+        if (error != IntPtr.Zero)
         {
-            try
-            {
-                var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema((Apache.Arrow.C.CArrowSchema*) result.ToPointer());
-                AsyncOperations.Instance.CompleteWithResult(handle, schema);
-            }
-            catch (Exception ex)
-            {
-                AsyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
-            }
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
+            return;
         }
-        else
-            AsyncOperations.Instance.CompleteWithError<Schema>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+
+        Schema schema;
+        try
+        {
+            schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema((Apache.Arrow.C.CArrowSchema*)result.ToPointer());
+        }
+        catch (Exception ex)
+        {
+            AsyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
+            return;
+        }
+        
+        AsyncOperations.Instance.CompleteWithResult(handle, schema);
     }
     private static readonly NativeMethods.Callback CallbackForSchemaResultDelegate = CallbackForGetSchema;
     private static readonly IntPtr CallbackForSchemaResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForSchemaResultDelegate);
     
     private static unsafe void CallbackForCollect(IntPtr result, IntPtr error, ulong handle)
     {
-        if (error == IntPtr.Zero)
+        if (error != IntPtr.Zero)
         {
-            var data = (NativeDataFrameCollectedData*) result.ToPointer();
-            try
-            {
-                var (schema, batches) = ImportCollectedData(data);
-                
-#pragma warning disable CA2000
-                AsyncOperations.Instance.CompleteWithResult(handle, new DataFrameCollectedResult(batches.AsReadOnly(), schema));
-#pragma warning restore CA2000
-            }
-            catch (Exception ex)
-            {
-                AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
-            }
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
+            return;
         }
-        else
-            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+
+        var data = (NativeDataFrameCollectedData*)result.ToPointer();
+        Schema schema;
+        List<RecordBatch> batches;
+        try
+        {
+            (schema, batches) = ImportCollectedData(data);
+        }
+        catch (Exception ex)
+        {
+            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
+            return;
+        }
+        
+#pragma warning disable CA2000
+        var collectedResult = new DataFrameCollectedResult(batches.AsReadOnly(), schema);
+        AsyncOperations.Instance.CompleteWithResult(handle, collectedResult);
+#pragma warning restore CA2000
     }
     private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollect;
     private static readonly IntPtr CallbackForCollectResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
@@ -307,22 +318,26 @@ public sealed class DataFrame : IDisposable
     
     private static unsafe void CallbackForExecutedStream(IntPtr result, IntPtr error, ulong handle)
     {
-        if (error == IntPtr.Zero)
+        if (error != IntPtr.Zero)
         {
-            try
-            {
-                var data = (NativeDataFrameExecutedStreamData*) result.ToPointer();
-                var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
-                
-                AsyncOperations.Instance.CompleteWithResult(handle, ValueTuple.Create(schema, data->StreamHandle));
-            }
-            catch (Exception ex)
-            {
-                AsyncOperations.Instance.CompleteWithError<(Schema, IntPtr)>(handle, ex);
-            }
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<(Schema, IntPtr)>(handle, ex);
+            return;
         }
-        else
-            AsyncOperations.Instance.CompleteWithError<(Schema, IntPtr)>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+
+        var data = (NativeDataFrameExecutedStreamData*)result.ToPointer();
+        Schema schema;
+        try
+        {
+            schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
+        }
+        catch (Exception ex)
+        {
+            AsyncOperations.Instance.CompleteWithError<(Schema, IntPtr)>(handle, ex);
+            return;
+        }
+        
+        AsyncOperations.Instance.CompleteWithResult(handle, ValueTuple.Create(schema, data->StreamHandle));
     }
     private static readonly NativeMethods.Callback CallbackForExecutedStreamDelegate = CallbackForExecutedStream;
     private static readonly IntPtr CallbackForExecutedStreamHandle = Marshal.GetFunctionPointerForDelegate(CallbackForExecutedStreamDelegate);
