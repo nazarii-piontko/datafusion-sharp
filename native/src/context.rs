@@ -125,12 +125,14 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
 /// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
 /// - `table_ref_ptr` must be a valid null-terminated UTF-8 string
 /// - `table_path_ptr` must be a valid null-terminated UTF-8 string
+/// - `json_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `JsonReadOptions`, or null
 /// - `callback` must be valid to call from any thread
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_register_json(
     context_ptr: *mut SessionContextWrapper,
     table_ref_ptr: *const std::ffi::c_char,
     table_path_ptr: *const std::ffi::c_char,
+    json_options_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> crate::ErrorCode {
@@ -138,15 +140,42 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
+    let json_options_proto = match json_options_bytes.as_opt_slice() {
+        Some(b) => match crate::proto::JsonReadOptions::decode(b) {
+            Ok(opts) => Some(opts),
+            Err(_) => return crate::ErrorCode::InvalidArgument
+        },
+        None => None
+    };
+
     dev_msg!("Registering JSON table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
-        let result = context.inner
-            .register_json(&table_ref, &table_path, datafusion::prelude::NdJsonReadOptions::default())
-            .await
-            .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
+        let mut schema_opt: Option<datafusion::arrow::datatypes::Schema> = None;
+        if let Some(json_options) = &json_options_proto &&
+            let Some(pb_schema) = json_options.schema.as_ref() {
+                let Ok(schema) = datafusion::arrow::datatypes::Schema::try_from(pb_schema) else {
+                    let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options");
+                    crate::invoke_callback_error(&error_info, callback, user_data);
+                    return;
+                };
+                schema_opt = Some(schema);
+        }
 
-        crate::invoke_callback(result, callback, user_data);
+        match crate::mappers::from_proto_json_read_options(json_options_proto.as_ref(), schema_opt.as_ref()) {
+            Ok(opts) => {
+                let result = context.inner
+                    .register_json(&table_ref, &table_path, opts)
+                    .await
+                    .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
+
+                crate::invoke_callback(result, callback, user_data);
+            },
+            Err(e) => {
+                let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, format!("Failed to convert JSON options: {e}"));
+                crate::invoke_callback_error(&error_info, callback, user_data);
+            }
+        }
         dev_msg!("Finished registering JSON table '{}' from path '{}'", table_ref, table_path);
     });
 

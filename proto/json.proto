@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package datafusion_sharp_proto;
+
+import "vendor/datafusion_common.proto";
+import "vendor/datafusion.proto";
+
+option csharp_namespace = "DataFusionSharp.Proto";
+
+// Options for reading JSON (NDJSON) files.
+message JsonReadOptions {
+  // Optional schema. If unset, infer from data.
+  optional datafusion_common.Schema schema = 1;
+
+  // Max number of rows for schema inference.
+  optional uint64 schema_infer_max_records = 2;
+
+  // File extension. If unset, default is ".json".
+  optional bytes file_extension = 3;
+
+  // Partition columns
+  repeated datafusion.PartitionColumn table_partition_cols = 4;
+
+  // File compression type. If unset, default is "uncompressed".
+  optional datafusion_common.CompressionTypeVariant file_compression_type = 5;
+
+  // Indicates how the file is sorted (Vec<Vec<SortExpr>>)
+  repeated datafusion.SortExprNodeCollection file_sort_order = 6;
+}

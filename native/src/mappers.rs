@@ -106,6 +106,75 @@ pub fn from_proto_csv_options<'a>(
     Ok(dfo)
 }
 
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::assigning_clones)]
+pub fn from_proto_json_read_options<'a>(
+    pbo: Option<&'a crate::proto::JsonReadOptions>,
+    schema: Option<&'a datafusion::arrow::datatypes::Schema>
+) -> Result<datafusion::prelude::NdJsonReadOptions<'a>> {
+    let Some(pbo) = pbo else {
+        return Ok(datafusion::prelude::NdJsonReadOptions::default());
+    };
+
+    let mut dfo = datafusion::prelude::NdJsonReadOptions::default();
+
+    dfo.schema = schema;
+    if let Some(schema_infer_max_records) = pbo.schema_infer_max_records {
+        dfo.schema_infer_max_records = schema_infer_max_records as usize;
+    }
+    if let Some(file_extension) = pbo.file_extension.as_ref() && !file_extension.is_empty() {
+        dfo.file_extension = std::str::from_utf8(file_extension)?;
+    }
+    dfo.table_partition_cols = pbo
+        .table_partition_cols
+        .iter()
+        .map(|c| {
+            let arrow_type = c
+                .arrow_type
+                .as_ref()
+                .ok_or_else(|| anyhow!("Partition column '{}' missing arrow type", c.name))?;
+
+            let data_type = arrow_type.try_into()?;
+            Ok((c.name.clone(), data_type))
+        })
+        .collect::<Result<_>>()?;
+    if let Some(file_compression_type) = pbo.file_compression_type {
+        dfo.file_compression_type = from_proto_file_compression(file_compression_type)?;
+    }
+
+    // parse sort order
+    let codec = datafusion_proto::logical_plan::DefaultLogicalExtensionCodec {};
+    let registry_impl = datafusion::execution::registry::MemoryFunctionRegistry::new();
+    let registry: &dyn datafusion::execution::FunctionRegistry = &registry_impl;
+
+    dfo.file_sort_order = pbo
+        .file_sort_order
+        .iter()
+        .map(|order| {
+            order
+                .sort_expr_nodes
+                .iter()
+                .map(|node| {
+                    let expr_node = node
+                        .expr
+                        .as_ref()
+                        .ok_or_else(|| anyhow!("Missing sort expression"))?;
+
+                    let expr = datafusion_proto::logical_plan::from_proto::parse_expr(expr_node, registry, &codec)?;
+
+                    Ok(datafusion::logical_expr::SortExpr {
+                        expr,
+                        asc: node.asc,
+                        nulls_first: node.nulls_first,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(dfo)
+}
+
 use datafusion::datasource::file_format::file_compression_type::FileCompressionType as DfCompression;
 use datafusion_proto::generated::datafusion_common::CompressionTypeVariant as PbCompression;
 

@@ -386,23 +386,32 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `path_ptr` must be a valid null-terminated UTF-8 string
+/// - `json_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `JsonOptions`, or null
 /// - `callback` must be valid to call from any thread
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_write_json(
     df_ptr: *mut DataFrameWrapper,
     path_ptr: *const std::ffi::c_char,
+    json_options_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
+    let Ok(json_options) = json_options_bytes.as_opt_slice()
+        .map(|b| datafusion_proto::protobuf::JsonOptions::decode(b)
+            .map(|pbo| datafusion::common::config::JsonOptions::from(&pbo))
+            .map_err(|_| crate::ErrorCode::InvalidArgument)
+        )
+        .transpose() else { return crate::ErrorCode::InvalidArgument };
+
     dev_msg!("Executing write_json on DataFrame: {:p} to path: {}", df_ptr, path);
 
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
         let result = df
-            .write_json(&path, datafusion::dataframe::DataFrameWriteOptions::default(), None)
+            .write_json(&path, datafusion::dataframe::DataFrameWriteOptions::default(), json_options)
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
 

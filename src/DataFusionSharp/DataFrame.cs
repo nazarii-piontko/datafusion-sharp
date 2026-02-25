@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Apache.Arrow;
 using DataFusionSharp.Formats.Csv;
+using DataFusionSharp.Formats.Json;
 using DataFusionSharp.Interop;
 
 namespace DataFusionSharp;
@@ -169,14 +170,17 @@ public sealed partial class DataFrame : IDisposable
     /// Writes the DataFrame contents to a JSON file.
     /// </summary>
     /// <param name="path">The output file path.</param>
+    /// <param name="options">Optional JSON writing options.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteJsonAsync(string path)
+    public Task WriteJsonAsync(string path, JsonWriteOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        
+
+        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteJson(_handle, path, GenericCallbacks.CallbackForVoidHandle, id);
+        var result = NativeMethods.DataFrameWriteJson(_handle, path, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);

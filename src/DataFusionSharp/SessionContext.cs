@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using DataFusionSharp.Formats.Csv;
+using DataFusionSharp.Formats.Json;
 using DataFusionSharp.Interop;
 
 namespace DataFusionSharp;
@@ -55,12 +56,15 @@ public sealed partial class SessionContext : IDisposable
     /// </summary>
     /// <param name="tableName">The name to use for the table.</param>
     /// <param name="filePath">The path to the JSON file.</param>
+    /// <param name="options">Optional JSON read options to customize parsing behavior.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
-    public Task RegisterJsonAsync(string tableName, string filePath)
+    public Task RegisterJsonAsync(string tableName, string filePath, JsonReadOptions? options = null)
     {
+        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, GenericCallbacks.CallbackForVoidHandle, id);
+        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
