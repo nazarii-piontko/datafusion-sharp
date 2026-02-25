@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using DataFusionSharp.Formats.Csv;
 using DataFusionSharp.Interop;
 
@@ -13,25 +14,17 @@ namespace DataFusionSharp;
 /// </remarks>
 public sealed class SessionContext : IDisposable
 {
-    private IntPtr _handle;
+    private readonly SessionContextSafeHandle _handle;
 
     /// <summary>
     /// Gets the runtime that owns this session context.
     /// </summary>
     public DataFusionRuntime Runtime { get; }
     
-    internal SessionContext(DataFusionRuntime runtime, IntPtr handle)
+    internal SessionContext(DataFusionRuntime runtime, SessionContextSafeHandle handle)
     {
         Runtime = runtime;
         _handle = handle;
-    }
-    
-    /// <summary>
-    /// Releases unmanaged resources if <see cref="Dispose"/> was not called.
-    /// </summary>
-    ~SessionContext()
-    {
-        DestroyContext();
     }
 
     /// <summary>
@@ -47,7 +40,7 @@ public sealed class SessionContext : IDisposable
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -67,7 +60,7 @@ public sealed class SessionContext : IDisposable
     public Task RegisterJsonAsync(string tableName, string filePath)
     {
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -86,11 +79,29 @@ public sealed class SessionContext : IDisposable
     public Task RegisterParquetAsync(string tableName, string filePath)
     {
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start registering Parquet file");
+        }
+        return tcs.Task;
+    }
+    
+    /// <summary>
+    /// Deregisters a table from this session.
+    /// </summary>
+    /// <param name="tableName">The name of the table to deregister.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <exception cref="DataFusionException">Thrown when table deregistration fails.</exception>
+    public Task DeregisterTableAsync(string tableName)
+    {
+        var (id, tcs) = AsyncOperations.Instance.Create();
+        var result = NativeMethods.ContextDeregisterTable(_handle, tableName, AsyncOperationGenericCallbacks.VoidResultHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to start deregistering table");
         }
         return tcs.Task;
     }
@@ -103,36 +114,39 @@ public sealed class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
     public async Task<DataFrame> SqlAsync(string sql)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<IntPtr>();
-        var result = NativeMethods.ContextSql(_handle, sql, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
+        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
+        var result = NativeMethods.ContextSql(_handle, sql, CallbackForSqlAsyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start executing SQL query");
         }
         
-        var dataFrameHandle = await tcs.Task.ConfigureAwait(false);
-
-        return new DataFrame(this, dataFrameHandle);
+        var dataFrameSafeHandle = await tcs.Task.ConfigureAwait(false);
+        return new DataFrame(this, dataFrameSafeHandle);
     }
     
-    /// <summary>
-    /// Releases all resources used by this session context.
-    /// </summary>
+    /// <inheritdoc />
     public void Dispose()
     {
-        DestroyContext();
-        GC.SuppressFinalize(this);
+        _handle.Dispose();
     }
     
-    private void DestroyContext()
+    private static void CallbackForSqlAsync(IntPtr result, IntPtr error, ulong handle)
     {
-        var handle = _handle;
-        if (handle == IntPtr.Zero)
+        if (error != IntPtr.Zero)
+        {
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<DataFrameSafeHandle>(handle, ex);
             return;
-        
-        _handle = IntPtr.Zero;
-        
-        NativeMethods.ContextDestroy(handle);
+        }
+
+        var dataFrameHandle = Marshal.ReadIntPtr(result);
+#pragma warning disable CA2000
+        var dataFrameSafeHandle = new DataFrameSafeHandle(dataFrameHandle);
+#pragma warning restore CA2000
+        AsyncOperations.Instance.CompleteWithResult(handle, dataFrameSafeHandle);
     }
+    private static readonly NativeMethods.Callback CallbackForSqlAsyncDelegate = CallbackForSqlAsync;
+    private static readonly IntPtr CallbackForSqlAsyncHandle = Marshal.GetFunctionPointerForDelegate(CallbackForSqlAsyncDelegate);
 }

@@ -18,7 +18,7 @@ internal struct BytesData
     /// <summary>
     /// Data pointer, UTF-8 encoded, *const u8
     /// </summary>
-    public nint DataPtr;
+    public IntPtr DataPtr;
     
     /// <summary>
     /// Data length, u32
@@ -55,7 +55,7 @@ internal struct BytesData
     /// The caller is responsible for ensuring the pointer is valid and remains valid for the lifetime of the BytesData.
     /// </summary>
     /// <param name="ptr">Pointer to the unmanaged data.</param>
-    public static BytesData FromIntPtr(nint ptr)
+    public static BytesData FromIntPtr(IntPtr ptr)
     {
         // Manually read the struct fields from the pointer since Marshal.PtrToStructure is slow,
         // and we want to avoid unnecessary copying of the data.
@@ -78,7 +78,7 @@ internal struct BytesData
         
         unsafe
         {
-            data.DataPtr = (nint)handle.Pointer;
+            data.DataPtr = (IntPtr)handle.Pointer;
         }
 
         data.Length = length;

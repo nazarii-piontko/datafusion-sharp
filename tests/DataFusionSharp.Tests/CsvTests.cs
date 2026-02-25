@@ -25,6 +25,11 @@ public sealed class CsvTests : FileFormatTests
     {
         return Context.RegisterCsvAsync(tableName, DataSet.OrdersCsvPath);
     }
+    
+    protected override Task RegisterTableFromPathAsync(string tableName, string path)
+    {
+        return Context.RegisterCsvAsync(tableName, path);
+    }
 
     protected override Task WriteTableAsync(DataFrame dataFrame, string path)
     {
@@ -344,5 +349,28 @@ public sealed class CsvTests : FileFormatTests
         var content = await File.ReadAllTextAsync(tempFile.Path);
         Assert.Contains("customer_id;customer_name;country;city;signup_date;customer_segment", content, StringComparison.Ordinal);
         Assert.Contains("10;Vehement Capital Partners;France;Paris;2022-06-20;SMB", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WriteAsync_WithHasHeaderFalse_WritesFileWithHeader()
+    {
+        // Arrange
+        await Context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
+        using var df = await Context.SqlAsync("SELECT customer_id, customer_name FROM customers ORDER BY customer_id LIMIT 2");
+        var options = new CsvWriteOptions
+        {
+            HasHeader = false
+        };
+        using var tempFile = await TempInputFile.CreateAsync(FileExtension);
+        
+        // Act
+        await df.WriteCsvAsync(tempFile.Path, options);
+
+        // Assert
+        Assert.True(File.Exists(tempFile.Path), "Output file should be created");
+        
+        var content = await File.ReadAllTextAsync(tempFile.Path);
+        Assert.DoesNotContain("customer_id", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("customer_name", content, StringComparison.Ordinal);
     }
 }

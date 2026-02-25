@@ -1,7 +1,7 @@
 using Apache.Arrow;
 using DataFusionSharp;
 
-await using var runtime = DataFusionRuntime.Create();
+using var runtime = DataFusionRuntime.Create();
 using var context = runtime.CreateSessionContext();
 
 // Register data from CSV format
@@ -40,14 +40,24 @@ foreach (var field in schema.FieldsList)
 Console.WriteLine();
 
 Console.WriteLine("=== Collected Data ===");
-var collectedData = await df.CollectAsync();
+using var collectedData = await df.CollectAsync();
 foreach (var batch in collectedData.Batches)
+    PrintBatch(batch);
+
+Console.WriteLine("=== Streamed Data ===");
+using var stream = await df.ExecuteStreamAsync();
+await foreach (var batch in stream)
+    PrintBatch(batch);
+
+return;
+
+void PrintBatch(RecordBatch recordBatch)
 {
-    for (var r = 0; r < batch.Length; r++)
+    for (var r = 0; r < recordBatch.Length; r++)
     {
-        for (var c = 0; c < batch.ColumnCount; c++)
+        for (var c = 0; c < recordBatch.ColumnCount; c++)
         {
-            var v = batch.Column(c) switch
+            var v = recordBatch.Column(c) switch
             {
                 StringArray a => (object)a.GetString(r),
                 StringViewArray a => a.GetString(r),

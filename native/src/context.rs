@@ -90,13 +90,10 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
         let mut schema_opt: Option<datafusion::arrow::datatypes::Schema> = None;
         if let Some(csv_options) = &csv_options_proto &&
             let Some(pb_schema) = csv_options.schema.as_ref() {
-                let schema = match datafusion::arrow::datatypes::Schema::try_from(pb_schema) {
-                    Ok(s) => s,
-                    Err(_) => {
-                        let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options");
-                        crate::invoke_callback_error(&error_info, callback, user_data);
-                        return;
-                    }
+                let Ok(schema) = datafusion::arrow::datatypes::Schema::try_from(pb_schema) else {
+                    let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options");
+                    crate::invoke_callback_error(&error_info, callback, user_data);
+                    return;
                 };
                 schema_opt = Some(schema);
         }
@@ -188,6 +185,38 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
         crate::invoke_callback(result, callback, user_data);
         dev_msg!("Finished registering Parquet table '{}' from path '{}'", table_ref, table_path);
     });
+
+    crate::ErrorCode::Ok
+}
+
+/// Deregisters a table from the `SessionContext` by name.
+///
+/// This is an async operation. The callback is invoked on completion with no result data.
+///
+/// # Safety
+/// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
+/// - `table_ref_ptr` must be a valid null-terminated UTF-8 string with the name of a registered table
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_context_deregister_table(
+    context_ptr: *mut SessionContextWrapper,
+    table_ref_ptr: *const std::ffi::c_char,
+    callback: crate::Callback,
+    user_data: u64
+) -> crate::ErrorCode {
+    let context = ffi_ref!(context_ptr);
+    let table_ref = ffi_cstr_to_string!(table_ref_ptr);
+
+    dev_msg!("Deregistering table '{}'", table_ref);
+
+    let result = context.inner
+        .deregister_table(&table_ref)
+        .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e))
+        .map(|_| ());
+
+    crate::invoke_callback(result, callback, user_data);
+
+    dev_msg!("Finished deregistering table '{}'", table_ref);
 
     crate::ErrorCode::Ok
 }

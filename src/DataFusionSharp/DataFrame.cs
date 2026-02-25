@@ -13,27 +13,19 @@ namespace DataFusionSharp;
 /// is called (e.g., <see cref="CollectAsync"/>, <see cref="ExecuteStreamAsync"/>, or one of the Write methods).
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
-public sealed partial class DataFrame : IDisposable
+public sealed class DataFrame : IDisposable
 {
-    private IntPtr _handle;
+    private readonly DataFrameSafeHandle _handle;
 
     /// <summary>
     /// Gets the session context that created this DataFrame.
     /// </summary>
     public SessionContext Context { get; }
     
-    internal DataFrame(SessionContext sessionContext, IntPtr handle)
+    internal DataFrame(SessionContext sessionContext, DataFrameSafeHandle handle)
     {
         Context = sessionContext;
         _handle = handle;
-    }
-    
-    /// <summary>
-    /// Releases unmanaged resources if <see cref="Dispose"/> was not called.
-    /// </summary>
-    ~DataFrame()
-    {
-        DestroyDataFrame();
     }
     
     /// <summary>
@@ -44,12 +36,13 @@ public sealed partial class DataFrame : IDisposable
     public Task<ulong> CountAsync()
     {
         var (id, tcs) = AsyncOperations.Instance.Create<ulong>();
-        var result = NativeMethods.DataFrameCount(_handle, AsyncOperationGenericCallbacks.UInt64ResultHandler, id);
+        var result = NativeMethods.DataFrameCount(_handle, CallbackForCountAsyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start counting rows in DataFrame");
         }
+        
         return tcs.Task;
     }
 
@@ -65,12 +58,13 @@ public sealed partial class DataFrame : IDisposable
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit.Value);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, AsyncOperationGenericCallbacks.VoidResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start showing DataFrame");
         }
+        
         return tcs.Task;
     }
     
@@ -82,12 +76,13 @@ public sealed partial class DataFrame : IDisposable
     public Task<string> ToStringAsync()
     {
         var (id, tcs) = AsyncOperations.Instance.Create<string>();
-        var result = NativeMethods.DataFrameToString(_handle, AsyncOperationGenericCallbacks.StringResultHandler, id);
+        var result = NativeMethods.DataFrameToString(_handle, AsyncOperationGenericCallbacks.StringResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start converting DataFrame to string");
         }
+        
         return tcs.Task;
     }
     
@@ -99,7 +94,7 @@ public sealed partial class DataFrame : IDisposable
     public Task<Schema> GetSchemaAsync()
     {
         var (id, tcs) = AsyncOperations.Instance.Create<Schema>();
-        var result = NativeMethods.DataFrameSchema(_handle, CallbackForSchemaResultHandler, id);
+        var result = NativeMethods.DataFrameSchema(_handle, CallbackForSchemaResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -112,12 +107,12 @@ public sealed partial class DataFrame : IDisposable
     /// <summary>
     /// Collects all data from this DataFrame into memory.
     /// </summary>
-    /// <returns>A task containing the <see cref="DataFrameCollectedData"/> with all record batches and schema.</returns>
+    /// <returns>A task containing the <see cref="DataFrameCollectedResult"/> with all record batches and schema.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task<DataFrameCollectedData> CollectAsync()
+    public Task<DataFrameCollectedResult> CollectAsync()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedData>();
-        var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectResultHandler, id);
+        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>();
+        var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -134,16 +129,16 @@ public sealed partial class DataFrame : IDisposable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public async Task<DataFrameStream> ExecuteStreamAsync()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<IntPtr>();
-        var result = NativeMethods.DataFrameExecuteStream(_handle, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
+        var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>();
+        var result = NativeMethods.DataFrameExecuteStream(_handle, CallbackForExecutedStreamHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start executing stream on DataFrame");
         }
 
-        var streamHandle = await tcs.Task.ConfigureAwait(false);
-        return new DataFrameStream(this, streamHandle);
+        var (schema, streamHandle) = await tcs.Task.ConfigureAwait(false);
+        return new DataFrameStream(this, schema, streamHandle);
     }
 
     /// <summary>
@@ -160,7 +155,7 @@ public sealed partial class DataFrame : IDisposable
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteCsv(_handle, path, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteCsv(_handle, path, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -181,7 +176,7 @@ public sealed partial class DataFrame : IDisposable
         ArgumentException.ThrowIfNullOrEmpty(path);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteJson(_handle, path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteJson(_handle, path, AsyncOperationGenericCallbacks.VoidResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -202,7 +197,7 @@ public sealed partial class DataFrame : IDisposable
         ArgumentException.ThrowIfNullOrEmpty(path);
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteParquet(_handle, path, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.DataFrameWriteParquet(_handle, path, AsyncOperationGenericCallbacks.VoidResultHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -212,84 +207,184 @@ public sealed partial class DataFrame : IDisposable
         return tcs.Task;
     }
     
-    /// <summary>
-    /// Releases all resources used by this DataFrame.
-    /// </summary>
+    /// <inheritdoc />
     public void Dispose()
     {
-        DestroyDataFrame();
-        GC.SuppressFinalize(this);
+        _handle.Dispose();
     }
     
-    [NativeCallback]
-    private static void CallbackForSchemaResult(IntPtr result, IntPtr error, ulong handle)
+    private static void CallbackForCountAsync(IntPtr result, IntPtr error, ulong handle)
     {
-        if (error == IntPtr.Zero)
+        if (error != IntPtr.Zero)
         {
-            try
-            {
-                var data = BytesData.FromIntPtr(result);
-
-                using var nativeMemoryManager = new NativeMemoryManager(data.DataPtr, data.Length);
-                using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(nativeMemoryManager.Memory);
-                AsyncOperations.Instance.CompleteWithResult(handle, reader.Schema);
-            }
-            catch (Exception ex)
-            {
-                AsyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
-            }
-        }
-        else
-            AsyncOperations.Instance.CompleteWithError<Schema>(handle, ErrorInfoData.FromIntPtr(error).ToException());
-    }
-
-    [NativeCallback]
-    private static void CallbackForCollectResult(IntPtr result, IntPtr error, ulong handle)
-    {
-        if (error == IntPtr.Zero)
-        {
-            try
-            {
-                var data = BytesData.FromIntPtr(result);
-                
-                // Important note about memory management:
-                // Use NativeMemoryStream instead of NativeMemoryManager directly, because the data needs to be copied into managed memory.
-                // When using NativeMemoryManager directly, ArrowStreamReader will keep references to the native memory for each ArrowArray it creates.
-                // This causes segmentation fault when native memory is released after callback returns.
-                using var nativeMemoryManager = new NativeMemoryManager(data.DataPtr, data.Length);
-                using var nativeMemoryStream = new NativeMemoryStream(nativeMemoryManager);
-                using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(nativeMemoryStream);
-                
-                var batches = new List<RecordBatch>();
-                while (reader.ReadNextRecordBatch() is {} batch)
-                    batches.Add(batch);
-                
-                AsyncOperations.Instance.CompleteWithResult(handle, new DataFrameCollectedData(batches, reader.Schema));
-            }
-            catch (Exception ex)
-            {
-                AsyncOperations.Instance.CompleteWithError<DataFrameCollectedData>(handle, ex);
-            }
-        }
-        else
-            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedData>(handle, ErrorInfoData.FromIntPtr(error).ToException());
-    }
-
-    private void DestroyDataFrame()
-    {
-        var handle = _handle;
-        if (handle == IntPtr.Zero)
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<ulong>(handle, ex);
             return;
-        
-        _handle = IntPtr.Zero;
-        
-        NativeMethods.DataFrameDestroy(handle);
+        }
+
+        AsyncOperations.Instance.CompleteWithResult(handle, (ulong)Marshal.ReadInt64(result));
     }
+    private static readonly NativeMethods.Callback CallbackForCountAsyncDelegate = CallbackForCountAsync;
+    private static readonly IntPtr CallbackForCountAsyncHandle = Marshal.GetFunctionPointerForDelegate(CallbackForCountAsyncDelegate);
+    
+    private static unsafe void CallbackForGetSchema(IntPtr result, IntPtr error, ulong handle)
+    {
+        if (error != IntPtr.Zero)
+        {
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
+            return;
+        }
+
+        Schema schema;
+        try
+        {
+            schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema((Apache.Arrow.C.CArrowSchema*)result.ToPointer());
+        }
+        catch (Exception ex)
+        {
+            AsyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
+            return;
+        }
+        
+        AsyncOperations.Instance.CompleteWithResult(handle, schema);
+    }
+    private static readonly NativeMethods.Callback CallbackForSchemaResultDelegate = CallbackForGetSchema;
+    private static readonly IntPtr CallbackForSchemaResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForSchemaResultDelegate);
+    
+    private static unsafe void CallbackForCollect(IntPtr result, IntPtr error, ulong handle)
+    {
+        if (error != IntPtr.Zero)
+        {
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
+            return;
+        }
+
+        var data = (NativeDataFrameCollectedData*)result.ToPointer();
+        Schema schema;
+        List<RecordBatch> batches;
+        try
+        {
+            (schema, batches) = ImportCollectedData(data);
+        }
+        catch (Exception ex)
+        {
+            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
+            return;
+        }
+        
+#pragma warning disable CA2000
+        var collectedResult = new DataFrameCollectedResult(batches.AsReadOnly(), schema);
+#pragma warning restore CA2000
+        AsyncOperations.Instance.CompleteWithResult(handle, collectedResult);
+    }
+    private static readonly NativeMethods.Callback CallbackForCollectResultDelegate = CallbackForCollect;
+    private static readonly IntPtr CallbackForCollectResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForCollectResultDelegate);
+    
+    private static unsafe (Schema Schema, List<RecordBatch> Batches) ImportCollectedData(NativeDataFrameCollectedData* data)
+    {
+        var batches = new List<RecordBatch>();
+        try
+        {
+            var schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
+            batches = new List<RecordBatch>(data->NumBatches);
+            for (var i = 0; i < data->NumBatches; i++)
+            {
+                var batch = Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(data->Batches + i, schema);
+                batches.Add(batch);
+            }
+
+            return (schema, batches);
+        }
+        catch
+        {
+            try
+            {
+                for (var i = 0; i < data->NumBatches; i++)
+                    Apache.Arrow.C.CArrowArray.CallReleaseFunc(data->Batches + i);
+                
+                foreach (var batch in batches)
+                    batch.Dispose();
+            }
+            catch
+            {
+                // Ignore exceptions from release functions - we are already handling another exception and there's not much we can do about it.
+            }
+
+            throw;
+        }
+    }
+    
+    private static unsafe void CallbackForExecutedStream(IntPtr result, IntPtr error, ulong handle)
+    {
+        if (error != IntPtr.Zero)
+        {
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<(Schema, DataFrameStreamSafeHandle)>(handle, ex);
+            return;
+        }
+
+        var data = (NativeDataFrameExecutedStreamData*)result.ToPointer();
+        Schema schema;
+        try
+        {
+            schema = Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(data->Schema);
+        }
+        catch (Exception ex)
+        {
+            AsyncOperations.Instance.CompleteWithError<(Schema, DataFrameStreamSafeHandle)>(handle, ex);
+            return;
+        }
+
+#pragma warning disable CA2000
+        var streamSafeHandle = new DataFrameStreamSafeHandle(data->StreamHandle);
+#pragma warning restore CA2000
+        AsyncOperations.Instance.CompleteWithResult(handle, ValueTuple.Create(schema, streamSafeHandle));
+    }
+    private static readonly NativeMethods.Callback CallbackForExecutedStreamDelegate = CallbackForExecutedStream;
+    private static readonly IntPtr CallbackForExecutedStreamHandle = Marshal.GetFunctionPointerForDelegate(CallbackForExecutedStreamDelegate);
 }
 
 /// <summary>
-/// Contains the collected record batches and schema from a DataFrame.
+/// Contains the collected Arrow arrays as batches and schema from a DataFrame.
+/// Uses zero-copy Arrow import, so the data is not copied into .NET-owned memory -
+///   reference the memory allocated by native DataFusion runtime.
 /// </summary>
-/// <param name="Batches">The list of collected record batches.</param>
-/// <param name="Schema">The Arrow schema of the data.</param>
-public record DataFrameCollectedData(IList<RecordBatch> Batches, Schema Schema);
+/// <remarks>
+/// It is important to dispose of the <see cref="DataFrameCollectedResult"/> when it is no longer needed to free the native resources.
+/// Do not use the Arrow data after disposing, as it references memory owned by DataFusion that will be freed upon disposal.
+/// To access the data after disposal, a cloning is necessary.
+/// </remarks>
+/// <example>
+/// <code language="csharp">
+/// using var result = await dataFrame.CollectAsync();
+/// var batches = result.Batches; // Access the collected record batches
+/// var schema = result.Schema; // Access the schema of the collected batches
+/// </code>
+/// </example>
+public sealed class DataFrameCollectedResult : IDisposable
+{
+    /// <summary>
+    /// The collected record batches.
+    /// </summary>
+    public IReadOnlyList<RecordBatch> Batches { get; }
+    
+    /// <summary>
+    /// The schema of the collected record batches.
+    /// </summary>
+    public Schema Schema { get; }
+    
+    internal DataFrameCollectedResult(IReadOnlyList<RecordBatch> batches, Schema schema)
+    {
+        Batches = batches;
+        Schema = schema;
+    }
+    
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        foreach(var batch in Batches)
+            batch.Dispose();
+    }
+}

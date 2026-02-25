@@ -335,6 +335,7 @@ internal static class ArrowExtensions
                 protoType.UTF8 = new EmptyMessage();
                 break;
             case ArrowTypeId.Binary:
+            case ArrowTypeId.FixedSizedBinary:
                 ToProtoBinary(arrowType, protoType);
                 break;
             case ArrowTypeId.Date32:

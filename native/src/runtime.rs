@@ -60,9 +60,8 @@ pub unsafe extern "C" fn datafusion_runtime_new(
 ///
 /// # Parameters
 /// - `runtime`: Pointer to the runtime to destroy
-/// - `timeout_millis`: Maximum time to wait for shutdown
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHandle, timeout_millis: u64) -> crate::ErrorCode {
+pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHandle) -> crate::ErrorCode {
     if runtime_ptr.is_null() {
         return crate::ErrorCode::Ok;
     }
@@ -75,7 +74,7 @@ pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHan
 
     match Arc::try_unwrap(*runtime_handle) {
         Ok(runtime) => {
-            runtime.shutdown_timeout(std::time::Duration::from_millis(timeout_millis));
+            runtime.shutdown_background();
 
             dev_msg!("Successfully dropped Tokio runtime: {:p}", runtime_ptr);
 

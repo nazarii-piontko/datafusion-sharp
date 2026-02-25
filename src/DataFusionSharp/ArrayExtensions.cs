@@ -8,6 +8,35 @@ namespace DataFusionSharp;
 public static class ArrayExtensions
 {
     /// <summary>
+    /// Enumerates the values of an Arrow array as nullable booleans.
+    /// </summary>
+    /// <param name="array">The Arrow array to enumerate.</param>
+    /// <returns>An enumerator of nullable booleans representing the values in the array.</returns>
+    /// <exception cref="ArgumentException">Thrown if the provided array is not a Boolean array.</exception>
+    public static IEnumerable<bool?> AsBool(this IArrowArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        if (array is BooleanArray typedArray)
+            return typedArray.AsBool();
+        
+        throw new ArgumentException($"Column is not Boolean Array, actual type: {array.GetType().Name}");
+    }
+    
+    /// <summary>
+    /// Enumerates the values of an BooleanArray as nullable booleans.
+    /// </summary>
+    /// <param name="array">The BooleanArray to enumerate.</param>
+    /// <returns>An enumerator of nullable long integers representing the values in the array.</returns>
+    public static IEnumerable<bool?> AsBool(this BooleanArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        for (int i = 0; i < array.Length; i++)
+            yield return array.GetValue(i);
+    }
+    
+    /// <summary>
     /// Enumerates the values of an Arrow array as nullable long integers.
     /// </summary>
     /// <param name="array">The Arrow array to enumerate.</param>

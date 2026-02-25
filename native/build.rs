@@ -18,7 +18,7 @@ fn generate_proto() -> Result<(), Box<dyn std::error::Error>> {
 
     // Tell Cargo to watch proto files for changes
     for proto_file in &proto_files {
-        println!("cargo:rerun-if-changed={}", proto_file);
+        println!("cargo:rerun-if-changed={proto_file}");
     }
 
     println!("cargo:rerun-if-changed=../proto/vendor/datafusion_common.proto");

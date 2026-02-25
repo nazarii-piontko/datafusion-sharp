@@ -43,6 +43,8 @@ public abstract class FileFormatTests : IDisposable
     
     protected abstract Task RegisterOrdersTableAsync(string tableName = "orders");
     
+    protected abstract Task RegisterTableFromPathAsync(string tableName, string path);
+    
     protected abstract Task WriteTableAsync(DataFrame dataFrame, string path);
     
     protected string GenerateTempFileName(string fileNamePart = "")
@@ -134,6 +136,40 @@ public abstract class FileFormatTests : IDisposable
                 }
             }
         }
+    }
+
+    [Fact]
+    public async Task WriteAndReadBack_DataIsPreserved()
+    {
+        // Arrange
+        await RegisterCustomersTableAsync();
+        
+        using var df = await Context.SqlAsync("SELECT customer_id, customer_name FROM customers ORDER BY customer_id LIMIT 3");
+        
+        var originalResult = await df.CollectAsync();
+        var originalCount = originalResult.Batches.Sum(b => b.Length);
+        var originalNames = originalResult.Batches
+            .SelectMany(b => b.Column("customer_name").AsString())
+            .OrderBy(n => n)
+            .ToList();
+        
+        using var tempFile = await TempInputFile.CreateAsync(FileExtension);
+        
+        // Act
+        await WriteTableAsync(df, tempFile.Path);
+        await RegisterTableFromPathAsync("roundtrip_customers", tempFile.Path);
+        using var readBackDf = await Context.SqlAsync("SELECT customer_id, customer_name FROM roundtrip_customers ORDER BY customer_id");
+        var readBackResult = await readBackDf.CollectAsync();
+
+        // Assert
+        var readBackCount = readBackResult.Batches.Sum(b => b.Length);
+        Assert.Equal(originalCount, readBackCount);
+        
+        var readBackNames = readBackResult.Batches
+            .SelectMany(b => b.Column("customer_name").AsString())
+            .OrderBy(n => n)
+            .ToList();
+        Assert.Equal(originalNames, readBackNames);
     }
 
     [Fact]

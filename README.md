@@ -18,32 +18,30 @@
 |                  | Multiple runtime instances                   | ✅      |                                           |
 | **Session**      | Create session context                       | ✅      |                                           |
 |                  | Execute SQL queries                          | ✅      | Returns DataFrame                         |
-| **Data Sources** |                                              |        |                                           |
-|                  | CSV read                                     | 🟡     | Basic, no options exposed                 |
-|                  | CSV write                                    | 🟡     | Basic, no options exposed                 |
+| **Data Sources** | CSV read                                     | 🟡     | Basic, some options exposed               |
+|                  | CSV write                                    | 🟡     | Basic, some options exposed               |
 |                  | Parquet read                                 | 🟡     | Basic, no options exposed                 |
 |                  | Parquet write                                | 🟡     | Basic, no options exposed                 |
 |                  | JSON read                                    | 🟡     | Basic, no options exposed                 |
 |                  | JSON write                                   | 🟡     | Basic, no options exposed                 |
 |                  | In-memory tables                             | ❌      |                                           |
-| **DataFrame**    |                                              |        |                                           |
-|                  | Count rows                                   | ✅      | `CountAsync()`                            |
+| **DataFrame**    | Count rows                                   | ✅      | `CountAsync()`                            |
 |                  | Get schema                                   | ✅      | `GetSchemaAsync()` → Arrow Schema         |
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches          |
 |                  | Stream results                               | ✅      | `ExecuteStreamAsync()` → IAsyncEnumerable |
 |                  | Show/print                                   | ✅      | `ShowAsync()`, `ToStringAsync()`          |
 |                  | Select, Aggregate, Join, Filter, Limit, Sort | ❌      | Use SQL instead                           |
 |                  | Explain plan                                 | ❌      |                                           |
-|                  | Write to file                                | ❌      |                                           |
+|                  | Write to file                                | 🟡      | Basic                                     |
 | **Arrow**        | Apache Arrow support                         | ✅      | Via Apache.Arrow nuget package            |
-| **Advanced**     |                                              |        |                                           |
-|                  | UDF registration                             | ❌      |                                           |
+|                  | Zero copy support                            | ✅      |                                           |
+| **Advanced**     | UDF registration                             | ❌      |                                           |
 |                  | Catalog management                           | ❌      |                                           |
 |                  | Table providers                              | ❌      |                                           |
 | **Platforms**    | Linux x64                                    | ✅      |                                           |
-|                  | Linux arm64                                  | ❌      |                                           |
-|                  | Windows x64                                  | ❌      |                                           |
-|                  | macOS arm64                                  | ❌      |                                           |
+|                  | Linux arm64                                  | ✅      |                                           |
+|                  | Windows x64                                  | ✅      |                                           |
+|                  | macOS arm64                                  | ✅      |                                           |
 
 ✅ Implemented    🟡 Partially implemented    ❌ Not yet implemented
 
@@ -57,15 +55,19 @@ dotnet add package DataFusionSharp
 ```csharp
 using DataFusionSharp;
 
-await using var runtime = DataFusionRuntime.Create();
+// Create runtime, which manages Tokio runtime and native resources, per application lifetime
+using var runtime = DataFusionRuntime.Create();
+
+// Create session context, which manages query execution and state, per logical session lifetime
 using var context = runtime.CreateSessionContext();
 
-// Register a CSV file as a table
+// Register a CSV file as a table (supports CSV, Parquet, JSONL)
 await context.RegisterCsvAsync("orders", "path/to/orders.csv");
+// await context.RegisterParquetAsync("orders", "path/to/orders.parquet");
+// await context.RegisterJsonAsync("orders", "path/to/orders.json");
 
 // Execute SQL query
-using var df = await context.SqlAsync(
-    "SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id");
+using var df = await context.SqlAsync( "SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id");
 
 // Display results to console
 await df.ShowAsync();
@@ -73,14 +75,17 @@ await df.ShowAsync();
 // Access schema
 var schema = await df.GetSchemaAsync();
 foreach (var field in schema.FieldsList)
-    Console.WriteLine($"- {field.Name}: {field.DataType}");
+    ... // Process schema field (name, type, etc.)
 
 // Collect as Arrow batches
-var data = await df.CollectAsync();
-foreach (var batch in data.Batches)
-{
-    // Process Arrow RecordBatch...
-}
+using var collectedData = await df.CollectAsync();
+foreach (var batch in collectedData.Batches)
+    ... // Process Arrow RecordBatch...
+
+// Collect as stream of Arrow batches
+using var stream = await df.ExecuteStreamAsync();
+await foreach (var batch in stream)
+    ... // Process streamed RecordBatch...
 ```
 
 ## Requirements
@@ -95,8 +100,9 @@ foreach (var batch in data.Batches)
 
 ### Prerequisites
 
-- .NET 10.0 SDK or later
-- Rust toolchain (1.93+) - Install from https://rustup.rs
+- .NET 10.0 SDK or later (how to install: https://learn.microsoft.com/en-us/dotnet/core/install/)
+- Rust 1.93+ (how to install: https://rustup.rs)
+- Protobuf compiler `protoc` (how to install: https://protobuf.dev/installation/)
 
 ### Build Steps
 

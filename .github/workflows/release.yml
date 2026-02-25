@@ -4,10 +4,6 @@ on:
   push:
     tags: ['v*.*.*']
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   CARGO_TERM_COLOR: always
   DOTNET_NOLOGO: true
@@ -17,6 +13,7 @@ jobs:
   check:
     name: Run Checks
     uses: ./.github/workflows/ci.yml
+    secrets: inherit
 
   pack-build-native:
     name: Build Native
@@ -47,31 +44,17 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
         with:
           targets: ${{ matrix.target }}
-          
-      - name: Restore Rust Cargo Cache
-        id: cache-rust-cargo
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            native/target/
-          key: ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}-${{ github.run_id }}
-          restore-keys: |
-            ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}
-        continue-on-error: true
-          
+          toolchain: 'stable'
+
       - name: Setup Protoc
         uses: arduino/setup-protoc@v3
 
       - name: Build Native Library
         working-directory: native
-        run: cargo build --target ${{ matrix.target }} --profile release
+        run: cargo build --target ${{ matrix.target }} --profile release --lib
 
       - name: (Linux) Prepare Native Library Artifacts
         if: runner.os == 'Linux'
@@ -100,18 +83,6 @@ jobs:
           overwrite: true
           retention-days: 1
 
-      - name: Save Rust Cargo Cache
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            native/target/
-          key: ${{ matrix.os }}-cargo-${{ hashFiles('native/Cargo.*') }}-${{ github.run_id }}
-        continue-on-error: true
-  
   pack:
     name: Pack NuGet
     needs: pack-build-native

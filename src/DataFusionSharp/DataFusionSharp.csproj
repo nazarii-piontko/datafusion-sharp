@@ -162,7 +162,7 @@
     <!-- NuGet package dependencies -->
     <ItemGroup>
         <PackageReference Include="Apache.Arrow" Version="22.1.0" />
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.103" PrivateAssets="All" />
         <PackageReference Include="Google.Protobuf" Version="3.33.5" />
         <PackageReference Include="Grpc.Tools" Version="2.78.0">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -174,5 +174,10 @@
     <ItemGroup>
         <Protobuf Include="../../proto/*.proto" ProtoRoot="../../proto" GrpcServices="None" Visible="false"  />
         <Protobuf Include="../../proto/vendor/*.proto" ProtoRoot="../../proto" GrpcServices="None"  Visible="false" />
+    </ItemGroup>
+
+    <!-- InternalsVisibleTo for unit testing -->
+    <ItemGroup>
+        <InternalsVisibleTo Include="DataFusionSharp.Tests" />
     </ItemGroup>
 </Project>

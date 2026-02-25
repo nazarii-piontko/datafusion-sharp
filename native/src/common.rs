@@ -45,14 +45,15 @@ impl ErrorInfoData {
 
 pub(crate) fn invoke_callback<T>(result: Result<T, crate::ErrorInfo>, callback: Callback, user_data: u64) {
     match result {
-        Ok(value) => {
-            let value_ptr = (&raw const value).cast::<std::ffi::c_void>();
-            unsafe { callback(value_ptr, std::ptr::null(), user_data); }
-        }
-        Err(error) => {
-            invoke_callback_error(&error, callback, user_data);
-        }
+        Ok(value) => invoke_callback_success(value, callback, user_data),
+        Err(error) => invoke_callback_error(&error, callback, user_data)
     }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+pub(crate) fn invoke_callback_success<T>(result: T, callback: Callback, user_data: u64) {
+    let value_ptr = (&raw const result).cast::<std::ffi::c_void>();
+    unsafe { callback(value_ptr, std::ptr::null(), user_data); }
 }
 
 pub(crate) fn invoke_callback_error(error: &crate::ErrorInfo, callback: Callback, user_data: u64) {

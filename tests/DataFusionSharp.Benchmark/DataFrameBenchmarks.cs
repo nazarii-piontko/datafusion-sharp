@@ -38,5 +38,5 @@ public class DataFrameBenchmarks
     public Task<Schema> GetSchemaAsync() => _dataFrame.GetSchemaAsync();
 
     [Benchmark]
-    public Task<DataFrameCollectedData> CollectAsync() => _dataFrame.CollectAsync();
+    public Task<DataFrameCollectedResult> CollectAsync() => _dataFrame.CollectAsync();
 }

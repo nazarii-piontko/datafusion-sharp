@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace DataFusionSharp;
 
 /// <summary>
@@ -50,5 +52,18 @@ public class DataFusionException : Exception
         : base(message, innerException)
     {
         ErrorCode = errorCode;
+    }
+    
+    /// <summary>
+    /// Throws a <see cref="DataFusionException"/> if the provided <paramref name="errorCode"/> indicates an error (i.e., is not <see cref="DataFusionErrorCode.Ok"/>).
+    /// </summary>
+    /// <param name="errorCode">The error code to check.</param>
+    /// <param name="message">The message to include in the exception if an error is detected.</param>
+    /// <exception cref="DataFusionException">Thrown when <paramref name="errorCode"/> is not <see cref="DataFusionErrorCode.Ok"/>.</exception>
+    [StackTraceHidden]
+    internal static void ThrowIfError(DataFusionErrorCode errorCode, string message)
+    {
+        if (errorCode != DataFusionErrorCode.Ok)
+            throw new DataFusionException(errorCode, message);
     }
 }
