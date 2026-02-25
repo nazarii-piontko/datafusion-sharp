@@ -12,16 +12,6 @@ internal static class AsyncOperationGenericCallbacks
     private static readonly NativeMethods.Callback VoidResultDelegate = VoidResult;
     public static readonly IntPtr VoidResultHandler = Marshal.GetFunctionPointerForDelegate(VoidResultDelegate);
     
-    private static void IntPtrResult(IntPtr result, IntPtr error, ulong handle)
-    {
-        if (error == IntPtr.Zero)
-            AsyncOperations.Instance.CompleteWithResult(handle, Marshal.ReadIntPtr(result));
-        else
-            AsyncOperations.Instance.CompleteWithError<IntPtr>(handle, ErrorInfoData.FromIntPtr(error).ToException());
-    }
-    private static readonly NativeMethods.Callback IntPtrResultDelegate = IntPtrResult;
-    public static readonly IntPtr IntPtrResultHandler = Marshal.GetFunctionPointerForDelegate(IntPtrResultDelegate);
-    
     private static void UInt64Result(IntPtr result, IntPtr error, ulong handle)
     {
         if (error == IntPtr.Zero)
