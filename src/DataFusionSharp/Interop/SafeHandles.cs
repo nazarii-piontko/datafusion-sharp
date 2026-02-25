@@ -11,12 +11,6 @@ internal abstract class DataFusionSafeHandle : SafeHandle
     }
 
     public override bool IsInvalid => handle == IntPtr.Zero;
-    
-    public IntPtr GetHandle()
-    {
-        ObjectDisposedException.ThrowIf(IsClosed, this);
-        return handle;
-    }
 }
 
 internal sealed class RuntimeSafeHandle : DataFusionSafeHandle
@@ -50,7 +44,7 @@ internal sealed class RuntimeSafeHandle : DataFusionSafeHandle
     
     private DataFusionErrorCode ShutdownInternal()
     {
-        return NativeMethods.RuntimeShutdown(handle);
+        return NativeMethods.RuntimeDestroy(handle);
     }
 }
 

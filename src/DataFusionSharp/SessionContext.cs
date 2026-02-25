@@ -39,7 +39,7 @@ public sealed class SessionContext : IDisposable
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterCsv(_handle.GetHandle(), tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -59,7 +59,7 @@ public sealed class SessionContext : IDisposable
     public Task RegisterJsonAsync(string tableName, string filePath)
     {
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterJson(_handle.GetHandle(), tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -78,7 +78,7 @@ public sealed class SessionContext : IDisposable
     public Task RegisterParquetAsync(string tableName, string filePath)
     {
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterParquet(_handle.GetHandle(), tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -96,7 +96,7 @@ public sealed class SessionContext : IDisposable
     public Task DeregisterTableAsync(string tableName)
     {
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextDeregisterTable(_handle.GetHandle(), tableName, AsyncOperationGenericCallbacks.VoidResultHandler, id);
+        var result = NativeMethods.ContextDeregisterTable(_handle, tableName, AsyncOperationGenericCallbacks.VoidResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -114,7 +114,7 @@ public sealed class SessionContext : IDisposable
     public async Task<DataFrame> SqlAsync(string sql)
     {
         var (id, tcs) = AsyncOperations.Instance.Create<IntPtr>();
-        var result = NativeMethods.ContextSql(_handle.GetHandle(), sql, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
+        var result = NativeMethods.ContextSql(_handle, sql, AsyncOperationGenericCallbacks.IntPtrResultHandler, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
