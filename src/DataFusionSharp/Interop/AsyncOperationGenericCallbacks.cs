@@ -6,32 +6,25 @@ internal static class AsyncOperationGenericCallbacks
 {
     private static void VoidResult(IntPtr _, IntPtr error, ulong handle)
     {
-        var exception = error != IntPtr.Zero ? ErrorInfoData.FromIntPtr(error).ToException() : null;
-        AsyncOperations.Instance.CompleteVoid(handle, exception);
+        var ex = error != IntPtr.Zero ? ErrorInfoData.FromIntPtr(error).ToException() : null;
+        AsyncOperations.Instance.CompleteVoid(handle, ex);
     }
     private static readonly NativeMethods.Callback VoidResultDelegate = VoidResult;
-    public static readonly IntPtr VoidResultHandler = Marshal.GetFunctionPointerForDelegate(VoidResultDelegate);
-    
-    private static void UInt64Result(IntPtr result, IntPtr error, ulong handle)
-    {
-        if (error == IntPtr.Zero)
-            AsyncOperations.Instance.CompleteWithResult(handle, (ulong)Marshal.ReadInt64(result));
-        else
-            AsyncOperations.Instance.CompleteWithError<ulong>(handle, ErrorInfoData.FromIntPtr(error).ToException());
-    }
-    private static readonly NativeMethods.Callback UInt64ResultDelegate = UInt64Result;
-    public static readonly IntPtr UInt64ResultHandler = Marshal.GetFunctionPointerForDelegate(UInt64ResultDelegate);
+    public static readonly IntPtr VoidResultHandle = Marshal.GetFunctionPointerForDelegate(VoidResultDelegate);
 
     private static void StringResult(IntPtr result, IntPtr error, ulong handle)
     {
-        if (error == IntPtr.Zero)
+        if (error != IntPtr.Zero)
         {
-            var data = BytesData.FromIntPtr(result);
-            AsyncOperations.Instance.CompleteWithResult(handle, data.ToUtf8String());
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<string>(handle, ex);
+            return;
         }
-        else
-            AsyncOperations.Instance.CompleteWithError<string>(handle, ErrorInfoData.FromIntPtr(error).ToException());
+
+        var data = BytesData.FromIntPtr(result);
+        var dataStr = data.ToUtf8String();
+        AsyncOperations.Instance.CompleteWithResult(handle, dataStr);
     }
     private static readonly NativeMethods.Callback StringResultDelegate = StringResult;
-    public static readonly IntPtr StringResultHandler = Marshal.GetFunctionPointerForDelegate(StringResultDelegate);
+    public static readonly IntPtr StringResultHandle = Marshal.GetFunctionPointerForDelegate(StringResultDelegate);
 }
