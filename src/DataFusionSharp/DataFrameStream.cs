@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Apache.Arrow;
 using DataFusionSharp.Interop;
 
@@ -21,8 +20,8 @@ namespace DataFusionSharp;
 ///     ...
 /// </code>
 /// </example>
-#pragma warning disable CA1711
-public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
+#pragma warning disable CA1711 // Identifiers should not have incorrect suffix
+public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 #pragma warning restore CA1711
 {
     private readonly DataFrameStreamSafeHandle _handle;
@@ -89,6 +88,7 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
         return batch;
     }
 
+    [DataFusionSharpNativeCallback]
     private static unsafe void CallbackForNextResult(IntPtr result, IntPtr error, ulong userData)
     {
         if (error != IntPtr.Zero)
@@ -132,6 +132,4 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
         
         AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, batch);
     }
-    private static readonly NativeMethods.Callback CallbackForNextResultDelegate = CallbackForNextResult;
-    private static readonly IntPtr CallbackForNextResultHandle = Marshal.GetFunctionPointerForDelegate(CallbackForNextResultDelegate);
 }

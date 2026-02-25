@@ -12,7 +12,7 @@ namespace DataFusionSharp;
 /// Multiple session contexts can be created from a single <see cref="DataFusionRuntime"/> for isolated query environments.
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
-public sealed class SessionContext : IDisposable
+public sealed partial class SessionContext : IDisposable
 {
     private readonly SessionContextSafeHandle _handle;
 
@@ -40,7 +40,7 @@ public sealed class SessionContext : IDisposable
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), AsyncOperationGenericCallbacks.VoidResultHandle, id);
+        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -60,7 +60,7 @@ public sealed class SessionContext : IDisposable
     public Task RegisterJsonAsync(string tableName, string filePath)
     {
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandle, id);
+        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -79,7 +79,7 @@ public sealed class SessionContext : IDisposable
     public Task RegisterParquetAsync(string tableName, string filePath)
     {
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, AsyncOperationGenericCallbacks.VoidResultHandle, id);
+        var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -97,7 +97,7 @@ public sealed class SessionContext : IDisposable
     public Task DeregisterTableAsync(string tableName)
     {
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.ContextDeregisterTable(_handle, tableName, AsyncOperationGenericCallbacks.VoidResultHandle, id);
+        var result = NativeMethods.ContextDeregisterTable(_handle, tableName, GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -132,6 +132,7 @@ public sealed class SessionContext : IDisposable
         _handle.Dispose();
     }
     
+    [DataFusionSharpNativeCallback]
     private static void CallbackForSqlAsync(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)
@@ -147,6 +148,4 @@ public sealed class SessionContext : IDisposable
 #pragma warning restore CA2000
         AsyncOperations.Instance.CompleteWithResult(handle, dataFrameSafeHandle);
     }
-    private static readonly NativeMethods.Callback CallbackForSqlAsyncDelegate = CallbackForSqlAsync;
-    private static readonly IntPtr CallbackForSqlAsyncHandle = Marshal.GetFunctionPointerForDelegate(CallbackForSqlAsyncDelegate);
 }
