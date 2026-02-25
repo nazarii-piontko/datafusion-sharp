@@ -36,8 +36,7 @@ public sealed class DataFusionRuntime : IDisposable
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBlockingThreads.Value);
         
         var result = NativeMethods.RuntimeNew(workerThreads ?? 0, maxBlockingThreads ?? 0, out var handle);
-        if (result != DataFusionErrorCode.Ok)
-            throw new DataFusionException(result, "Failed to create DataFusion runtime");
+        DataFusionException.ThrowIfError(result, "Failed to create DataFusion runtime");
 
         return new DataFusionRuntime(new RuntimeSafeHandle(handle));
     }
