@@ -362,7 +362,6 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     let Ok(csv_options) = csv_options_bytes.as_opt_slice()
         .map(|b| datafusion_proto::protobuf::CsvOptions::decode(b)
             .map(|pbo| datafusion::common::config::CsvOptions::from(&pbo))
-            .map_err(|_| crate::ErrorCode::InvalidArgument)
         )
         .transpose() else { return crate::ErrorCode::InvalidArgument };
 
@@ -402,7 +401,6 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
     let Ok(json_options) = json_options_bytes.as_opt_slice()
         .map(|b| datafusion_proto::protobuf::JsonOptions::decode(b)
             .map(|pbo| datafusion::common::config::JsonOptions::from(&pbo))
-            .map_err(|_| crate::ErrorCode::InvalidArgument)
         )
         .transpose() else { return crate::ErrorCode::InvalidArgument };
 
