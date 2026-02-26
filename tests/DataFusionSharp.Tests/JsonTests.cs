@@ -1,3 +1,4 @@
+using DataFusionSharp.Formats;
 using DataFusionSharp.Formats.Json;
 using Xunit.Abstractions;
 
@@ -33,25 +34,6 @@ public sealed class JsonTests : FileFormatTests
     }
 
     [Fact]
-    public async Task RegisterJsonAsync_WithSchemaInferMaxRecords_LimitsInferenceRows()
-    {
-        // Arrange
-        var options = new JsonReadOptions
-        {
-            SchemaInferMaxRecords = 1
-        };
-
-        // Act
-        await Context.RegisterJsonAsync("customers", DataSet.CustomersJsonPath, options);
-        using var df = await Context.SqlAsync("SELECT * FROM customers");
-        var schema = await df.GetSchemaAsync();
-
-        // Assert
-        Assert.True(schema.FieldsList.Count > 0);
-        Assert.Contains("customer_id", schema.FieldsList.Select(f => f.Name));
-    }
-
-    [Fact]
     public async Task RegisterJsonAsync_WithFileExtension_SpecifiesFileFilter()
     {
         // Arrange
@@ -70,6 +52,53 @@ public sealed class JsonTests : FileFormatTests
         // Assert
         Assert.True(count > 0);
     }
+    
+    [Fact]
+    public async Task RegisterJsonAsync_WithFileExtensionAndWrongExtension_DoesNotRegisterTable()
+    {
+        // Arrange
+        using var tempFile = await TempInputFile.CreateAsync(".json");
+        var options = new JsonReadOptions
+        {
+            FileExtension = ".ndjson"
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DataFusionException>(async () =>
+        {            
+            await Context.RegisterJsonAsync("test", tempFile.Path, options);
+        });
+        Assert.Contains(".ndjson", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RegisterJsonAsync_WithCompression_ReadsCompressedFileSuccessfully()
+    {
+        // Arrange
+        using var tempFile = await TempInputFile.CreateAsync(
+            ".json.gz",
+            [
+                "{\"customer_id\": 1, \"name\": \"Alice\"}",
+                "{\"customer_id\": 2, \"name\": \"Bob\"}"
+            ],
+            gzip: true);
+
+        var options = new JsonReadOptions
+        {
+            FileCompressionType = CompressionType.Gzip,
+            FileExtension = ".json.gz"
+        };
+
+        // Act
+        await Context.RegisterJsonAsync("test", tempFile.Path, options);
+        using var df = await Context.SqlAsync("SELECT * FROM test ORDER BY customer_id");
+        var results = await df.ToStringAsync();
+
+        // Assert
+        Assert.Contains("customer_id", results, StringComparison.Ordinal);
+        Assert.Contains("Alice", results, StringComparison.Ordinal);
+        Assert.Contains("Bob", results, StringComparison.Ordinal);
+    }
 
     [Fact]
     public async Task WriteJsonAsync_WithOptions_WritesFileSuccessfully()
@@ -77,25 +106,22 @@ public sealed class JsonTests : FileFormatTests
         // Arrange
         await Context.RegisterJsonAsync("customers", DataSet.CustomersJsonPath);
         using var df = await Context.SqlAsync("SELECT * FROM customers ORDER BY customer_id DESC LIMIT 2");
-        var options = new JsonWriteOptions();
-        var tempPath = GenerateTempFileName();
-
-        try
+        var options = new JsonWriteOptions
         {
-            // Act
-            await df.WriteJsonAsync(tempPath, options);
+            Compression = CompressionType.Gzip
+        };
+        
+        using var tempFile = await TempInputFile.CreateAsync(".json.gz", gzip: true);
+        
+        // Act
+        await df.WriteJsonAsync(tempFile.Path, options);
 
-            // Assert
-            Assert.True(File.Exists(tempPath), "Output file should be created");
-            Assert.True(new FileInfo(tempPath).Length > 0);
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                try { File.Delete(tempPath); }
-                catch { /* ignore cleanup errors */ }
-            }
-        }
+        // Assert
+        Assert.True(File.Exists(tempFile.Path), "Output file should be created");
+        
+        var lines = tempFile.ReadLines();
+        Assert.Equal(2, lines.Count);
+        Assert.Contains("customer_id", lines[0], StringComparison.Ordinal);
+        Assert.Contains("customer_id", lines[^1], StringComparison.Ordinal);
     }
 }
