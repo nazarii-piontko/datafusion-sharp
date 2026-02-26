@@ -46,6 +46,7 @@
   </Folder>
   <Folder Name="/proto/">
     <File Path="proto\csv.proto" />
+    <File Path="proto\json.proto" />
   </Folder>
   <Folder Name="/proto/vendor/">
     <File Path="proto\vendor\datafusion.proto" />

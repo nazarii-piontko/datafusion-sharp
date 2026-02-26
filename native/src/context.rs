@@ -1,6 +1,12 @@
 use std::sync::Arc;
 use prost::Message;
 
+use crate::{
+    mappers,
+    ErrorCode,
+    ErrorInfo
+};
+
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
     inner: Arc<datafusion::prelude::SessionContext>
@@ -22,9 +28,9 @@ impl SessionContextWrapper {
 /// - `context_ptr` must be a valid, aligned, non-null pointer to writable memory
 /// - Caller must call `datafusion_context_destroy` exactly once with the returned pointer
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn datafusion_context_new(runtime_ptr: *mut crate::RuntimeHandle, context_ptr: *mut *mut SessionContextWrapper) -> crate::ErrorCode {
+pub unsafe extern "C" fn datafusion_context_new(runtime_ptr: *mut crate::RuntimeHandle, context_ptr: *mut *mut SessionContextWrapper) -> ErrorCode {
     if context_ptr.is_null() {
-        return crate::ErrorCode::InvalidArgument;
+        return ErrorCode::InvalidArgument;
     }
 
     let runtime_handle = ffi_ref!(runtime_ptr);
@@ -34,7 +40,7 @@ pub unsafe extern "C" fn datafusion_context_new(runtime_ptr: *mut crate::Runtime
 
     dev_msg!("Successfully created context: {:p}", unsafe { *context_ptr });
 
-    crate::ErrorCode::Ok
+    ErrorCode::Ok
 }
 
 /// Destroys a `SessionContext` created by `datafusion_context_new`.
@@ -43,14 +49,14 @@ pub unsafe extern "C" fn datafusion_context_new(runtime_ptr: *mut crate::Runtime
 /// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`, or null
 /// - Caller must not use `context_ptr` after this call
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn datafusion_context_destroy(context_ptr: *mut SessionContextWrapper) -> crate::ErrorCode {
+pub unsafe extern "C" fn datafusion_context_destroy(context_ptr: *mut SessionContextWrapper) -> ErrorCode {
     dev_msg!("Destroying context: {:p}", context_ptr);
 
     if !context_ptr.is_null() {
         unsafe { drop(Box::from_raw(context_ptr)) };
     }
 
-    crate::ErrorCode::Ok
+    ErrorCode::Ok
 }
 
 /// Registers a CSV file as a table in the `SessionContext`.
@@ -71,7 +77,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     csv_options_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
-) -> crate::ErrorCode {
+) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
@@ -79,7 +85,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     let csv_options_proto = match csv_options_bytes.as_opt_slice() {
         Some(b) => match crate::proto::CsvReadOptions::decode(b) {
             Ok(opts) => Some(opts),
-            Err(_) => return crate::ErrorCode::InvalidArgument
+            Err(_) => return ErrorCode::InvalidArgument
         },
         None => None
     };
@@ -87,34 +93,34 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     dev_msg!("Registering CSV table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
-        let mut schema_opt: Option<datafusion::arrow::datatypes::Schema> = None;
-        if let Some(csv_options) = &csv_options_proto &&
-            let Some(pb_schema) = csv_options.schema.as_ref() {
-                let Ok(schema) = datafusion::arrow::datatypes::Schema::try_from(pb_schema) else {
-                    let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options");
-                    crate::invoke_callback_error(&error_info, callback, user_data);
-                    return;
-                };
-                schema_opt = Some(schema);
-        }
+        let schema_opt = match mappers::from_proto_schema(
+            csv_options_proto.as_ref().and_then(|o| o.schema.as_ref())
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, format!("Failed to parse CSV schema from options: {e}"));
+                crate::invoke_callback_error(&error_info, callback, user_data);
+                return;
+            }
+        };
         
-        match crate::mappers::from_proto_csv_options(csv_options_proto.as_ref(), schema_opt.as_ref()) {
+        match mappers::from_proto_csv_options(csv_options_proto.as_ref(), schema_opt.as_ref()) {
             Ok(opts) => {
                 let result = context.inner
                     .register_csv(&table_ref, &table_path, opts)
                     .await
-                    .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
+                    .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e));
 
                 crate::invoke_callback(result, callback, user_data);
             },
             Err(e) => {
-                let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, format!("Failed to convert CSV options: {e}"));
+                let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, format!("Failed to convert CSV options: {e}"));
                 crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
     });
 
-    crate::ErrorCode::Ok
+    ErrorCode::Ok
 }
 
 /// Registers a JSON file as a table in the `SessionContext`.
@@ -135,7 +141,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     json_options_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
-) -> crate::ErrorCode {
+) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
@@ -143,7 +149,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     let json_options_proto = match json_options_bytes.as_opt_slice() {
         Some(b) => match crate::proto::JsonReadOptions::decode(b) {
             Ok(opts) => Some(opts),
-            Err(_) => return crate::ErrorCode::InvalidArgument
+            Err(_) => return ErrorCode::InvalidArgument
         },
         None => None
     };
@@ -151,35 +157,35 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     dev_msg!("Registering JSON table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
-        let mut schema_opt: Option<datafusion::arrow::datatypes::Schema> = None;
-        if let Some(json_options) = &json_options_proto &&
-            let Some(pb_schema) = json_options.schema.as_ref() {
-                let Ok(schema) = datafusion::arrow::datatypes::Schema::try_from(pb_schema) else {
-                    let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, "Failed to parse schema from options");
-                    crate::invoke_callback_error(&error_info, callback, user_data);
-                    return;
-                };
-                schema_opt = Some(schema);
-        }
+        let schema_opt = match mappers::from_proto_schema(
+            json_options_proto.as_ref().and_then(|o| o.schema.as_ref())
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, format!("Failed to parse JSON schema from options: {e}"));
+                crate::invoke_callback_error(&error_info, callback, user_data);
+                return;
+            }
+        };
 
-        match crate::mappers::from_proto_json_read_options(json_options_proto.as_ref(), schema_opt.as_ref()) {
+        match mappers::from_proto_json_read_options(json_options_proto.as_ref(), schema_opt.as_ref()) {
             Ok(opts) => {
                 let result = context.inner
                     .register_json(&table_ref, &table_path, opts)
                     .await
-                    .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
+                    .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e));
 
                 crate::invoke_callback(result, callback, user_data);
             },
             Err(e) => {
-                let error_info = crate::ErrorInfo::new(crate::ErrorCode::InvalidArgument, format!("Failed to convert JSON options: {e}"));
+                let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, format!("Failed to convert JSON options: {e}"));
                 crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
         dev_msg!("Finished registering JSON table '{}' from path '{}'", table_ref, table_path);
     });
 
-    crate::ErrorCode::Ok
+    ErrorCode::Ok
 }
 
 /// Registers a Parquet file as a table in the `SessionContext`.
@@ -198,7 +204,7 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
     table_path_ptr: *const std::ffi::c_char,
     callback: crate::Callback,
     user_data: u64
-) -> crate::ErrorCode {
+) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
@@ -209,13 +215,13 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
         let result = context.inner
             .register_parquet(&table_ref, &table_path, datafusion::prelude::ParquetReadOptions::default())
             .await
-            .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e));
+            .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e));
 
         crate::invoke_callback(result, callback, user_data);
         dev_msg!("Finished registering Parquet table '{}' from path '{}'", table_ref, table_path);
     });
 
-    crate::ErrorCode::Ok
+    ErrorCode::Ok
 }
 
 /// Deregisters a table from the `SessionContext` by name.
@@ -232,7 +238,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
     table_ref_ptr: *const std::ffi::c_char,
     callback: crate::Callback,
     user_data: u64
-) -> crate::ErrorCode {
+) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
 
@@ -240,14 +246,14 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
 
     let result = context.inner
         .deregister_table(&table_ref)
-        .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::TableRegistrationFailed, e))
+        .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
         .map(|_| ());
 
     crate::invoke_callback(result, callback, user_data);
 
     dev_msg!("Finished deregistering table '{}'", table_ref);
 
-    crate::ErrorCode::Ok
+    ErrorCode::Ok
 }
 
 /// Executes a SQL query and returns a `DataFrame`.
@@ -265,7 +271,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
     sql_ptr: *const std::ffi::c_char,
     callback: crate::Callback,
     user_data: u64
-) -> crate::ErrorCode {
+) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let sql = ffi_cstr_to_string!(sql_ptr);
 
@@ -279,12 +285,12 @@ pub unsafe extern "C" fn datafusion_context_sql(
                 let data_frame = Box::new(crate::DataFrameWrapper::new(Arc::clone(&context.runtime), dataframe));
                 Box::into_raw(data_frame)
             })
-            .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::SqlError, e));
+            .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e));
 
         dev_msg!("Finished executing SQL query: {}, dataframe ptr: {:p}", sql, result.as_ref().ok().map_or(std::ptr::null(), |ptr| *ptr));
 
         crate::invoke_callback(result, callback, user_data);
     });
 
-    crate::ErrorCode::Ok
+    ErrorCode::Ok
 }
