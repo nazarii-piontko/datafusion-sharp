@@ -1,30 +1,39 @@
 using Apache.Arrow;
+using Apache.Arrow.Types;
 using DataFusionSharp;
+using DataFusionSharp.Formats;
+using DataFusionSharp.Formats.Csv;
 
 using var runtime = DataFusionRuntime.Create();
 using var context = runtime.CreateSessionContext();
 
 // Register data from CSV format
-await context.RegisterCsvAsync("customers", Path.Combine("Data", "customers.csv"));
-await context.RegisterCsvAsync("orders", Path.Combine("Data", "orders.csv"));
+await context.RegisterCsvAsync("customers", Path.Combine("Data", "orders", "csv", "customers.csv"));
+await context.RegisterCsvAsync("orders", Path.Combine("Data", "orders", "csv", "orders.csv"));
+await context.RegisterCsvAsync("products", Path.Combine("Data", "orders", "csv", "products"), new CsvReadOptions
+{
+    // Example of partitioning the "products" table by the "category" column using Hive-style partitioning
+    // (i.e., the category value is encoded in the file path like "products/category=electronics/data.csv")
+    TablePartitionCols = [new PartitionColumn("category", StringType.Default)]
+});
 
 // You can also register data from JSON format
 // await context.RegisterJsonAsync("customers", Path.Combine("Data", "customers.json"));
-// await context.RegisterJsonAsync("orders", Path.Combine("Data", "orders.json"));
 
 // Or from Parquet format
 // await context.RegisterParquetAsync("customers", Path.Combine("Data", "customers.parquet"));
-// await context.RegisterParquetAsync("orders", Path.Combine("Data", "orders.parquet"));
 
 using var df = await context.SqlAsync(
     """
     SELECT
         c.customer_name,
+        p.category,
         sum(o.order_amount) AS total_amount
     FROM orders AS o
         JOIN customers AS c ON o.customer_id = c.customer_id
+        JOIN products AS p ON o.product_id = p.product_id
     WHERE o.order_status = 'Completed'
-    GROUP BY c.customer_name
+    GROUP BY c.customer_name, p.category
     ORDER BY c.customer_name
     """);
 

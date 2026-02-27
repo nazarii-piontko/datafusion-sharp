@@ -1,3 +1,4 @@
+using Apache.Arrow.Types;
 using DataFusionSharp.Formats;
 using DataFusionSharp.Formats.Json;
 using Xunit.Abstractions;
@@ -98,6 +99,30 @@ public sealed class JsonTests : FileFormatTests
         Assert.Contains("customer_id", results, StringComparison.Ordinal);
         Assert.Contains("Alice", results, StringComparison.Ordinal);
         Assert.Contains("Bob", results, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RegisterJsonAsync_WithTablePartitionCols_ReadsPartitionedData()
+    {
+        // Arrange
+        var options = new JsonReadOptions
+        {
+            TablePartitionCols = [new PartitionColumn("category", StringType.Default)]
+        };
+
+        // Act
+        await Context.RegisterJsonAsync("products", DataSet.ProductsJsonDir, options);
+        using var df = await Context.SqlAsync("SELECT * FROM products ORDER BY product_id");
+        var records = await df.CollectAsync();
+
+        // Assert
+        Assert.Contains("category", records.Schema.FieldsList.Select(f => f.Name));
+
+        var categories = records.Batches.SelectMany(b => b.Column("category").AsString()).OrderBy(n => n).ToList();
+        Assert.Equal(["Hardware", "Hardware", "Software", "Software"], categories);
+
+        var names = records.Batches.SelectMany(b => b.Column("name").AsString()).OrderBy(n => n).ToList();
+        Assert.Equal(["Antivirus", "Laptop", "Router", "Windows"], names);
     }
 
     [Fact]

@@ -77,4 +77,10 @@ public sealed class CsvReadOptions
     /// Whether to allow truncated (incomplete) rows. If null, DataFusion uses its default (false).
     /// </summary>
     public bool? TruncatedRows { get; set; }
+
+    /// <summary>
+    /// Partition columns for Hive-style partitioned data.
+    /// Each entry specifies a column name and its Arrow data type.
+    /// </summary>
+    public IReadOnlyList<PartitionColumn>? TablePartitionCols { get; set; }
 }

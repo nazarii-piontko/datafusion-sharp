@@ -35,25 +35,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="..\..\datasets\orders\csv\customers.csv"
-              Link="Data\customers.csv"
-              CopyToOutputDirectory="PreserveNewest" />
-        <None Include="..\..\datasets\orders\csv\orders.csv"
-              Link="Data\orders.csv"
-              CopyToOutputDirectory="PreserveNewest" />
-        
-        <None Include="..\..\datasets\orders\json\customers.json"
-              Link="Data\customers.json"
-              CopyToOutputDirectory="PreserveNewest" />
-        <None Include="..\..\datasets\orders\json\orders.json"
-              Link="Data\orders.json"
-              CopyToOutputDirectory="PreserveNewest" />
-
-        <None Include="..\..\datasets\orders\parquet\customers.parquet"
-              Link="Data\customers.parquet"
-              CopyToOutputDirectory="PreserveNewest" />
-        <None Include="..\..\datasets\orders\parquet\orders.parquet"
-              Link="Data\orders.parquet"
+        <None Include="..\..\datasets\**\*.*"
+              LinkBase="Data\"
               CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 

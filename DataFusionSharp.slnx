@@ -5,9 +5,23 @@
     <File Path="datasets\orders\csv\customers.csv" />
     <File Path="datasets\orders\csv\orders.csv" />
   </Folder>
+  <Folder Name="/datasets/orders/csv/products/" />
+  <Folder Name="/datasets/orders/csv/products/category=Hardware/">
+    <File Path="datasets\orders\csv\products\category=Hardware\data.csv" />
+  </Folder>
+  <Folder Name="/datasets/orders/csv/products/category=Software/">
+    <File Path="datasets\orders\csv\products\category=Software\data.csv" />
+  </Folder>
   <Folder Name="/datasets/orders/json/">
     <File Path="datasets\orders\json\customers.json" />
     <File Path="datasets\orders\json\orders.json" />
+  </Folder>
+  <Folder Name="/datasets/orders/json/products/" />
+  <Folder Name="/datasets/orders/json/products/category=Hardware/">
+    <File Path="datasets\orders\json\products\category=Hardware\data.json" />
+  </Folder>
+  <Folder Name="/datasets/orders/json/products/category=Software/">
+    <File Path="datasets\orders\json\products\category=Software\data.json" />
   </Folder>
   <Folder Name="/datasets/orders/parquet/">
     <File Path="datasets\orders\parquet\customers.parquet" />

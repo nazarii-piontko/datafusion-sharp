@@ -20,6 +20,9 @@ internal static class JsonOptionsExtensions
         if (options.FileCompressionType.HasValue)
             proto.FileCompressionType = options.FileCompressionType.Value.ToProto();
 
+        if (options.TablePartitionCols is { Count: > 0 })
+            proto.TablePartitionCols.AddRange(options.TablePartitionCols.ToProto());
+
         return proto;
     }
 

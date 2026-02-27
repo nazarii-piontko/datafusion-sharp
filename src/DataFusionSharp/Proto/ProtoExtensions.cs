@@ -35,4 +35,18 @@ internal static class ProtoExtensions
     /// <param name="compression">CompressionType value to convert.</param>
     /// <returns>>The corresponding CompressionTypeVariant protobuf enum value.</returns>
     public static CompressionTypeVariant ToProto(this CompressionType compression) => (CompressionTypeVariant) compression;
+
+    /// <summary>
+    /// Converts a list of partition columns to their protobuf representations.
+    /// </summary>
+    /// <param name="cols">The partition columns to convert.</param>
+    /// <returns>An enumerable of protobuf PartitionColumn messages.</returns>
+    public static IEnumerable<PartitionColumn> ToProto(this IReadOnlyList<Formats.PartitionColumn> cols)
+    {
+        return cols.Select(c => new PartitionColumn
+        {
+            Name = c.Name,
+            ArrowType = c.ArrowType.ToProto()
+        });
+    }
 }

@@ -26,4 +26,10 @@ public sealed class JsonReadOptions
     /// Compression type for the JSON file. If null, DataFusion uses its default (uncompressed).
     /// </summary>
     public CompressionType? FileCompressionType { get; set; }
+
+    /// <summary>
+    /// Partition columns for Hive-style partitioned data.
+    /// Each entry specifies a column name and its Arrow data type.
+    /// </summary>
+    public IReadOnlyList<PartitionColumn>? TablePartitionCols { get; set; }
 }

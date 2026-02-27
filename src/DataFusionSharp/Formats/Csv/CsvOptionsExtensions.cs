@@ -51,6 +51,9 @@ internal static class CsvOptionsExtensions
         if (options.TruncatedRows.HasValue)
             proto.TruncatedRows = options.TruncatedRows.Value;
 
+        if (options.TablePartitionCols is { Count: > 0 })
+            proto.TablePartitionCols.AddRange(options.TablePartitionCols.ToProto());
+
         return proto;
     }
 
