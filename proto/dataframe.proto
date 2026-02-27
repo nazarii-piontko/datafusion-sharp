@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package datafusion_sharp_proto;
+
+import "vendor/datafusion.proto";
+
+option csharp_namespace = "DataFusionSharp.Proto";
+
+// Represents options that control how data is written out from a DataFrame.
+message DataFrameWriteOptions {
+  // Controls how new data should be written to the table, determining whether to append, overwrite, or replace existing data.
+  datafusion.InsertOp insert_op = 1;
+
+  // Controls if all partitions should be coalesced into a single output file.
+  bool single_file_output = 2;
+
+  // Sets which columns should be used for hive-style partitioned writes by name.
+  repeated string partition_by = 3;
+  
+  // Sets which columns should be used for sorting the output by name. Can be set to empty for non-sorted writes.
+  datafusion.SortExprNodeCollection sort_by = 4;
+}

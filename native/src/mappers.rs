@@ -5,6 +5,7 @@ use datafusion::arrow::datatypes::{DataType, Schema};
 use datafusion::datasource::file_format::file_compression_type::FileCompressionType;
 use datafusion::logical_expr::SortExpr;
 use datafusion::prelude::CsvReadOptions;
+use crate::proto;
 
 pub(crate) fn from_proto_schema(schema: Option<&datafusion_proto::protobuf::Schema>) -> Result<Option<Schema>> {
     schema
@@ -15,7 +16,7 @@ pub(crate) fn from_proto_schema(schema: Option<&datafusion_proto::protobuf::Sche
 
 #[warn(clippy::field_reassign_with_default)]
 pub(crate) fn from_proto_csv_options<'a>(
-    pbo: Option<&'a crate::proto::CsvReadOptions>,
+    pbo: Option<&'a proto::CsvReadOptions>,
     schema: Option<&'a Schema>
 ) -> Result<CsvReadOptions<'a>> {
     let mut dfo = CsvReadOptions::default();
@@ -58,7 +59,7 @@ pub(crate) fn from_proto_csv_options<'a>(
 
 #[warn(clippy::field_reassign_with_default)]
 pub(crate) fn from_proto_json_read_options<'a>(
-    pbo: Option<&'a crate::proto::JsonReadOptions>,
+    pbo: Option<&'a proto::JsonReadOptions>,
     schema: Option<&'a Schema>
 ) -> Result<datafusion::prelude::NdJsonReadOptions<'a>> {
     let mut dfo = datafusion::prelude::NdJsonReadOptions::default();
@@ -76,6 +77,23 @@ pub(crate) fn from_proto_json_read_options<'a>(
         dfo.file_compression_type = from_proto_file_compression(file_compression_type)?;
     }
     dfo.file_sort_order = from_proto_file_sort_order(&pbo.file_sort_order)?;
+
+    Ok(dfo)
+}
+
+#[warn(clippy::field_reassign_with_default)]
+pub(crate) fn from_proto_dataframe_write_options(pbo: Option<&proto::DataFrameWriteOptions>) -> Result<datafusion::dataframe::DataFrameWriteOptions> {
+    let dfo = datafusion::dataframe::DataFrameWriteOptions::default();
+    let Some(pbo) = pbo else { return Ok(dfo) };
+
+    let mut dfo = dfo
+        .with_insert_operation(from_proto_insert_op(pbo.insert_op)?)
+        .with_single_file_output(pbo.single_file_output)
+        .with_partition_by(pbo.partition_by.clone());
+
+    if let Some(sort_by) = pbo.sort_by.clone() {
+        dfo = dfo.with_sort_by(from_proto_file_sort_order(&[sort_by])?.first().ok_or(anyhow!("Invalid sort by"))?.to_vec());
+    }
 
     Ok(dfo)
 }
@@ -146,6 +164,22 @@ fn from_proto_file_compression(v: i32) -> Result<FileCompressionType> {
         PbCompression::Xz => FileCompressionType::XZ,
         PbCompression::Zstd => FileCompressionType::ZSTD,
         PbCompression::Uncompressed => FileCompressionType::UNCOMPRESSED,
+    };
+
+    Ok(df)
+}
+
+fn from_proto_insert_op(v: i32) -> Result<datafusion::logical_expr::dml::InsertOp> {
+    use datafusion_proto::generated::datafusion::InsertOp as PbInsertOp;
+    use datafusion::logical_expr::dml::InsertOp;
+
+    let pb = PbInsertOp::try_from(v)
+        .map_err(|_| anyhow!("invalid InsertOp value: {v}"))?;
+
+    let df = match pb {
+        PbInsertOp::Append => InsertOp::Append,
+        PbInsertOp::Overwrite => InsertOp::Overwrite,
+        PbInsertOp::Replace => InsertOp::Replace,
     };
 
     Ok(df)

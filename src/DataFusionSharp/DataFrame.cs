@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Apache.Arrow;
+using DataFusionSharp.Formats;
 using DataFusionSharp.Formats.Csv;
 using DataFusionSharp.Formats.Json;
 using DataFusionSharp.Interop;
@@ -146,17 +147,21 @@ public sealed partial class DataFrame : IDisposable
     /// Writes the DataFrame contents to a CSV file.
     /// </summary>
     /// <param name="path">The output file path.</param>
-    /// <param name="options">Optional CSV writing options.</param>
+    /// <param name="dataFrameWriteOptions">Optional DataFrame writing options.</param>
+    /// <param name="csvWriteOptions">Optional CSV writing options.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteCsvAsync(string path, CsvWriteOptions? options = null)
+    public Task WriteCsvAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, CsvWriteOptions? csvWriteOptions = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var dataFrameOptionsData = PinnedProtobufData.FromMessage(dataFrameWriteOptions?.ToProto());
+        using var csvOptionsData = PinnedProtobufData.FromMessage(csvWriteOptions?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteCsv(_handle, path, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
+        var result = NativeMethods.DataFrameWriteCsv(_handle, path,
+            dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(),
+            GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
@@ -170,17 +175,21 @@ public sealed partial class DataFrame : IDisposable
     /// Writes the DataFrame contents to a JSON file.
     /// </summary>
     /// <param name="path">The output file path.</param>
-    /// <param name="options">Optional JSON writing options.</param>
+    /// <param name="dataFrameWriteOptions">Optional DataFrame writing options.</param>
+    /// <param name="jsonWriteOptions">Optional JSON writing jsonWriteOptions.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteJsonAsync(string path, JsonWriteOptions? options = null)
+    public Task WriteJsonAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, JsonWriteOptions? jsonWriteOptions = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var dataFrameOptionsData = PinnedProtobufData.FromMessage(dataFrameWriteOptions?.ToProto());
+        using var optionsData = PinnedProtobufData.FromMessage(jsonWriteOptions?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteJson(_handle, path, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
+        var result = NativeMethods.DataFrameWriteJson(_handle, path,
+            dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), 
+            GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);

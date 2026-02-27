@@ -63,10 +63,10 @@ internal static partial class NativeMethods
     public static partial DataFusionErrorCode DataFrameToString(DataFrameSafeHandle dataFrameHandle, IntPtr callback, ulong userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_write_csv")]
-    public static partial DataFusionErrorCode DataFrameWriteCsv(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData optionsData, IntPtr callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameWriteCsv(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData dataFrameWriteOptionsData, BytesData csvWriteOptionsData, IntPtr callback, ulong userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_write_json")]
-    public static partial DataFusionErrorCode DataFrameWriteJson(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData optionsData, IntPtr callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameWriteJson(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData dataFrameWriteOptionsData, BytesData jsonWriteOptionsData, IntPtr callback, ulong userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_write_parquet")]
     public static partial DataFusionErrorCode DataFrameWriteParquet(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr callback, ulong userData);

@@ -354,19 +354,47 @@ public sealed class CsvTests : FileFormatTests
     }
 
     [Fact]
+    public async Task WriteCsvAsync_WithPartitionBy_WritesHivePartitionedOutput()
+    {
+        // Arrange
+        await Context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
+        using var df = await Context.SqlAsync("SELECT * FROM customers");
+        
+        using var tempDir = TempDirectory.Create();
+        var writeOptions = new DataFrameWriteOptions
+        {
+            PartitionBy = ["country"]
+        };
+        
+        // Act
+        await df.WriteCsvAsync(tempDir.Path, dataFrameWriteOptions: writeOptions);
+        
+        // Assert
+        var partitionDirs = Directory.GetDirectories(tempDir.Path);
+        var partitionNames = partitionDirs.Select(Path.GetFileName).OrderBy(n => n).ToList();
+        Assert.Equal(["country=France", "country=Germany", "country=UK", "country=USA"], partitionNames);
+        
+        foreach (var dir in partitionDirs)
+        {
+            var csvFiles = Directory.GetFiles(dir, "*.csv");
+            Assert.NotEmpty(csvFiles);
+        }
+    }
+
+    [Fact]
     public async Task WriteAsync_WithOptions_WritesFileSuccessfully()
     {
         // Arrange
         await Context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
         using var df = await Context.SqlAsync("SELECT * FROM customers ORDER BY customer_id DESC LIMIT 2");
-        var options = new CsvWriteOptions
+        var csvWriteOptions = new CsvWriteOptions
         {
             Delimiter = ';'
         };
         using var tempFile = await TempInputFile.CreateAsync(FileExtension);
         
         // Act
-        await df.WriteCsvAsync(tempFile.Path, options);
+        await df.WriteCsvAsync(tempFile.Path, csvWriteOptions: csvWriteOptions);
 
         // Assert
         Assert.True(File.Exists(tempFile.Path), "Output file should be created");
@@ -382,14 +410,14 @@ public sealed class CsvTests : FileFormatTests
         // Arrange
         await Context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
         using var df = await Context.SqlAsync("SELECT customer_id, customer_name FROM customers ORDER BY customer_id LIMIT 2");
-        var options = new CsvWriteOptions
+        var csvWriteOptions = new CsvWriteOptions
         {
             HasHeader = false
         };
         using var tempFile = await TempInputFile.CreateAsync(FileExtension);
         
         // Act
-        await df.WriteCsvAsync(tempFile.Path, options);
+        await df.WriteCsvAsync(tempFile.Path, csvWriteOptions: csvWriteOptions);
 
         // Assert
         Assert.True(File.Exists(tempFile.Path), "Output file should be created");

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use futures::StreamExt;
 use prost::Message;
+use crate::{mappers, proto};
 
 pub struct DataFrameWrapper {
     runtime: crate::RuntimeHandle,
@@ -352,14 +353,19 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
 pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     df_ptr: *mut DataFrameWrapper,
     path_ptr: *const std::ffi::c_char,
-    csv_options_bytes: crate::BytesData,
+    dataframe_write_options_bytes: crate::BytesData,
+    csv_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
-    let Ok(csv_options) = csv_options_bytes.as_opt_slice()
+    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes.as_opt_slice()
+        .map(|b| proto::DataFrameWriteOptions::decode(b)).transpose() else { return crate::ErrorCode::InvalidArgument };
+    let Ok(dataframe_write_options) = mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref()) else { return crate::ErrorCode::InvalidArgument };
+
+    let Ok(csv_write_options) = csv_write_options_bytes.as_opt_slice()
         .map(|b| datafusion_proto::protobuf::CsvOptions::decode(b)
             .map(|pbo| datafusion::common::config::CsvOptions::from(&pbo))
         )
@@ -368,7 +374,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
         let result = df
-            .write_csv(&path, datafusion::dataframe::DataFrameWriteOptions::default(), csv_options)
+            .write_csv(&path, dataframe_write_options, csv_write_options)
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
 
@@ -391,14 +397,19 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
 pub unsafe extern "C" fn datafusion_dataframe_write_json(
     df_ptr: *mut DataFrameWrapper,
     path_ptr: *const std::ffi::c_char,
-    json_options_bytes: crate::BytesData,
+    dataframe_write_options_bytes: crate::BytesData,
+    json_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
-    let Ok(json_options) = json_options_bytes.as_opt_slice()
+    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes.as_opt_slice()
+        .map(|b| proto::DataFrameWriteOptions::decode(b)).transpose() else { return crate::ErrorCode::InvalidArgument };
+    let Ok(dataframe_write_options) = mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref()) else { return crate::ErrorCode::InvalidArgument };
+
+    let Ok(json_write_options) = json_write_options_bytes.as_opt_slice()
         .map(|b| datafusion_proto::protobuf::JsonOptions::decode(b)
             .map(|pbo| datafusion::common::config::JsonOptions::from(&pbo))
         )
@@ -409,7 +420,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
         let result = df
-            .write_json(&path, datafusion::dataframe::DataFrameWriteOptions::default(), json_options)
+            .write_json(&path, dataframe_write_options, json_write_options)
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
 

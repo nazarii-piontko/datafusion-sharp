@@ -126,12 +126,40 @@ public sealed class JsonTests : FileFormatTests
     }
 
     [Fact]
+    public async Task WriteJsonAsync_WithPartitionBy_WritesHivePartitionedOutput()
+    {
+        // Arrange
+        await Context.RegisterJsonAsync("customers", DataSet.CustomersJsonPath);
+        using var df = await Context.SqlAsync("SELECT * FROM customers");
+        
+        using var tempDir = TempDirectory.Create();
+        var writeOptions = new DataFrameWriteOptions
+        {
+            PartitionBy = ["country"]
+        };
+        
+        // Act
+        await df.WriteJsonAsync(tempDir.Path, dataFrameWriteOptions: writeOptions);
+        
+        // Assert
+        var partitionDirs = Directory.GetDirectories(tempDir.Path);
+        var partitionNames = partitionDirs.Select(Path.GetFileName).OrderBy(n => n).ToList();
+        Assert.Equal(["country=France", "country=Germany", "country=UK", "country=USA"], partitionNames);
+        
+        foreach (var dir in partitionDirs)
+        {
+            var csvFiles = Directory.GetFiles(dir, "*.json");
+            Assert.NotEmpty(csvFiles);
+        }
+    }
+
+    [Fact]
     public async Task WriteJsonAsync_WithOptions_WritesFileSuccessfully()
     {
         // Arrange
         await Context.RegisterJsonAsync("customers", DataSet.CustomersJsonPath);
         using var df = await Context.SqlAsync("SELECT * FROM customers ORDER BY customer_id DESC LIMIT 2");
-        var options = new JsonWriteOptions
+        var jsonWriteOptions = new JsonWriteOptions
         {
             Compression = CompressionType.Gzip
         };
@@ -139,7 +167,7 @@ public sealed class JsonTests : FileFormatTests
         using var tempFile = await TempInputFile.CreateAsync(".json.gz", gzip: true);
         
         // Act
-        await df.WriteJsonAsync(tempFile.Path, options);
+        await df.WriteJsonAsync(tempFile.Path, jsonWriteOptions: jsonWriteOptions);
 
         // Assert
         Assert.True(File.Exists(tempFile.Path), "Output file should be created");

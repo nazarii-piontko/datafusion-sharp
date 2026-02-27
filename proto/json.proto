@@ -18,7 +18,7 @@ message JsonReadOptions {
   // File extension. If unset, default is ".json".
   optional bytes file_extension = 3;
 
-  // Partition columns
+  // Partition columns for hive-style partitioned reads. Empty if non-partitioned read.
   repeated datafusion.PartitionColumn table_partition_cols = 4;
 
   // File compression type. If unset, default is "uncompressed".

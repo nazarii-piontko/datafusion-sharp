@@ -39,7 +39,7 @@ message CsvReadOptions {
   // File extension. If unset, default is ".csv".
   optional bytes file_extension = 10;
 
-  // Partition columns
+  // Partition columns for hive-style partitioned reads. Empty if non-partitioned read.
   repeated datafusion.PartitionColumn table_partition_cols = 11;
 
   // File compression type. If unset, default is "uncompressed".

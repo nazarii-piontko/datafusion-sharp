@@ -79,8 +79,9 @@ public sealed class CsvReadOptions
     public bool? TruncatedRows { get; set; }
 
     /// <summary>
-    /// Partition columns for Hive-style partitioned data.
+    /// Partition columns for hive-style partitioned reads.
     /// Each entry specifies a column name and its Arrow data type.
+    /// Empty if non-partitioned read.
     /// </summary>
     public IReadOnlyList<PartitionColumn>? TablePartitionCols { get; set; }
 }
