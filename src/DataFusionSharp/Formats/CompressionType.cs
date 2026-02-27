@@ -1,3 +1,5 @@
+using DataFusionSharp.Proto;
+
 namespace DataFusionSharp.Formats;
 
 /// <summary>
@@ -15,4 +17,9 @@ public enum CompressionType
     Zstd,
     /// <summary>No compression.</summary>
     Uncompressed,
+}
+
+internal static class ProtoCompressionTypeExtensions
+{
+    internal static CompressionTypeVariant ToProto(this CompressionType compression) => (CompressionTypeVariant) compression;
 }

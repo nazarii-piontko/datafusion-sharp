@@ -85,6 +85,41 @@ public sealed class CsvTests : FileFormatTests
     }
 
     [Fact]
+    public async Task RegisterCsvAsync_WithSchema_ParsesSuccessfully()
+    {
+        // Arrange
+        using var tempFile = await TempInputFile.CreateAsync(
+            ".csv",
+            [
+                "id,name,value",
+                "1,Alice,100",
+                "2,Bob,200"
+            ]);
+        var readSchema = new Schema.Builder()
+            .Field(f => f.Name("id").DataType(UInt16Type.Default).Nullable(false))
+            .Field(f => f.Name("name").DataType(StringType.Default).Nullable(false))
+            .Field(f => f.Name("value").DataType(UInt16Type.Default).Nullable(false))
+            .Build();
+        var options = new CsvReadOptions
+        {
+            HasHeader = true,
+            Schema = readSchema
+        };
+
+        // Act
+        await Context.RegisterCsvAsync("test", tempFile.Path, options);
+        using var df = await Context.SqlAsync("SELECT * FROM test");
+        var count = await df.CountAsync();
+        var schema = await df.GetSchemaAsync();
+
+        // Assert
+        Assert.Equal(2UL, count);
+        Assert.Equal(3, schema.FieldsList.Count);
+        for (int i = 0; i < schema.FieldsList.Count; i++)
+            Assert.Equal(readSchema.FieldsList[i].ToString(), schema.FieldsList[i].ToString()); // Compare field properties as string since Arrow types do not implement Equals
+    }
+    
+    [Fact]
     public async Task RegisterCsvAsync_WithCustomDelimiter_ParsesSuccessfully()
     {
         // Arrange

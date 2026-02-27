@@ -24,13 +24,13 @@ public enum InsertOp
     Replace
 }
 
-internal static class InsertOpExtensions
+internal static class ProtoInsertOpExtensions
 {
     internal static Proto.InsertOp ToProto(this InsertOp op) => op switch
     {
         InsertOp.Append => Proto.InsertOp.Append,
         InsertOp.Overwrite => Proto.InsertOp.Overwrite,
         InsertOp.Replace => Proto.InsertOp.Replace,
-        _ => throw new ArgumentOutOfRangeException(nameof(op), op, null)
+        _ => throw new ArgumentOutOfRangeException(nameof(op), op, "Invalid InsertOp value")
     };
 }

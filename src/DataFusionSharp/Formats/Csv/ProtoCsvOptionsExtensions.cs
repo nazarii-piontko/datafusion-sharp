@@ -3,7 +3,7 @@ using Google.Protobuf;
 
 namespace DataFusionSharp.Formats.Csv;
 
-internal static class CsvOptionsExtensions
+internal static class ProtoCsvOptionsExtensions
 {
     private static readonly ByteString TrueByteString = '\x7f'.ToProto();
     private static readonly ByteString FalseByteString = '\x00'.ToProto();

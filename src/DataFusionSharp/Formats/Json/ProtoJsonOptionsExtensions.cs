@@ -2,7 +2,7 @@ using DataFusionSharp.Proto;
 
 namespace DataFusionSharp.Formats.Json;
 
-internal static class JsonOptionsExtensions
+internal static class ProtoJsonOptionsExtensions
 {
     internal static Proto.JsonReadOptions ToProto(this JsonReadOptions options)
     {

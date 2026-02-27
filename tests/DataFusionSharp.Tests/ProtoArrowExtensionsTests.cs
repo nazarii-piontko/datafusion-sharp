@@ -1,49 +1,42 @@
 using Apache.Arrow.Types;
-using DataFusionSharp.Proto;
-using ArrowType = DataFusionSharp.Proto.ArrowType;
-using Field = DataFusionSharp.Proto.Field;
-using IntervalUnit = DataFusionSharp.Proto.IntervalUnit;
-using Schema = DataFusionSharp.Proto.Schema;
-using TimeUnit = DataFusionSharp.Proto.TimeUnit;
-using UnionMode = DataFusionSharp.Proto.UnionMode;
 
 namespace DataFusionSharp.Tests;
 
-public sealed class ArrowExtensionsTests
+public sealed class ProtoArrowExtensionsTests
 {
     #region Primitive types round-trip
 
-    public static TheoryData<ArrowType, ArrowTypeId> PrimitiveTypes => new()
+    public static TheoryData<Proto.ArrowType, ArrowTypeId> PrimitiveTypes => new()
     {
-        { new ArrowType { NONE = new EmptyMessage() }, ArrowTypeId.Null },
-        { new ArrowType { BOOL = new EmptyMessage() }, ArrowTypeId.Boolean },
-        { new ArrowType { UINT8 = new EmptyMessage() }, ArrowTypeId.UInt8 },
-        { new ArrowType { INT8 = new EmptyMessage() }, ArrowTypeId.Int8 },
-        { new ArrowType { UINT16 = new EmptyMessage() }, ArrowTypeId.UInt16 },
-        { new ArrowType { INT16 = new EmptyMessage() }, ArrowTypeId.Int16 },
-        { new ArrowType { UINT32 = new EmptyMessage() }, ArrowTypeId.UInt32 },
-        { new ArrowType { INT32 = new EmptyMessage() }, ArrowTypeId.Int32 },
-        { new ArrowType { UINT64 = new EmptyMessage() }, ArrowTypeId.UInt64 },
-        { new ArrowType { INT64 = new EmptyMessage() }, ArrowTypeId.Int64 },
-        { new ArrowType { FLOAT16 = new EmptyMessage() }, ArrowTypeId.HalfFloat },
-        { new ArrowType { FLOAT32 = new EmptyMessage() }, ArrowTypeId.Float },
-        { new ArrowType { FLOAT64 = new EmptyMessage() }, ArrowTypeId.Double },
-        { new ArrowType { UTF8 = new EmptyMessage() }, ArrowTypeId.String },
-        { new ArrowType { UTF8VIEW = new EmptyMessage() }, ArrowTypeId.StringView },
-        { new ArrowType { LARGEUTF8 = new EmptyMessage() }, ArrowTypeId.LargeString },
-        { new ArrowType { BINARY = new EmptyMessage() }, ArrowTypeId.Binary },
-        { new ArrowType { BINARYVIEW = new EmptyMessage() }, ArrowTypeId.BinaryView },
-        { new ArrowType { LARGEBINARY = new EmptyMessage() }, ArrowTypeId.LargeBinary },
-        { new ArrowType { DATE32 = new EmptyMessage() }, ArrowTypeId.Date32 },
-        { new ArrowType { DATE64 = new EmptyMessage() }, ArrowTypeId.Date64 },
+        { new Proto.ArrowType { NONE = new Proto.EmptyMessage() }, ArrowTypeId.Null },
+        { new Proto.ArrowType { BOOL = new Proto.EmptyMessage() }, ArrowTypeId.Boolean },
+        { new Proto.ArrowType { UINT8 = new Proto.EmptyMessage() }, ArrowTypeId.UInt8 },
+        { new Proto.ArrowType { INT8 = new Proto.EmptyMessage() }, ArrowTypeId.Int8 },
+        { new Proto.ArrowType { UINT16 = new Proto.EmptyMessage() }, ArrowTypeId.UInt16 },
+        { new Proto.ArrowType { INT16 = new Proto.EmptyMessage() }, ArrowTypeId.Int16 },
+        { new Proto.ArrowType { UINT32 = new Proto.EmptyMessage() }, ArrowTypeId.UInt32 },
+        { new Proto.ArrowType { INT32 = new Proto.EmptyMessage() }, ArrowTypeId.Int32 },
+        { new Proto.ArrowType { UINT64 = new Proto.EmptyMessage() }, ArrowTypeId.UInt64 },
+        { new Proto.ArrowType { INT64 = new Proto.EmptyMessage() }, ArrowTypeId.Int64 },
+        { new Proto.ArrowType { FLOAT16 = new Proto.EmptyMessage() }, ArrowTypeId.HalfFloat },
+        { new Proto.ArrowType { FLOAT32 = new Proto.EmptyMessage() }, ArrowTypeId.Float },
+        { new Proto.ArrowType { FLOAT64 = new Proto.EmptyMessage() }, ArrowTypeId.Double },
+        { new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() }, ArrowTypeId.String },
+        { new Proto.ArrowType { UTF8VIEW = new Proto.EmptyMessage() }, ArrowTypeId.StringView },
+        { new Proto.ArrowType { LARGEUTF8 = new Proto.EmptyMessage() }, ArrowTypeId.LargeString },
+        { new Proto.ArrowType { BINARY = new Proto.EmptyMessage() }, ArrowTypeId.Binary },
+        { new Proto.ArrowType { BINARYVIEW = new Proto.EmptyMessage() }, ArrowTypeId.BinaryView },
+        { new Proto.ArrowType { LARGEBINARY = new Proto.EmptyMessage() }, ArrowTypeId.LargeBinary },
+        { new Proto.ArrowType { DATE32 = new Proto.EmptyMessage() }, ArrowTypeId.Date32 },
+        { new Proto.ArrowType { DATE64 = new Proto.EmptyMessage() }, ArrowTypeId.Date64 },
     };
 
     [Theory]
     [MemberData(nameof(PrimitiveTypes))]
-    public void PrimitiveType_RoundTrips(ArrowType proto, ArrowTypeId expectedTypeId)
+    public void PrimitiveType_RoundTrips(Proto.ArrowType proto, ArrowTypeId expectedTypeId)
     {
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
@@ -59,16 +52,16 @@ public sealed class ArrowExtensionsTests
     public void FixedSizeBinary_RoundTrips()
     {
         // Arrange
-        var proto = new ArrowType { FIXEDSIZEBINARY = 16 };
+        var proto = new Proto.ArrowType { FIXEDSIZEBINARY = 16 };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         Assert.IsType<FixedSizeBinaryType>(arrow);
         Assert.Equal(16, ((FixedSizeBinaryType)arrow).ByteWidth);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.FIXEDSIZEBINARY, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.FIXEDSIZEBINARY, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(16, roundTripped.FIXEDSIZEBINARY);
     }
 
@@ -76,29 +69,29 @@ public sealed class ArrowExtensionsTests
 
     #region Duration round-trip
 
-    public static TheoryData<TimeUnit, Apache.Arrow.Types.TimeUnit> DurationTimeUnits => new()
+    public static TheoryData<Proto.TimeUnit, TimeUnit> DurationTimeUnits => new()
     {
-        { TimeUnit.Second, Apache.Arrow.Types.TimeUnit.Second },
-        { TimeUnit.Millisecond, Apache.Arrow.Types.TimeUnit.Millisecond },
-        { TimeUnit.Microsecond, Apache.Arrow.Types.TimeUnit.Microsecond },
-        { TimeUnit.Nanosecond, Apache.Arrow.Types.TimeUnit.Nanosecond },
+        { Proto.TimeUnit.Second, TimeUnit.Second },
+        { Proto.TimeUnit.Millisecond, TimeUnit.Millisecond },
+        { Proto.TimeUnit.Microsecond, TimeUnit.Microsecond },
+        { Proto.TimeUnit.Nanosecond, TimeUnit.Nanosecond },
     };
 
     [Theory]
     [MemberData(nameof(DurationTimeUnits))]
-    public void Duration_RoundTrips(TimeUnit protoUnit, Apache.Arrow.Types.TimeUnit expectedUnit)
+    public void Duration_RoundTrips(Proto.TimeUnit protoUnit, TimeUnit expectedUnit)
     {
         // Arrange
-        var proto = new ArrowType { DURATION = protoUnit };
+        var proto = new Proto.ArrowType { DURATION = protoUnit };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         var durationType = Assert.IsType<DurationType>(arrow);
         Assert.Equal(expectedUnit, durationType.Unit);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.DURATION, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.DURATION, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(protoUnit, roundTripped.DURATION);
     }
 
@@ -106,32 +99,32 @@ public sealed class ArrowExtensionsTests
 
     #region Timestamp round-trip
 
-    public static TheoryData<TimeUnit, string> TimestampVariants => new()
+    public static TheoryData<Proto.TimeUnit, string> TimestampVariants => new()
     {
-        { TimeUnit.Second, "UTC" },
-        { TimeUnit.Millisecond, "America/New_York" },
-        { TimeUnit.Microsecond, "" },
-        { TimeUnit.Nanosecond, "Europe/London" },
+        { Proto.TimeUnit.Second, "UTC" },
+        { Proto.TimeUnit.Millisecond, "America/New_York" },
+        { Proto.TimeUnit.Microsecond, "" },
+        { Proto.TimeUnit.Nanosecond, "Europe/London" },
     };
 
     [Theory]
     [MemberData(nameof(TimestampVariants))]
-    public void Timestamp_RoundTrips(TimeUnit protoUnit, string timezone)
+    public void Timestamp_RoundTrips(Proto.TimeUnit protoUnit, string timezone)
     {
         // Arrange
-        var proto = new ArrowType
+        var proto = new Proto.ArrowType
         {
-            TIMESTAMP = new Timestamp { TimeUnit = protoUnit, Timezone = timezone }
+            TIMESTAMP = new Proto.Timestamp { TimeUnit = protoUnit, Timezone = timezone }
         };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         var timestampType = Assert.IsType<TimestampType>(arrow);
         Assert.Equal(timezone, timestampType.Timezone ?? string.Empty);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.TIMESTAMP, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.TIMESTAMP, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(protoUnit, roundTripped.TIMESTAMP.TimeUnit);
         Assert.Equal(timezone, roundTripped.TIMESTAMP.Timezone);
     }
@@ -140,27 +133,27 @@ public sealed class ArrowExtensionsTests
 
     #region Time32 round-trip
 
-    public static TheoryData<TimeUnit, Apache.Arrow.Types.TimeUnit> Time32Units => new()
+    public static TheoryData<Proto.TimeUnit, TimeUnit> Time32Units => new()
     {
-        { TimeUnit.Second, Apache.Arrow.Types.TimeUnit.Second },
-        { TimeUnit.Millisecond, Apache.Arrow.Types.TimeUnit.Millisecond },
+        { Proto.TimeUnit.Second, TimeUnit.Second },
+        { Proto.TimeUnit.Millisecond, TimeUnit.Millisecond },
     };
 
     [Theory]
     [MemberData(nameof(Time32Units))]
-    public void Time32_RoundTrips(TimeUnit protoUnit, Apache.Arrow.Types.TimeUnit expectedUnit)
+    public void Time32_RoundTrips(Proto.TimeUnit protoUnit, TimeUnit expectedUnit)
     {
         // Arrange
-        var proto = new ArrowType { TIME32 = protoUnit };
+        var proto = new Proto.ArrowType { TIME32 = protoUnit };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         var time32Type = Assert.IsType<Time32Type>(arrow);
         Assert.Equal(expectedUnit, time32Type.Unit);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.TIME32, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.TIME32, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(protoUnit, roundTripped.TIME32);
     }
 
@@ -168,27 +161,27 @@ public sealed class ArrowExtensionsTests
 
     #region Time64 round-trip
 
-    public static TheoryData<TimeUnit, Apache.Arrow.Types.TimeUnit> Time64Units => new()
+    public static TheoryData<Proto.TimeUnit, TimeUnit> Time64Units => new()
     {
-        { TimeUnit.Microsecond, Apache.Arrow.Types.TimeUnit.Microsecond },
-        { TimeUnit.Nanosecond, Apache.Arrow.Types.TimeUnit.Nanosecond },
+        { Proto.TimeUnit.Microsecond, TimeUnit.Microsecond },
+        { Proto.TimeUnit.Nanosecond, TimeUnit.Nanosecond },
     };
 
     [Theory]
     [MemberData(nameof(Time64Units))]
-    public void Time64_RoundTrips(TimeUnit protoUnit, Apache.Arrow.Types.TimeUnit expectedUnit)
+    public void Time64_RoundTrips(Proto.TimeUnit protoUnit, TimeUnit expectedUnit)
     {
         // Arrange
-        var proto = new ArrowType { TIME64 = protoUnit };
+        var proto = new Proto.ArrowType { TIME64 = protoUnit };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         var time64Type = Assert.IsType<Time64Type>(arrow);
         Assert.Equal(expectedUnit, time64Type.Unit);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.TIME64, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.TIME64, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(protoUnit, roundTripped.TIME64);
     }
 
@@ -196,28 +189,28 @@ public sealed class ArrowExtensionsTests
 
     #region Interval round-trip
 
-    public static TheoryData<IntervalUnit, Apache.Arrow.Types.IntervalUnit> IntervalUnits => new()
+    public static TheoryData<Proto.IntervalUnit, IntervalUnit> IntervalUnits => new()
     {
-        { IntervalUnit.YearMonth, Apache.Arrow.Types.IntervalUnit.YearMonth },
-        { IntervalUnit.DayTime, Apache.Arrow.Types.IntervalUnit.DayTime },
-        { IntervalUnit.MonthDayNano, Apache.Arrow.Types.IntervalUnit.MonthDayNanosecond },
+        { Proto.IntervalUnit.YearMonth, IntervalUnit.YearMonth },
+        { Proto.IntervalUnit.DayTime, IntervalUnit.DayTime },
+        { Proto.IntervalUnit.MonthDayNano, IntervalUnit.MonthDayNanosecond },
     };
 
     [Theory]
     [MemberData(nameof(IntervalUnits))]
-    public void Interval_RoundTrips(IntervalUnit protoUnit, Apache.Arrow.Types.IntervalUnit expectedUnit)
+    public void Interval_RoundTrips(Proto.IntervalUnit protoUnit, IntervalUnit expectedUnit)
     {
         // Arrange
-        var proto = new ArrowType { INTERVAL = protoUnit };
+        var proto = new Proto.ArrowType { INTERVAL = protoUnit };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         var intervalType = Assert.IsType<IntervalType>(arrow);
         Assert.Equal(expectedUnit, intervalType.Unit);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.INTERVAL, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.INTERVAL, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(protoUnit, roundTripped.INTERVAL);
     }
 
@@ -229,20 +222,20 @@ public sealed class ArrowExtensionsTests
     public void Decimal128_RoundTrips()
     {
         // Arrange
-        var proto = new ArrowType
+        var proto = new Proto.ArrowType
         {
             DECIMAL = new Proto.Decimal { Precision = 38, Scale = 10 }
         };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         var decimalType = Assert.IsType<Decimal128Type>(arrow);
         Assert.Equal(38, decimalType.Precision);
         Assert.Equal(10, decimalType.Scale);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.DECIMAL, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.DECIMAL, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(38u, roundTripped.DECIMAL.Precision);
         Assert.Equal(10, roundTripped.DECIMAL.Scale);
     }
@@ -251,20 +244,20 @@ public sealed class ArrowExtensionsTests
     public void Decimal256_RoundTrips()
     {
         // Arrange
-        var proto = new ArrowType
+        var proto = new Proto.ArrowType
         {
             DECIMAL256 = new Proto.Decimal256Type { Precision = 76, Scale = 20 }
         };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
-        var decimalType = Assert.IsType<Apache.Arrow.Types.Decimal256Type>(arrow);
+        var decimalType = Assert.IsType<Decimal256Type>(arrow);
         Assert.Equal(76, decimalType.Precision);
         Assert.Equal(20, decimalType.Scale);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.DECIMAL256, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.DECIMAL256, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(76u, roundTripped.DECIMAL256.Precision);
         Assert.Equal(20, roundTripped.DECIMAL256.Scale);
     }
@@ -277,21 +270,21 @@ public sealed class ArrowExtensionsTests
     public void List_RoundTrips()
     {
         // Arrange
-        var proto = new ArrowType
+        var proto = new Proto.ArrowType
         {
-            LIST = new List
+            LIST = new Proto.List
             {
-                FieldType = new Field
+                FieldType = new Proto.Field
                 {
                     Name = "item",
-                    ArrowType = new ArrowType { INT32 = new EmptyMessage() },
+                    ArrowType = new Proto.ArrowType { INT32 = new Proto.EmptyMessage() },
                     Nullable = true
                 }
             }
         };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
@@ -299,7 +292,7 @@ public sealed class ArrowExtensionsTests
         Assert.Equal("item", listType.ValueField.Name);
         Assert.Equal(ArrowTypeId.Int32, listType.ValueDataType.TypeId);
         Assert.True(listType.ValueField.IsNullable);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.LIST, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.LIST, roundTripped.ArrowTypeEnumCase);
         Assert.Equal("item", roundTripped.LIST.FieldType.Name);
     }
 
@@ -307,21 +300,21 @@ public sealed class ArrowExtensionsTests
     public void LargeList_RoundTrips()
     {
         // Arrange
-        var proto = new ArrowType
+        var proto = new Proto.ArrowType
         {
-            LARGELIST = new List
+            LARGELIST = new Proto.List
             {
-                FieldType = new Field
+                FieldType = new Proto.Field
                 {
                     Name = "item",
-                    ArrowType = new ArrowType { UTF8 = new EmptyMessage() },
+                    ArrowType = new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() },
                     Nullable = false
                 }
             }
         };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
@@ -329,21 +322,21 @@ public sealed class ArrowExtensionsTests
         Assert.Equal("item", largeListType.ValueField.Name);
         Assert.Equal(ArrowTypeId.String, largeListType.ValueDataType.TypeId);
         Assert.False(largeListType.ValueField.IsNullable);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.LARGELIST, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.LARGELIST, roundTripped.ArrowTypeEnumCase);
     }
 
     [Fact]
     public void FixedSizeList_RoundTrips()
     {
         // Arrange
-        var proto = new ArrowType
+        var proto = new Proto.ArrowType
         {
-            FIXEDSIZELIST = new FixedSizeList
+            FIXEDSIZELIST = new Proto.FixedSizeList
             {
-                FieldType = new Field
+                FieldType = new Proto.Field
                 {
                     Name = "element",
-                    ArrowType = new ArrowType { FLOAT64 = new EmptyMessage() },
+                    ArrowType = new Proto.ArrowType { FLOAT64 = new Proto.EmptyMessage() },
                     Nullable = true
                 },
                 ListSize = 5
@@ -351,7 +344,7 @@ public sealed class ArrowExtensionsTests
         };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
@@ -359,7 +352,7 @@ public sealed class ArrowExtensionsTests
         Assert.Equal("element", fixedListType.ValueField.Name);
         Assert.Equal(ArrowTypeId.Double, fixedListType.ValueDataType.TypeId);
         Assert.Equal(5, fixedListType.ListSize);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.FIXEDSIZELIST, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.FIXEDSIZELIST, roundTripped.ArrowTypeEnumCase);
         Assert.Equal(5, roundTripped.FIXEDSIZELIST.ListSize);
     }
 
@@ -371,31 +364,31 @@ public sealed class ArrowExtensionsTests
     public void Map_RoundTrips()
     {
         // Arrange
-        var entriesField = new Field
+        var entriesField = new Proto.Field
         {
             Name = "entries",
-            ArrowType = new ArrowType
+            ArrowType = new Proto.ArrowType
             {
-                STRUCT = new Struct()
+                STRUCT = new Proto.Struct()
             },
             Nullable = false
         };
-        entriesField.Children.Add(new Field
+        entriesField.Children.Add(new Proto.Field
         {
             Name = "key",
-            ArrowType = new ArrowType { UTF8 = new EmptyMessage() },
+            ArrowType = new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() },
             Nullable = false
         });
-        entriesField.Children.Add(new Field
+        entriesField.Children.Add(new Proto.Field
         {
             Name = "value",
-            ArrowType = new ArrowType { INT32 = new EmptyMessage() },
+            ArrowType = new Proto.ArrowType { INT32 = new Proto.EmptyMessage() },
             Nullable = true
         });
 
-        var proto = new ArrowType
+        var proto = new Proto.ArrowType
         {
-            MAP = new Map
+            MAP = new Proto.Map
             {
                 FieldType = entriesField,
                 KeysSorted = false
@@ -403,12 +396,12 @@ public sealed class ArrowExtensionsTests
         };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         Assert.IsType<MapType>(arrow);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.MAP, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.MAP, roundTripped.ArrowTypeEnumCase);
         Assert.Equal("entries", roundTripped.MAP.FieldType.Name);
     }
 
@@ -420,19 +413,19 @@ public sealed class ArrowExtensionsTests
     public void Struct_RoundTrips()
     {
         // Arrange
-        var proto = new ArrowType { STRUCT = new Struct() };
-        var children = new List<Field>
+        var proto = new Proto.ArrowType { STRUCT = new Proto.Struct() };
+        var children = new List<Proto.Field>
         {
             new()
             {
                 Name = "name",
-                ArrowType = new ArrowType { UTF8 = new EmptyMessage() },
+                ArrowType = new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() },
                 Nullable = false
             },
             new()
             {
                 Name = "age",
-                ArrowType = new ArrowType { INT32 = new EmptyMessage() },
+                ArrowType = new Proto.ArrowType { INT32 = new Proto.EmptyMessage() },
                 Nullable = true
             }
         };
@@ -450,7 +443,7 @@ public sealed class ArrowExtensionsTests
         Assert.Equal("age", structType.Fields[1].Name);
         Assert.Equal(ArrowTypeId.Int32, structType.Fields[1].DataType.TypeId);
         Assert.True(structType.Fields[1].IsNullable);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.STRUCT, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.STRUCT, roundTripped.ArrowTypeEnumCase);
     }
 
     #endregion
@@ -461,21 +454,21 @@ public sealed class ArrowExtensionsTests
     public void DenseUnion_RoundTrips()
     {
         // Arrange
-        var union = new Union { UnionMode = UnionMode.Dense };
+        var union = new Proto.Union { UnionMode = Proto.UnionMode.Dense };
         union.TypeIds.AddRange([0, 1]);
-        var proto = new ArrowType { UNION = union };
-        var children = new List<Field>
+        var proto = new Proto.ArrowType { UNION = union };
+        var children = new List<Proto.Field>
         {
             new()
             {
                 Name = "int_field",
-                ArrowType = new ArrowType { INT32 = new EmptyMessage() },
+                ArrowType = new Proto.ArrowType { INT32 = new Proto.EmptyMessage() },
                 Nullable = true
             },
             new()
             {
                 Name = "str_field",
-                ArrowType = new ArrowType { UTF8 = new EmptyMessage() },
+                ArrowType = new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() },
                 Nullable = true
             }
         };
@@ -486,11 +479,11 @@ public sealed class ArrowExtensionsTests
 
         // Assert
         var unionType = Assert.IsType<UnionType>(arrow);
-        Assert.Equal(Apache.Arrow.Types.UnionMode.Dense, unionType.Mode);
+        Assert.Equal(UnionMode.Dense, unionType.Mode);
         Assert.Equal([0, 1], unionType.TypeIds);
         Assert.Equal(2, unionType.Fields.Count);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.UNION, roundTripped.ArrowTypeEnumCase);
-        Assert.Equal(UnionMode.Dense, roundTripped.UNION.UnionMode);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.UNION, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.UnionMode.Dense, roundTripped.UNION.UnionMode);
         Assert.Equal([0, 1], roundTripped.UNION.TypeIds);
     }
 
@@ -498,27 +491,27 @@ public sealed class ArrowExtensionsTests
     public void SparseUnion_RoundTrips()
     {
         // Arrange
-        var union = new Union { UnionMode = UnionMode.Sparse };
+        var union = new Proto.Union { UnionMode = Proto.UnionMode.Sparse };
         union.TypeIds.AddRange([0, 1, 2]);
-        var proto = new ArrowType { UNION = union };
-        var children = new List<Field>
+        var proto = new Proto.ArrowType { UNION = union };
+        var children = new List<Proto.Field>
         {
             new()
             {
                 Name = "a",
-                ArrowType = new ArrowType { BOOL = new EmptyMessage() },
+                ArrowType = new Proto.ArrowType { BOOL = new Proto.EmptyMessage() },
                 Nullable = true
             },
             new()
             {
                 Name = "b",
-                ArrowType = new ArrowType { FLOAT32 = new EmptyMessage() },
+                ArrowType = new Proto.ArrowType { FLOAT32 = new Proto.EmptyMessage() },
                 Nullable = true
             },
             new()
             {
                 Name = "c",
-                ArrowType = new ArrowType { INT64 = new EmptyMessage() },
+                ArrowType = new Proto.ArrowType { INT64 = new Proto.EmptyMessage() },
                 Nullable = true
             }
         };
@@ -529,11 +522,11 @@ public sealed class ArrowExtensionsTests
 
         // Assert
         var unionType = Assert.IsType<UnionType>(arrow);
-        Assert.Equal(Apache.Arrow.Types.UnionMode.Sparse, unionType.Mode);
+        Assert.Equal(UnionMode.Sparse, unionType.Mode);
         Assert.Equal([0, 1, 2], unionType.TypeIds);
         Assert.Equal(3, unionType.Fields.Count);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.UNION, roundTripped.ArrowTypeEnumCase);
-        Assert.Equal(UnionMode.Sparse, roundTripped.UNION.UnionMode);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.UNION, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.UnionMode.Sparse, roundTripped.UNION.UnionMode);
     }
 
     #endregion
@@ -544,26 +537,26 @@ public sealed class ArrowExtensionsTests
     public void Dictionary_RoundTrips()
     {
         // Arrange
-        var proto = new ArrowType
+        var proto = new Proto.ArrowType
         {
-            DICTIONARY = new Dictionary
+            DICTIONARY = new Proto.Dictionary
             {
-                Key = new ArrowType { INT32 = new EmptyMessage() },
-                Value = new ArrowType { UTF8 = new EmptyMessage() }
+                Key = new Proto.ArrowType { INT32 = new Proto.EmptyMessage() },
+                Value = new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() }
             }
         };
 
         // Act
-        var arrow = proto.ToArrow(Enumerable.Empty<Field>());
+        var arrow = proto.ToArrow([]);
         var roundTripped = arrow.ToProto();
 
         // Assert
         var dictType = Assert.IsType<DictionaryType>(arrow);
         Assert.Equal(ArrowTypeId.Int32, dictType.IndexType.TypeId);
         Assert.Equal(ArrowTypeId.String, dictType.ValueType.TypeId);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.DICTIONARY, roundTripped.ArrowTypeEnumCase);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.INT32, roundTripped.DICTIONARY.Key.ArrowTypeEnumCase);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.UTF8, roundTripped.DICTIONARY.Value.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.DICTIONARY, roundTripped.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.INT32, roundTripped.DICTIONARY.Key.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.UTF8, roundTripped.DICTIONARY.Value.ArrowTypeEnumCase);
     }
 
     #endregion
@@ -574,37 +567,37 @@ public sealed class ArrowExtensionsTests
     public void Schema_ProtoToArrowToProto_RoundTrips()
     {
         // Arrange
-        var protoSchema = new Schema();
+        var protoSchema = new Proto.Schema();
         protoSchema.Metadata.Add("created_by", "test");
 
-        var idField = new Field
+        var idField = new Proto.Field
         {
             Name = "id",
-            ArrowType = new ArrowType { INT64 = new EmptyMessage() },
+            ArrowType = new Proto.ArrowType { INT64 = new Proto.EmptyMessage() },
             Nullable = false
         };
         protoSchema.Columns.Add(idField);
 
-        var nameField = new Field
+        var nameField = new Proto.Field
         {
             Name = "name",
-            ArrowType = new ArrowType { UTF8 = new EmptyMessage() },
+            ArrowType = new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() },
             Nullable = true
         };
         nameField.Metadata.Add("description", "user name");
         protoSchema.Columns.Add(nameField);
 
-        var scoresField = new Field
+        var scoresField = new Proto.Field
         {
             Name = "scores",
-            ArrowType = new ArrowType
+            ArrowType = new Proto.ArrowType
             {
-                LIST = new List
+                LIST = new Proto.List
                 {
-                    FieldType = new Field
+                    FieldType = new Proto.Field
                     {
                         Name = "item",
-                        ArrowType = new ArrowType { FLOAT64 = new EmptyMessage() },
+                        ArrowType = new Proto.ArrowType { FLOAT64 = new Proto.EmptyMessage() },
                         Nullable = true
                     }
                 }
@@ -629,14 +622,14 @@ public sealed class ArrowExtensionsTests
 
         Assert.Equal(3, roundTripped.Columns.Count);
         Assert.Equal("id", roundTripped.Columns[0].Name);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.INT64, roundTripped.Columns[0].ArrowType.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.INT64, roundTripped.Columns[0].ArrowType.ArrowTypeEnumCase);
         Assert.False(roundTripped.Columns[0].Nullable);
         Assert.Equal("name", roundTripped.Columns[1].Name);
         Assert.True(roundTripped.Columns[1].Nullable);
         Assert.Contains("description", roundTripped.Columns[1].Metadata.Keys);
         Assert.Equal("user name", roundTripped.Columns[1].Metadata["description"]);
         Assert.Equal("scores", roundTripped.Columns[2].Name);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.LIST, roundTripped.Columns[2].ArrowType.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.LIST, roundTripped.Columns[2].ArrowType.ArrowTypeEnumCase);
         Assert.Contains("created_by", roundTripped.Metadata.Keys);
         Assert.Equal("test", roundTripped.Metadata["created_by"]);
     }
@@ -690,30 +683,30 @@ public sealed class ArrowExtensionsTests
     public void Schema_WithStructField_RoundTrips()
     {
         // Arrange
-        var structField = new Field
+        var structField = new Proto.Field
         {
             Name = "address",
-            ArrowType = new ArrowType { STRUCT = new Struct() },
+            ArrowType = new Proto.ArrowType { STRUCT = new Proto.Struct() },
             Nullable = true
         };
-        structField.Children.Add(new Field
+        structField.Children.Add(new Proto.Field
         {
             Name = "city",
-            ArrowType = new ArrowType { UTF8 = new EmptyMessage() },
+            ArrowType = new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() },
             Nullable = true
         });
-        structField.Children.Add(new Field
+        structField.Children.Add(new Proto.Field
         {
             Name = "zip",
-            ArrowType = new ArrowType { INT32 = new EmptyMessage() },
+            ArrowType = new Proto.ArrowType { INT32 = new Proto.EmptyMessage() },
             Nullable = false
         });
 
-        var protoSchema = new Schema();
-        protoSchema.Columns.Add(new Field
+        var protoSchema = new Proto.Schema();
+        protoSchema.Columns.Add(new Proto.Field
         {
             Name = "id",
-            ArrowType = new ArrowType { INT64 = new EmptyMessage() },
+            ArrowType = new Proto.ArrowType { INT64 = new Proto.EmptyMessage() },
             Nullable = false
         });
         protoSchema.Columns.Add(structField);
@@ -730,7 +723,7 @@ public sealed class ArrowExtensionsTests
         Assert.Equal("zip", arrowStruct.Fields[1].Name);
 
         Assert.Equal(2, roundTripped.Columns.Count);
-        Assert.Equal(ArrowType.ArrowTypeEnumOneofCase.STRUCT, roundTripped.Columns[1].ArrowType.ArrowTypeEnumCase);
+        Assert.Equal(Proto.ArrowType.ArrowTypeEnumOneofCase.STRUCT, roundTripped.Columns[1].ArrowType.ArrowTypeEnumCase);
         Assert.Equal(2, roundTripped.Columns[1].Children.Count);
         Assert.Equal("city", roundTripped.Columns[1].Children[0].Name);
         Assert.Equal("zip", roundTripped.Columns[1].Children[1].Name);

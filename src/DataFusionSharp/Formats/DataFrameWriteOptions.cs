@@ -24,7 +24,7 @@ public sealed class DataFrameWriteOptions
     public IEnumerable<string> PartitionBy { get; set; } = [];
 }
 
-internal static class DataFrameWriteOptionsExtensions
+internal static class ProtoDataFrameWriteOptionsExtensions
 {
     internal static Proto.DataFrameWriteOptions ToProto(this DataFrameWriteOptions options)
     {
