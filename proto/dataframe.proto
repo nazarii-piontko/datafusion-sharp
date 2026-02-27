@@ -6,7 +6,7 @@ import "vendor/datafusion.proto";
 
 option csharp_namespace = "DataFusionSharp.Proto";
 
-// Represents options that control how data is written out from a DataFrame.
+// Represents options that control how data is written out from a `DataFrame`.
 message DataFrameWriteOptions {
   // Controls how new data should be written to the table, determining whether to append, overwrite, or replace existing data.
   datafusion.InsertOp insert_op = 1;

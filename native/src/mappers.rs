@@ -92,7 +92,7 @@ pub(crate) fn from_proto_dataframe_write_options(pbo: Option<&proto::DataFrameWr
         .with_partition_by(pbo.partition_by.clone());
 
     if let Some(sort_by) = pbo.sort_by.clone() {
-        dfo = dfo.with_sort_by(from_proto_file_sort_order(&[sort_by])?.first().ok_or(anyhow!("Invalid sort by"))?.to_vec());
+        dfo = dfo.with_sort_by(from_proto_file_sort_order(&[sort_by])?.first().ok_or(anyhow!("Invalid sort by"))?.clone());
     }
 
     Ok(dfo)

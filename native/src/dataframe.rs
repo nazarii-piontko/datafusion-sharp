@@ -362,7 +362,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     let path = ffi_cstr_to_string!(path_ptr);
 
     let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes.as_opt_slice()
-        .map(|b| proto::DataFrameWriteOptions::decode(b)).transpose() else { return crate::ErrorCode::InvalidArgument };
+        .map(proto::DataFrameWriteOptions::decode).transpose() else { return crate::ErrorCode::InvalidArgument };
     let Ok(dataframe_write_options) = mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref()) else { return crate::ErrorCode::InvalidArgument };
 
     let Ok(csv_write_options) = csv_write_options_bytes.as_opt_slice()
@@ -406,7 +406,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
     let path = ffi_cstr_to_string!(path_ptr);
 
     let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes.as_opt_slice()
-        .map(|b| proto::DataFrameWriteOptions::decode(b)).transpose() else { return crate::ErrorCode::InvalidArgument };
+        .map(proto::DataFrameWriteOptions::decode).transpose() else { return crate::ErrorCode::InvalidArgument };
     let Ok(dataframe_write_options) = mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref()) else { return crate::ErrorCode::InvalidArgument };
 
     let Ok(json_write_options) = json_write_options_bytes.as_opt_slice()
