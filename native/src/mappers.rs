@@ -83,6 +83,30 @@ pub(crate) fn from_proto_json_read_options<'a>(
 }
 
 #[warn(clippy::field_reassign_with_default)]
+pub(crate) fn from_proto_parquet_read_options<'a>(
+    pbo: Option<&'a proto::ParquetReadOptions>,
+    schema: Option<&'a Schema>
+) -> Result<datafusion::prelude::ParquetReadOptions<'a>> {
+    let mut dfo = datafusion::prelude::ParquetReadOptions::default();
+    let Some(pbo) = pbo else { return Ok(dfo) };
+
+    dfo.schema = schema;
+    if let Some(file_extension) = pbo.file_extension.as_ref() && !file_extension.is_empty() {
+        dfo.file_extension = std::str::from_utf8(file_extension)?;
+    }
+    dfo.table_partition_cols = from_proto_table_partition_cols(&pbo.table_partition_cols)?;
+    if let Some(parquet_pruning) = pbo.parquet_pruning {
+        dfo.parquet_pruning = Some(parquet_pruning);
+    }
+    if let Some(skip_metadata) = pbo.skip_metadata {
+        dfo.skip_metadata = Some(skip_metadata);
+    }
+    dfo.file_sort_order = from_proto_file_sort_order(&pbo.file_sort_order)?;
+
+    Ok(dfo)
+}
+
+#[warn(clippy::field_reassign_with_default)]
 pub(crate) fn from_proto_dataframe_write_options(pbo: Option<&proto::DataFrameWriteOptions>) -> Result<datafusion::dataframe::DataFrameWriteOptions> {
     let dfo = datafusion::dataframe::DataFrameWriteOptions::default();
     let Some(pbo) = pbo else { return Ok(dfo) };

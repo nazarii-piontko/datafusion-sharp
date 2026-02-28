@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package datafusion_sharp_proto;
+
+import "vendor/datafusion_common.proto";
+import "vendor/datafusion.proto";
+
+option csharp_namespace = "DataFusionSharp.Proto";
+
+// Options for reading Parquet files.
+message ParquetReadOptions {
+  // Optional schema. If unset, infer from file metadata.
+  optional datafusion_common.Schema schema = 1;
+
+  // File extension. If unset, default is ".parquet".
+  optional bytes file_extension = 2;
+
+  // Partition columns for hive-style partitioned reads. Empty if non-partitioned read.
+  repeated datafusion.PartitionColumn table_partition_cols = 3;
+
+  // Whether parquet reader should use the predicate to prune row groups.
+  optional bool parquet_pruning = 4;
+
+  // Whether the parquet reader should skip any metadata in the file schema.
+  optional bool skip_metadata = 5;
+
+  // Indicates how the file is sorted (Vec<Vec<SortExpr>>)
+  repeated datafusion.SortExprNodeCollection file_sort_order = 6;
+}

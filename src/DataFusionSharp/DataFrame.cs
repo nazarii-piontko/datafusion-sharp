@@ -3,6 +3,7 @@ using Apache.Arrow;
 using DataFusionSharp.Formats;
 using DataFusionSharp.Formats.Csv;
 using DataFusionSharp.Formats.Json;
+using DataFusionSharp.Formats.Parquet;
 using DataFusionSharp.Interop;
 
 namespace DataFusionSharp;
@@ -203,14 +204,21 @@ public sealed partial class DataFrame : IDisposable
     /// Writes the DataFrame contents to a Parquet file.
     /// </summary>
     /// <param name="path">The output file path.</param>
+    /// <param name="dataFrameWriteOptions">Optional DataFrame writing options.</param>
+    /// <param name="parquetWriteOptions">Optional Parquet writing options.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteParquetAsync(string path)
+    public Task WriteParquetAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, ParquetWriteOptions? parquetWriteOptions = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        
+
+        using var dataFrameOptionsData = PinnedProtobufData.FromMessage(dataFrameWriteOptions?.ToProto());
+        using var parquetOptionsData = PinnedProtobufData.FromMessage(parquetWriteOptions?.ToProto());
+
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteParquet(_handle, path, GenericCallbacks.CallbackForVoidHandle, id);
+        var result = NativeMethods.DataFrameWriteParquet(_handle, path,
+            dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(),
+            GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
