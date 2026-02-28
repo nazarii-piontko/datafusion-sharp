@@ -18,11 +18,12 @@
 |                  | Execute SQL queries                          | ✅      | Returns DataFrame, supports parameters            |
 | **Data Sources** | CSV read                                     | ✅     |                                                   |
 |                  | CSV write                                    | ✅     |                                                   |
-|                  | Parquet read                                 | 🟡     | Basic, no options exposed                         |
-|                  | Parquet write                                | 🟡     | Basic, no options exposed                         |
+|                  | Parquet read                                 | ✅     |                                                   |
+|                  | Parquet write                                | ✅     |                                                   |
 |                  | JSON read                                    | ✅     |                                                   |
 |                  | JSON write                                   | ✅     |                                                   |
 |                  | In-memory tables                             | ❌      |                                                   |
+|                  | Object Store                                 | ❌      |                                                   |
 | **DataFrame**    | Count rows                                   | ✅      | `CountAsync()`                                    |
 |                  | Get schema                                   | ✅      | `GetSchemaAsync()` → Arrow Schema                 |
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches                  |
