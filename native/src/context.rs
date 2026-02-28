@@ -198,12 +198,14 @@ pub unsafe extern "C" fn datafusion_context_register_json(
 /// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
 /// - `table_ref_ptr` must be a valid null-terminated UTF-8 string
 /// - `table_path_ptr` must be a valid null-terminated UTF-8 string
+/// - `parquet_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `ParquetReadOptions`, or null
 /// - `callback` must be valid to call from any thread
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_register_parquet(
     context_ptr: *mut SessionContextWrapper,
     table_ref_ptr: *const std::ffi::c_char,
     table_path_ptr: *const std::ffi::c_char,
+    parquet_options_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> ErrorCode {
@@ -211,15 +213,42 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
+    let parquet_options_proto = match parquet_options_bytes.as_opt_slice() {
+        Some(b) => match proto::ParquetReadOptions::decode(b) {
+            Ok(opts) => Some(opts),
+            Err(_) => return ErrorCode::InvalidArgument
+        },
+        None => None
+    };
+
     dev_msg!("Registering Parquet table '{}' from path '{}'", table_ref, table_path);
 
     context.runtime.spawn(async move {
-        let result = context.inner
-            .register_parquet(&table_ref, &table_path, datafusion::prelude::ParquetReadOptions::default())
-            .await
-            .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e));
+        let schema_opt = match mappers::from_proto_schema(
+            parquet_options_proto.as_ref().and_then(|o| o.schema.as_ref())
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, format!("Failed to parse Parquet schema from options: {e}"));
+                crate::invoke_callback_error(&error_info, callback, user_data);
+                return;
+            }
+        };
 
-        crate::invoke_callback(result, callback, user_data);
+        match mappers::from_proto_parquet_read_options(parquet_options_proto.as_ref(), schema_opt.as_ref()) {
+            Ok(opts) => {
+                let result = context.inner
+                    .register_parquet(&table_ref, &table_path, opts)
+                    .await
+                    .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e));
+
+                crate::invoke_callback(result, callback, user_data);
+            },
+            Err(e) => {
+                let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, format!("Failed to convert Parquet options: {e}"));
+                crate::invoke_callback_error(&error_info, callback, user_data);
+            }
+        }
         dev_msg!("Finished registering Parquet table '{}' from path '{}'", table_ref, table_path);
     });
 

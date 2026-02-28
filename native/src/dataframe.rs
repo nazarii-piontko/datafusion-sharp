@@ -439,23 +439,37 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `path_ptr` must be a valid null-terminated UTF-8 string
+/// - `dataframe_write_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `DataFrameWriteOptions`, or null
+/// - `parquet_write_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `TableParquetOptions`, or null
 /// - `callback` must be valid to call from any thread
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
     df_ptr: *mut DataFrameWrapper,
     path_ptr: *const std::ffi::c_char,
+    dataframe_write_options_bytes: crate::BytesData,
+    parquet_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> crate::ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
+    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes.as_opt_slice()
+        .map(proto::DataFrameWriteOptions::decode).transpose() else { return crate::ErrorCode::InvalidArgument };
+    let Ok(dataframe_write_options) = mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref()) else { return crate::ErrorCode::InvalidArgument };
+
+    let Ok(parquet_write_options) = parquet_write_options_bytes.as_opt_slice()
+        .map(|b| datafusion_proto::protobuf::TableParquetOptions::decode(b)
+            .map(|pbo| datafusion::common::config::TableParquetOptions::from(&pbo))
+        )
+        .transpose() else { return crate::ErrorCode::InvalidArgument };
+
     dev_msg!("Executing write_parquet on DataFrame: {:p} to path: {}", df_ptr, path);
 
     df_wrapper.runtime.spawn(async move {
         let df = df_wrapper.inner.clone();
         let result = df
-            .write_parquet(&path, datafusion::dataframe::DataFrameWriteOptions::default(), None)
+            .write_parquet(&path, dataframe_write_options, parquet_write_options)
             .await
             .map_err(|e| crate::ErrorInfo::new(crate::ErrorCode::DataFrameError, e));
 
