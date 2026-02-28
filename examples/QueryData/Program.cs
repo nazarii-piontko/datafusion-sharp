@@ -32,10 +32,11 @@ using var df = await context.SqlAsync(
     FROM orders AS o
         JOIN customers AS c ON o.customer_id = c.customer_id
         JOIN products AS p ON o.product_id = p.product_id
-    WHERE o.order_status = 'Completed'
+    WHERE o.order_status = $order_status
     GROUP BY c.customer_name, p.category
     ORDER BY c.customer_name
-    """);
+    """,
+    [("order_status", "Completed")]);
 
 Console.WriteLine("=== Query Results ===");
 Console.WriteLine(await df.ToStringAsync());
