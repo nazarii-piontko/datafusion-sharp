@@ -86,6 +86,8 @@ await foreach (var batch in stream)
     ... // Process streamed RecordBatch...
 ```
 
+See [**examples/**](examples) for more details.
+
 ## Requirements
 
 - .NET 8.0 or later
