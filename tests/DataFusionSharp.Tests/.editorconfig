@@ -7,3 +7,5 @@ dotnet_diagnostic.ca1812.severity = none # Avoid uninstantiated internal classes
 dotnet_diagnostic.ca1861.severity = none # Avoid constant arrays as arguments
 dotnet_diagnostic.ca2007.severity = none # Do not directly await a Task without calling ConfigureAwait
 dotnet_diagnostic.ca5394.severity = none # Do not use insecure randomness
+dotnet_diagnostic.xUnit1044.severity = none # The type argument is not serializable
+dotnet_diagnostic.xUnit1045.severity = none # The type argument might not be serializable
