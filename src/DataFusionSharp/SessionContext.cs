@@ -109,24 +109,70 @@ public sealed partial class SessionContext : IDisposable
         }
         return tcs.Task;
     }
-    
+
     /// <summary>
     /// Executes a SQL query and returns the result as a DataFrame.
     /// </summary>
     /// <param name="sql">The SQL query to execute.</param>
     /// <returns>A task containing the resulting <see cref="DataFrame"/>.</returns>
     /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
+    /// <example>
+    /// <code language="csharp">
+    /// var df = await session.SqlAsync("SELECT * FROM my_table");
+    /// </code>
+    /// </example>
     public async Task<DataFrame> SqlAsync(string sql)
     {
+        ArgumentNullException.ThrowIfNull(sql);
+        
         var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
-        var result = NativeMethods.ContextSql(_handle, sql, CallbackForSqlAsyncHandle, id);
+        var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, CallbackForSqlAsyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to start executing SQL query");
         }
-        
+
         var dataFrameSafeHandle = await tcs.Task.ConfigureAwait(false);
+        return new DataFrame(this, dataFrameSafeHandle);
+    }
+    
+    /// <summary>
+    /// Executes a SQL query with named parameters and returns the result as a DataFrame.
+    /// </summary>
+    /// <param name="sql">The SQL query to execute, which can contain named parameter placeholders (e.g., $paramName).</param>
+    /// <param name="parameters">A named parameters to bind to the query.</param>
+    /// <returns>A task containing the resulting <see cref="DataFrame"/>.</returns>
+    /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
+    /// <example>
+    /// <code language="csharp">
+    /// var df = await session.SqlAsync("SELECT * FROM my_table WHERE id = $id", [("id", 123)]);
+    /// </code>
+    /// </example>
+    public async Task<DataFrame> SqlAsync(string sql, IEnumerable<SqlNamedParameter> parameters)
+    {
+        ArgumentNullException.ThrowIfNull(sql);
+        ArgumentNullException.ThrowIfNull(parameters);
+        
+        var parametersProto = new Proto.SqlParameters();
+        foreach (var param in parameters)
+            parametersProto.Values.Add(param.Name, param.ProtoValue);
+
+        Task<DataFrameSafeHandle> task;
+        using (var sqlParametersData = PinnedProtobufData.FromMessage(parametersProto))
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
+            var result = NativeMethods.ContextSql(_handle, sql, sqlParametersData.ToBytesData(), CallbackForSqlAsyncHandle, id);
+            if (result != DataFusionErrorCode.Ok)
+            {
+                AsyncOperations.Instance.Abort(id);
+                throw new DataFusionException(result, "Failed to start executing SQL query");
+            }
+            
+            task = tcs.Task;
+        }
+        
+        var dataFrameSafeHandle = await task.ConfigureAwait(false);
         return new DataFrame(this, dataFrameSafeHandle);
     }
     
@@ -152,4 +198,58 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA2000
         AsyncOperations.Instance.CompleteWithResult(handle, dataFrameSafeHandle);
     }
+}
+
+/// <summary>
+/// Represents a named parameter to be passed to a SQL query. The parameter name should match the placeholder used in the SQL string (e.g., $paramName).
+/// </summary>
+public readonly record struct SqlNamedParameter
+{
+    /// <summary>
+    /// Gets the name of the parameter.
+    /// </summary>
+    public string Name { get; }
+
+    /// <summary>
+    /// Gets the value of the parameter.
+    /// </summary>
+    public object? Value { get; }
+    
+    /// <summary>
+    /// Gets the value of the parameter converted to a protobuf ScalarValue.
+    /// </summary>
+    internal Proto.ScalarValue ProtoValue { get; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlNamedParameter"/> struct with the specified name and value.
+    /// </summary>
+    /// <param name="name">The name of the parameter, without the leading '$' symbol.</param>
+    /// <param name="value">The value of the parameter. Must be a primitive type or byte array.</param>
+    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
+    public SqlNamedParameter(string name, object? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (name.StartsWith('$'))
+            throw new ArgumentException("Parameter name should not start with '$' symbol", nameof(name));
+
+        Name = name;
+        Value = value;
+        ProtoValue = value.ToProtoScalarValue();
+    }
+    
+    /// <summary>
+    /// Implicit conversion from a tuple of (string Name, object? Value) to a <see cref="SqlNamedParameter"/>.
+    /// </summary>
+    /// <param name="tuple">A tuple containing the parameter name and value.</param>
+    /// <returns>>A new instance of <see cref="SqlNamedParameter"/> initialized with the provided name and value.</returns>
+    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
+    public static implicit operator SqlNamedParameter((string Name, object? Value) tuple) => new(tuple.Name, tuple.Value);
+
+    /// <summary>
+    /// Converts a tuple of (string Name, object? Value) to a <see cref="SqlNamedParameter"/>.
+    /// </summary>
+    /// <param name="tuple">A tuple containing the parameter name and value.</param>
+    /// <returns>>A new instance of <see cref="SqlNamedParameter"/> initialized with the provided name and value.</returns>
+    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
+    public static SqlNamedParameter ToSqlNamedParameter((string Name, object? Value) tuple) => new(tuple.Name, tuple.Value);
 }

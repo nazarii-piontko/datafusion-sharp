@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use anyhow::{anyhow, bail, Result};
 
 use datafusion::arrow::datatypes::{DataType, Schema};
-
+use datafusion::common::{ParamValues, ScalarValue};
 use datafusion::datasource::file_format::file_compression_type::FileCompressionType;
 use datafusion::logical_expr::SortExpr;
 use datafusion::prelude::CsvReadOptions;
@@ -183,4 +184,16 @@ fn from_proto_insert_op(v: i32) -> Result<datafusion::logical_expr::dml::InsertO
     };
 
     Ok(df)
+}
+
+pub(crate) fn from_proto_sql_params(params: &proto::SqlParameters) -> Result<ParamValues> {
+    let map: HashMap<String, ScalarValue> = params.values.iter()
+        .map(|(key, proto_val)| {
+            let scalar = ScalarValue::try_from(proto_val)
+                .map_err(|e| anyhow!("Failed to convert parameter '{key}': {e}"))?;
+            Ok((key.to_owned(), scalar))
+        })
+        .collect::<Result<_>>()?;
+
+    Ok(map.into())
 }

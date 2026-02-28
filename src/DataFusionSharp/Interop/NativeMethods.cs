@@ -40,8 +40,8 @@ internal static partial class NativeMethods
     public static partial DataFusionErrorCode ContextDeregisterTable(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, IntPtr callback, ulong userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_sql")]
-    public static partial DataFusionErrorCode ContextSql(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, IntPtr callback, ulong userData);
-    
+    public static partial DataFusionErrorCode ContextSql(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, BytesData sqlParametersData, IntPtr callback, ulong userData); 
+
     // DataFrame
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_destroy")]

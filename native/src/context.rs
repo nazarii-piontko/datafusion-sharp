@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use prost::Message;
 
+use crate::proto;
+
 use crate::{
     mappers,
     ErrorCode,
@@ -83,7 +85,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
     let csv_options_proto = match csv_options_bytes.as_opt_slice() {
-        Some(b) => match crate::proto::CsvReadOptions::decode(b) {
+        Some(b) => match proto::CsvReadOptions::decode(b) {
             Ok(opts) => Some(opts),
             Err(_) => return ErrorCode::InvalidArgument
         },
@@ -147,7 +149,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
     let json_options_proto = match json_options_bytes.as_opt_slice() {
-        Some(b) => match crate::proto::JsonReadOptions::decode(b) {
+        Some(b) => match proto::JsonReadOptions::decode(b) {
             Ok(opts) => Some(opts),
             Err(_) => return ErrorCode::InvalidArgument
         },
@@ -269,11 +271,17 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
 pub unsafe extern "C" fn datafusion_context_sql(
     context_ptr: *mut SessionContextWrapper,
     sql_ptr: *const std::ffi::c_char,
+    sql_parameters_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let sql = ffi_cstr_to_string!(sql_ptr);
+
+    let Ok(sql_parameters_proto) = sql_parameters_bytes.as_opt_slice()
+        .map(proto::SqlParameters::decode).transpose() else { return ErrorCode::InvalidArgument };
+    let Ok(sql_parameters) = sql_parameters_proto.as_ref()
+        .map(mappers::from_proto_sql_params).transpose() else { return ErrorCode::InvalidArgument };
 
     dev_msg!("Executing SQL query: {}", sql);
 
@@ -281,9 +289,13 @@ pub unsafe extern "C" fn datafusion_context_sql(
         let result = context.inner
             .sql(&sql)
             .await
-            .map(|dataframe| {
-                let data_frame = Box::new(crate::DataFrameWrapper::new(Arc::clone(&context.runtime), dataframe));
-                Box::into_raw(data_frame)
+            .and_then(|df| {
+                let df = match sql_parameters {
+                    Some(p) => df.with_param_values(p),
+                    _ => Ok(df)
+                }?;
+
+                Ok(Box::into_raw(Box::new(crate::DataFrameWrapper::new(Arc::clone(&context.runtime), df))))
             })
             .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e));
 

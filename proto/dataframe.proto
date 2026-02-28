@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package datafusion_sharp_proto;
 
+import "vendor/datafusion_common.proto";
 import "vendor/datafusion.proto";
 
 option csharp_namespace = "DataFusionSharp.Proto";
@@ -19,4 +20,8 @@ message DataFrameWriteOptions {
   
   // Sets which columns should be used for sorting the output by name. Can be set to empty for non-sorted writes.
   datafusion.SortExprNodeCollection sort_by = 4;
+}
+
+message SqlParameters {
+  map<string, datafusion_common.ScalarValue> values = 1;
 }

@@ -115,9 +115,63 @@ public sealed class SessionContextTests : IDisposable
 
         // Act
         await context.DeregisterTableAsync("non_existent_table");
-        
+
         // Assert
         Assert.True(true, "Successfully deregistered a non-existent table without throwing an exception");
+    }
+
+    [Fact]
+    public async Task SqlAsync_WithNamedParameters_ReturnsCorrectResult()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+
+        // Act
+        using var df = await context.SqlAsync(
+            "SELECT $a + $b AS result",
+            [("a", 1L), ("b", 2L)]
+        );
+        using var collected = await df.CollectAsync();
+
+        // Assert
+        Assert.Equal(3L, collected.Batches[0].Column("result").AsInt64().First());
+    }
+
+    [Fact]
+    public async Task SqlAsync_WithNamedParametersAndDifferentTypes_ReturnsCorrectResult()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+
+        // Act
+        using var df = await context.SqlAsync(
+            "SELECT $name AS greeting, $pi AS pi_value",
+            [("name", "hello"), ("pi", 3.14) ]
+        );
+        using var collected = await df.CollectAsync();
+
+        // Assert
+        var batch = collected.Batches[0];
+        Assert.Equal("hello", batch.Column("greeting").AsString().First());
+        Assert.Equal(3.14, batch.Column("pi_value").AsDouble().First());
+    }
+
+    [Fact]
+    public async Task SqlAsync_WithMissingParameter_Throws()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<DataFusionException>(async () =>
+        {
+            using var df = await context.SqlAsync(
+                "SELECT $value_a + $value_b AS result",
+                [("value_a", 1L)] // Missing parameter $value_b
+            );
+        });
+        Assert.Contains("$value_b", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("$value_a", ex.Message, StringComparison.Ordinal);
     }
 
     public void Dispose()
