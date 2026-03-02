@@ -76,7 +76,7 @@ jobs:
           cp native/target/${{ matrix.target }}/release/*.dylib artifacts/native/target/${{ matrix.target }}/release/
 
       - name: Upload Native Library as Artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.target }}
           path: artifacts/**
@@ -109,7 +109,7 @@ jobs:
         run: dotnet pack src/DataFusionSharp/DataFusionSharp.csproj -c Release -p:BuildNativeLib=false -o ./packages
 
       - name: Upload NuGet Package
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nuget-package
           path: packages/*
