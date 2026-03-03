@@ -1,3 +1,5 @@
+using Apache.Arrow.Types;
+
 namespace DataFusionSharp.Tests;
 
 public class SqlNamedParameterTests
@@ -14,12 +16,53 @@ public class SqlNamedParameterTests
         { 4294967295U, new Proto.ScalarValue { Uint32Value = 4294967295 } },
         { 789L, new Proto.ScalarValue { Int64Value = 789L } },
         { 18446744073709551615UL, new Proto.ScalarValue { Uint64Value = 18446744073709551615 } },
+        { (Half)1.5, new Proto.ScalarValue { Float32Value = 1.5f } },
         { 3.14f, new Proto.ScalarValue { Float32Value = 3.14f } },
         { 2.71828, new Proto.ScalarValue { Float64Value = 2.71828 } },
         { "hello", new Proto.ScalarValue { Utf8Value = "hello" } },
-        { new byte[] { 0x01, 0x02 }, new Proto.ScalarValue { BinaryValue = Google.Protobuf.ByteString.CopyFrom(0x01, 0x02) } }
+        { new byte[] { 0x01, 0x02 }, new Proto.ScalarValue { BinaryValue = Google.Protobuf.ByteString.CopyFrom(0x01, 0x02) } },
+        { new DateOnly(2024, 1, 15), new Proto.ScalarValue { Date32Value = new DateOnly(2024, 1, 15).DayNumber - new DateOnly(1970, 1, 1).DayNumber } },
+        {
+            new DateTime(2024, 6, 15, 12, 30, 0, DateTimeKind.Utc),
+            new Proto.ScalarValue
+            {
+                TimestampValue = new Proto.ScalarTimestampValue
+                {
+                    TimeMicrosecondValue = (new DateTime(2024, 6, 15, 12, 30, 0, DateTimeKind.Utc) - DateTime.UnixEpoch).Ticks / TimeSpan.TicksPerMicrosecond,
+                    Timezone = "UTC"
+                }
+            }
+        },
+        {
+            new DateTimeOffset(2024, 6, 15, 12, 30, 0, TimeSpan.Zero),
+            new Proto.ScalarValue
+            {
+                TimestampValue = new Proto.ScalarTimestampValue
+                {
+                    TimeMicrosecondValue = (new DateTimeOffset(2024, 6, 15, 12, 30, 0, TimeSpan.Zero).UtcDateTime - DateTime.UnixEpoch).Ticks / TimeSpan.TicksPerMicrosecond,
+                    Timezone = "UTC"
+                }
+            }
+        },
+        {
+            new TimeOnly(14, 30, 0),
+            new Proto.ScalarValue
+            {
+                Time64Value = new Proto.ScalarTime64Value
+                {
+                    Time64MicrosecondValue = new TimeOnly(14, 30, 0).Ticks / TimeSpan.TicksPerMicrosecond
+                }
+            }
+        },
+        {
+            TimeSpan.FromMinutes(90),
+            new Proto.ScalarValue
+            {
+                DurationMicrosecondValue = TimeSpan.FromMinutes(90).Ticks / TimeSpan.TicksPerMicrosecond
+            }
+        },
     };
-    
+
     [Theory]
     [MemberData(nameof(ValueMappingTestData))]
     public void Constructor_WithValidValueType_ProvidesValidProto(object? value, Proto.ScalarValue expected)

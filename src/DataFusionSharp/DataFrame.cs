@@ -462,7 +462,8 @@ public readonly record struct SqlNamedParameter
     /// Initializes a new instance of the <see cref="SqlNamedParameter"/> struct with the specified name and value.
     /// </summary>
     /// <param name="name">The name of the parameter, without the leading '$' symbol.</param>
-    /// <param name="value">The value of the parameter. Must be a primitive type or byte array.</param>
+    /// <param name="value">The value of the parameter. Supported types: primitive types (bool, sbyte, byte, short, ushort, int, uint, long, ulong, Half, float, double),
+    /// date/time types (DateOnly, DateTime, DateTimeOffset, TimeOnly, TimeSpan), string, and byte[].</param>
     /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
     public SqlNamedParameter(string name, object? value)
     {
