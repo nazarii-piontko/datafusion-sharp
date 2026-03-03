@@ -85,7 +85,7 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref_mut!(df_ptr);
 
-    let Ok(sql_parameters_proto) = proto::SqlParameters::decode(sql_parameters_bytes.as_opt()) else { return ErrorCode::InvalidArgument };
+    let Ok(sql_parameters_proto) = proto::SqlParameters::decode(sql_parameters_bytes.as_slice()) else { return ErrorCode::InvalidArgument };
     let Ok(sql_parameters) = mappers::from_proto_sql_params(&sql_parameters_proto) else { return ErrorCode::InvalidArgument };
 
     match df_wrapper.clone_inner().with_param_values(sql_parameters) {
