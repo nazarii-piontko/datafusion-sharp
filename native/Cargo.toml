@@ -14,14 +14,14 @@ lto = "thin"
 panic = "unwind"
 
 [dependencies]
-anyhow = "1.0.102"
-chrono = "0.4.44"
-arrow-array = { version = "58.0.0", features = ["ffi"] }
-datafusion = "52.2.0"
-datafusion-proto = "52.2.0"
-futures = "0.3.32"
+anyhow = "1.0.101"
+chrono = "0.4.43"
+arrow-array = { version = "57.3.0", features = ["ffi"] }
+datafusion = "52.1.0"
+datafusion-proto = "52.1.0"
+futures = "0.3.31"
 prost = "0.14.3"
-tokio = { version = "1.50.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
 
 [build-dependencies]
 prost-build = "0.14.3"
