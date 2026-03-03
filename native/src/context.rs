@@ -324,7 +324,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
                     _ => Ok(df)
                 }?;
 
-                Ok(Box::into_raw(Box::new(crate::DataFrameWrapper::new(Arc::clone(&context.runtime), df))))
+                Ok(crate::dataframe_to_ptr(&context.runtime, df))
             })
             .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e));
 

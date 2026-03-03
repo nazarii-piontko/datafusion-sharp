@@ -30,7 +30,45 @@ public sealed partial class DataFrame : IDisposable
         Context = sessionContext;
         _handle = handle;
     }
-    
+
+    /// <summary>
+    /// Parameterizes DataFrame with the provided SQL parameters. This is used to bind values to parameter placeholders in the original SQL query that created this DataFrame.
+    /// </summary>
+    /// <param name="parameters">A named parameters to bind to the query.</param>
+    /// <returns>A task containing this DataFrame instance for chaining.</returns>
+    /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
+    /// <example>
+    /// <code language="csharp">
+    /// using var df = await session.SqlAsync("SELECT * FROM my_table WHERE id = $id");
+    /// await df.WithParametersAsync([("id", 123)]);
+    /// </code>
+    /// </example>
+    public async Task<DataFrame> WithParametersAsync(IEnumerable<SqlNamedParameter> parameters)
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        var parametersProto = new Proto.SqlParameters();
+        foreach (var param in parameters)
+            parametersProto.Values.Add(param.Name, param.ProtoValue);
+
+        Task task;
+        using (var sqlParametersData = PinnedProtobufData.FromMessage(parametersProto))
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create();
+            var result = NativeMethods.DataFrameWithParameters(_handle, sqlParametersData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
+            if (result != DataFusionErrorCode.Ok)
+            {
+                AsyncOperations.Instance.Abort(id);
+                throw new DataFusionException(result, "Failed to parameterize DataFrame with SQL parameters");
+            }
+            
+            task = tcs.Task;
+        }
+
+        await task.ConfigureAwait(false);
+        return this;
+    }
+
     /// <summary>
     /// Returns the number of rows in this DataFrame.
     /// </summary>
@@ -228,10 +266,47 @@ public sealed partial class DataFrame : IDisposable
         return tcs.Task;
     }
     
+    /// <summary>
+    /// Creates a deep clone of this DataFrame.
+    /// The cloned DataFrame will have its own independent query execution and lifecycle, allowing it to be used concurrently with the original DataFrame without interference.
+    /// </summary>
+    /// <returns>A task containing the cloned <see cref="DataFrame"/>.</returns>
+    /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
+    public async Task<DataFrame> CloneAsync()
+    {
+        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
+        var result = NativeMethods.DataFrameClone(_handle, CallbackForCloneHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to start cloning DataFrame");
+        }
+
+        var clonedDataFrameSafeHandle = await tcs.Task.ConfigureAwait(false);
+        return new DataFrame(Context, clonedDataFrameSafeHandle);
+    }
+    
     /// <inheritdoc />
     public void Dispose()
     {
         _handle.Dispose();
+    }
+    
+    [DataFusionSharpNativeCallback]
+    private static void CallbackForClone(IntPtr result, IntPtr error, ulong handle)
+    {
+        if (error != IntPtr.Zero)
+        {
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<DataFrameSafeHandle>(handle, ex);
+            return;
+        }
+
+        var dataFrameHandle = Marshal.ReadIntPtr(result);
+#pragma warning disable CA2000
+        var clonedDataFrameSafeHandle = new DataFrameSafeHandle(dataFrameHandle);
+#pragma warning restore CA2000
+        AsyncOperations.Instance.CompleteWithResult(handle, clonedDataFrameSafeHandle);
     }
     
     [DataFusionSharpNativeCallback]
@@ -361,6 +436,60 @@ public sealed partial class DataFrame : IDisposable
 #pragma warning restore CA2000
         AsyncOperations.Instance.CompleteWithResult(handle, ValueTuple.Create(schema, streamSafeHandle));
     }
+}
+
+/// <summary>
+/// Represents a named parameter to be passed to a SQL query. The parameter name should match the placeholder used in the SQL string (e.g., $paramName).
+/// </summary>
+public readonly record struct SqlNamedParameter
+{
+    /// <summary>
+    /// Gets the name of the parameter.
+    /// </summary>
+    public string Name { get; }
+
+    /// <summary>
+    /// Gets the value of the parameter.
+    /// </summary>
+    public object? Value { get; }
+    
+    /// <summary>
+    /// Gets the value of the parameter converted to a protobuf ScalarValue.
+    /// </summary>
+    internal Proto.ScalarValue ProtoValue { get; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlNamedParameter"/> struct with the specified name and value.
+    /// </summary>
+    /// <param name="name">The name of the parameter, without the leading '$' symbol.</param>
+    /// <param name="value">The value of the parameter. Must be a primitive type or byte array.</param>
+    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
+    public SqlNamedParameter(string name, object? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (name.StartsWith('$'))
+            throw new ArgumentException("Parameter name should not start with '$' symbol", nameof(name));
+
+        Name = name;
+        Value = value;
+        ProtoValue = value.ToProtoScalarValue();
+    }
+    
+    /// <summary>
+    /// Implicit conversion from a tuple of (string Name, object? Value) to a <see cref="SqlNamedParameter"/>.
+    /// </summary>
+    /// <param name="tuple">A tuple containing the parameter name and value.</param>
+    /// <returns>>A new instance of <see cref="SqlNamedParameter"/> initialized with the provided name and value.</returns>
+    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
+    public static implicit operator SqlNamedParameter((string Name, object? Value) tuple) => new(tuple.Name, tuple.Value);
+
+    /// <summary>
+    /// Converts a tuple of (string Name, object? Value) to a <see cref="SqlNamedParameter"/>.
+    /// </summary>
+    /// <param name="tuple">A tuple containing the parameter name and value.</param>
+    /// <returns>>A new instance of <see cref="SqlNamedParameter"/> initialized with the provided name and value.</returns>
+    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
+    public static SqlNamedParameter ToSqlNamedParameter((string Name, object? Value) tuple) => new(tuple.Name, tuple.Value);
 }
 
 /// <summary>

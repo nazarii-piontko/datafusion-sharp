@@ -209,6 +209,72 @@ public sealed class DataFrameTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task WithParametersAsync_SingleParameter_BindsCorrectly()
+    {
+        // Arrange
+        using var df = await _context.SqlAsync("SELECT $val AS result");
+
+        // Act
+        await df.WithParametersAsync([("val", 42L)]);
+        using var collected = await df.CollectAsync();
+
+        // Assert
+        Assert.Single(collected.Batches);
+        var batch = collected.Batches[0];
+        Assert.Equal(1, batch.Length);
+        Assert.Equal(42L, ((Int64Array)batch.Column("result")).GetValue(0));
+    }
+
+    [Fact]
+    public async Task CloneAsync_ReturnsIndependentCopy()
+    {
+        // Arrange
+        using var df = await _context.SqlAsync(GetIdValueTableSelectSql(5));
+
+        // Act
+        using var cloned = await df.CloneAsync();
+
+        // Assert
+        Assert.NotSame(df, cloned);
+        Assert.Same(df.Context, cloned.Context);
+
+        using var originalResult = await df.CollectAsync();
+        using var clonedResult = await cloned.CollectAsync();
+
+        var originalRows = GetRows(originalResult.Batches);
+        var clonedRows = GetRows(clonedResult.Batches);
+
+        Assert.Equal(originalRows.Count, clonedRows.Count);
+        for (var i = 0; i < originalRows.Count; i++)
+        {
+            Assert.Equal(originalRows[i].Id, clonedRows[i].Id);
+            Assert.Equal(originalRows[i].Value, clonedRows[i].Value, precision: 5);
+        }
+    }
+
+    [Fact]
+    public async Task CloneAsync_WithDifferentParameters_ProducesDifferentResults()
+    {
+        // Arrange
+        using var df = await _context.SqlAsync("SELECT $val AS result");
+        using var cloned = await df.CloneAsync();
+
+        // Act
+        await df.WithParametersAsync([("val", 1L)]);
+        await cloned.WithParametersAsync([("val", 2L)]);
+
+        using var originalResult = await df.CollectAsync();
+        using var clonedResult = await cloned.CollectAsync();
+
+        // Assert
+        var originalValue = ((Int64Array)originalResult.Batches[0].Column("result")).GetValue(0);
+        var clonedValue = ((Int64Array)clonedResult.Batches[0].Column("result")).GetValue(0);
+
+        Assert.Equal(1L, originalValue);
+        Assert.Equal(2L, clonedValue);
+    }
+
     public void Dispose()
     {
         _context.Dispose();
