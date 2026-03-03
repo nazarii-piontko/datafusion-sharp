@@ -48,9 +48,9 @@ pub unsafe extern "C" fn datafusion_dataframe_destroy(df_ptr: *mut DataFrameWrap
 }
 
 /// Clones a `DataFrame`, creating a new independent instance.
-/// 
+///
 /// This is a synchronous operation. The callback is invoked immediately with a pointer to the new `DataFrameWrapper`.
-/// 
+///
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `callback` must be valid to call from the current thread
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
         Err(e) => {
             crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::DataFrameError, e), callback, user_data);
         }
-    };
+    }
 
     ErrorCode::Ok
 }
@@ -552,7 +552,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
 }
 
 pub(crate) fn dataframe_to_ptr(runtime: &crate::RuntimeHandle, df: datafusion::prelude::DataFrame) -> *mut DataFrameWrapper {
-    Box::into_raw(Box::new(DataFrameWrapper::new(Arc::clone(&runtime), df)))
+    Box::into_raw(Box::new(DataFrameWrapper::new(Arc::clone(runtime), df)))
 }
 
 /// Helper function to convert a `DataFrame` schema to FFI format.
