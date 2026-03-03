@@ -49,23 +49,18 @@ pub unsafe extern "C" fn datafusion_dataframe_destroy(df_ptr: *mut DataFrameWrap
 
 /// Clones a `DataFrame`, creating a new independent instance.
 ///
-/// This is a synchronous operation. The callback is invoked immediately with a pointer to the new `DataFrameWrapper`.
-///
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
-/// - `callback` must be valid to call from the current thread
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_clone(
-    df_ptr: *mut DataFrameWrapper,
-    callback: crate::Callback,
-    user_data: u64
-) -> ErrorCode {
-    let df_wrapper = ffi_ref!(df_ptr);
+    df_ptr: *mut DataFrameWrapper
+) -> *mut DataFrameWrapper {
+    if df_ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let df_wrapper = unsafe { &*df_ptr };
 
-    let new_df_ptr = dataframe_to_ptr(df_wrapper.runtime(), df_wrapper.clone_inner());
-    crate::invoke_callback_success(new_df_ptr, callback, user_data);
-
-    ErrorCode::Ok
+    dataframe_to_ptr(df_wrapper.runtime(), df_wrapper.clone_inner())
 }
 
 /// Creates a new `DataFrame` by applying the given SQL parameters to the existing `DataFrame`.

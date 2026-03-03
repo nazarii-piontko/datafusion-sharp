@@ -16,7 +16,7 @@ namespace DataFusionSharp;
 /// is called (e.g., <see cref="CollectAsync"/>, <see cref="ExecuteStreamAsync"/>, or one of the Write methods).
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
-public sealed partial class DataFrame : IDisposable
+public sealed partial class DataFrame : IDisposable, ICloneable
 {
     private readonly DataFrameSafeHandle _handle;
 
@@ -270,21 +270,15 @@ public sealed partial class DataFrame : IDisposable
     /// Creates a deep clone of this DataFrame.
     /// The cloned DataFrame will have its own independent query execution and lifecycle, allowing it to be used concurrently with the original DataFrame without interference.
     /// </summary>
-    /// <returns>A task containing the cloned <see cref="DataFrame"/>.</returns>
-    /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public async Task<DataFrame> CloneAsync()
+    /// <returns>A cloned <see cref="DataFrame"/>.</returns>
+    public DataFrame Clone()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
-        var result = NativeMethods.DataFrameClone(_handle, CallbackForCloneHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start cloning DataFrame");
-        }
-
-        var clonedDataFrameSafeHandle = await tcs.Task.ConfigureAwait(false);
+        var clonedDataFrame = NativeMethods.DataFrameClone(_handle);
+        var clonedDataFrameSafeHandle = new DataFrameSafeHandle(clonedDataFrame);
         return new DataFrame(Context, clonedDataFrameSafeHandle);
     }
+    
+    object ICloneable.Clone() => Clone();
     
     /// <inheritdoc />
     public void Dispose()

@@ -233,7 +233,7 @@ public sealed class DataFrameTests : IDisposable
         using var df = await _context.SqlAsync(GetIdValueTableSelectSql(5));
 
         // Act
-        using var cloned = await df.CloneAsync();
+        using var cloned = df.Clone();
 
         // Assert
         Assert.NotSame(df, cloned);
@@ -258,7 +258,7 @@ public sealed class DataFrameTests : IDisposable
     {
         // Arrange
         using var df = await _context.SqlAsync("SELECT $val AS result");
-        using var cloned = await df.CloneAsync();
+        using var cloned = df.Clone();
 
         // Act
         await df.WithParametersAsync([("val", 1L)]);

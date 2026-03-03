@@ -48,7 +48,7 @@ internal static partial class NativeMethods
     public static partial DataFusionErrorCode DataFrameDestroy(IntPtr dataFrameHandle);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_clone")]
-    public static partial DataFusionErrorCode DataFrameClone(DataFrameSafeHandle dataFrameHandle, IntPtr callback, ulong userData);
+    public static partial IntPtr DataFrameClone(DataFrameSafeHandle dataFrameHandle);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_with_parameters")]
     public static partial DataFusionErrorCode DataFrameWithParameters(DataFrameSafeHandle dataFrameHandle, BytesData sqlParametersData, IntPtr callback, ulong userData); 
