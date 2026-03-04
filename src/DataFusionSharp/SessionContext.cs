@@ -153,20 +153,16 @@ public sealed partial class SessionContext : IDisposable
     /// var df = await session.SqlAsync("SELECT * FROM my_table WHERE id = $id", [("id", 123)]);
     /// </code>
     /// </example>
-    public async Task<DataFrame> SqlAsync(string sql, IEnumerable<SqlNamedParameter> parameters)
+    public async Task<DataFrame> SqlAsync(string sql, IEnumerable<NamedScalarValueAndMetadata> parameters)
     {
         ArgumentNullException.ThrowIfNull(sql);
         ArgumentNullException.ThrowIfNull(parameters);
         
-        var parametersProto = new Proto.SqlParameters();
-        foreach (var param in parameters)
-            parametersProto.Values.Add(param.Name, param.ProtoValue);
-
         Task<DataFrameSafeHandle> task;
-        using (var sqlParametersData = PinnedProtobufData.FromMessage(parametersProto))
+        using (var paramValuesData = PinnedProtobufData.FromMessage(parameters.ToProto()))
         {
             var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
-            var result = NativeMethods.ContextSql(_handle, sql, sqlParametersData.ToBytesData(), CallbackForSqlAsyncHandle, id);
+            var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), CallbackForSqlAsyncHandle, id);
             if (result != DataFusionErrorCode.Ok)
             {
                 AsyncOperations.Instance.Abort(id);

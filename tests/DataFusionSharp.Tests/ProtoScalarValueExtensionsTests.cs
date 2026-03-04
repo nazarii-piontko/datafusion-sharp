@@ -164,11 +164,9 @@ public sealed class ProtoScalarValueExtensionsTests
         Assert.Equal(0, proto.NullValue.DECIMAL.Scale);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(39)]
-    public void Decimal128_InvalidPrecision_Throws(byte precision)
-        => Assert.Throws<ArgumentOutOfRangeException>(() => new ScalarValue.Decimal128(null, precision));
+    [Fact]
+    public void Decimal128_InvalidPrecision_Throws()
+        => Assert.Throws<ArgumentOutOfRangeException>(() => new ScalarValue.Decimal128(null, ScalarValue.Decimal128.MaxPrecision + 1));
 
     #endregion
 }

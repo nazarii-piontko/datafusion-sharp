@@ -40,7 +40,7 @@ internal static partial class NativeMethods
     public static partial DataFusionErrorCode ContextDeregisterTable(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, IntPtr callback, ulong userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_sql")]
-    public static partial DataFusionErrorCode ContextSql(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, BytesData sqlParametersData, IntPtr callback, ulong userData);
+    public static partial DataFusionErrorCode ContextSql(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, BytesData paramValuesData, IntPtr callback, ulong userData);
 
     // DataFrame
     
@@ -51,7 +51,7 @@ internal static partial class NativeMethods
     public static partial IntPtr DataFrameClone(DataFrameSafeHandle dataFrameHandle);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_with_parameters")]
-    public static partial DataFusionErrorCode DataFrameWithParameters(DataFrameSafeHandle dataFrameHandle, BytesData sqlParametersData, IntPtr callback, ulong userData); 
+    public static partial DataFusionErrorCode DataFrameWithParameters(DataFrameSafeHandle dataFrameHandle, BytesData paramValuesData, IntPtr callback, ulong userData); 
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_count")]
     public static partial DataFusionErrorCode DataFrameCount(DataFrameSafeHandle dataFrameHandle, IntPtr callback, ulong userData);

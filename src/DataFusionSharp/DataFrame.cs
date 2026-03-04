@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Apache.Arrow;
 using DataFusionSharp.Formats;
@@ -35,38 +36,38 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// Parameterizes DataFrame with the provided SQL parameters. This is used to bind values to parameter placeholders in the original SQL query that created this DataFrame.
     /// </summary>
     /// <param name="parameters">A named parameters to bind to the query.</param>
-    /// <returns>A task containing this DataFrame instance for chaining.</returns>
+    /// <returns>A DataFrame instance for chaining.</returns>
     /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
     /// <example>
     /// <code language="csharp">
     /// using var df = await session.SqlAsync("SELECT * FROM my_table WHERE id = $id");
-    /// await df.WithParametersAsync([("id", 123)]);
+    /// df.WithParameters([("id", 123)]);
     /// </code>
     /// </example>
-    public async Task<DataFrame> WithParametersAsync(IEnumerable<SqlNamedParameter> parameters)
+    public DataFrame WithParameters(IEnumerable<NamedScalarValueAndMetadata> parameters)
     {
         ArgumentNullException.ThrowIfNull(parameters);
 
-        var parametersProto = new Proto.SqlParameters();
-        foreach (var param in parameters)
-            parametersProto.Values.Add(param.Name, param.ProtoValue);
-
-        Task task;
-        using (var sqlParametersData = PinnedProtobufData.FromMessage(parametersProto))
+        using var paramValuesData = PinnedProtobufData.FromMessage(parameters.ToProto());
+        var (id, tcs) = AsyncOperations.Instance.Create();
+        var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
+        if (result != DataFusionErrorCode.Ok)
         {
-            var (id, tcs) = AsyncOperations.Instance.Create();
-            var result = NativeMethods.DataFrameWithParameters(_handle, sqlParametersData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-            if (result != DataFusionErrorCode.Ok)
-            {
-                AsyncOperations.Instance.Abort(id);
-                throw new DataFusionException(result, "Failed to parameterize DataFrame with SQL parameters");
-            }
-            
-            task = tcs.Task;
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to parameterize DataFrame with SQL parameters");
         }
 
-        await task.ConfigureAwait(false);
-        return this;
+        switch (tcs.Task.Status)
+        {
+            case TaskStatus.RanToCompletion:
+                return this;
+            case TaskStatus.Faulted:
+                if (tcs.Task.Exception != null)
+                    ExceptionDispatchInfo.Throw(tcs.Task.Exception.InnerException ?? tcs.Task.Exception);
+                throw new DataFusionException(DataFusionErrorCode.Panic, "DataFrameWithParameters task faulted without exception");
+            default:
+                throw new DataFusionException(DataFusionErrorCode.Panic, "Unexpected asynchronous completion of DataFrameWithParameters native method");
+        }
     }
 
     /// <summary>
@@ -433,9 +434,9 @@ public sealed partial class DataFrame : IDisposable, ICloneable
 }
 
 /// <summary>
-/// Represents a named parameter to be passed to a SQL query. The parameter name should match the placeholder used in the SQL string (e.g., $paramName).
+/// Represents a named SQL parameter with its value and metadata. This is used for parameterizing SQL queries in DataFusion.
 /// </summary>
-public readonly record struct SqlNamedParameter
+public readonly record struct NamedScalarValueAndMetadata
 {
     /// <summary>
     /// Gets the name of the parameter.
@@ -445,21 +446,15 @@ public readonly record struct SqlNamedParameter
     /// <summary>
     /// Gets the value of the parameter.
     /// </summary>
-    public object? Value { get; }
+    public ScalarValueAndMetadata Value { get; }
     
     /// <summary>
-    /// Gets the value of the parameter converted to a protobuf ScalarValue.
+    /// Initializes a new instance of the <see cref="NamedScalarValueAndMetadata"/> record struct with the specified name and value.
     /// </summary>
-    internal Proto.ScalarValue ProtoValue { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SqlNamedParameter"/> struct with the specified name and value.
-    /// </summary>
-    /// <param name="name">The name of the parameter, without the leading '$' symbol.</param>
-    /// <param name="value">The value of the parameter. Supported types: primitive types (bool, sbyte, byte, short, ushort, int, uint, long, ulong, Half, float, double),
-    /// date/time types (DateOnly, DateTime, DateTimeOffset, TimeOnly, TimeSpan), string, and byte[].</param>
-    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
-    public SqlNamedParameter(string name, object? value)
+    /// <param name="name">The name of the parameter. Must not be null, empty, or whitespace, and must not start with the '$' symbol.</param>
+    /// <param name="value">The value of the parameter, including its metadata.</param>
+    /// <exception cref="ArgumentException">Thrown when invalid parameters.</exception>
+    public NamedScalarValueAndMetadata(string name, ScalarValueAndMetadata value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (name.StartsWith('$'))
@@ -467,24 +462,45 @@ public readonly record struct SqlNamedParameter
 
         Name = name;
         Value = value;
-        ProtoValue = value.ToProtoScalarValue();
     }
     
     /// <summary>
-    /// Implicit conversion from a tuple of (string Name, object? Value) to a <see cref="SqlNamedParameter"/>.
+    /// Initializes a new instance of the <see cref="NamedScalarValueAndMetadata"/> record struct with the specified name and scalar value.
     /// </summary>
-    /// <param name="tuple">A tuple containing the parameter name and value.</param>
-    /// <returns>>A new instance of <see cref="SqlNamedParameter"/> initialized with the provided name and value.</returns>
-    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
-    public static implicit operator SqlNamedParameter((string Name, object? Value) tuple) => new(tuple.Name, tuple.Value);
-
+    /// <param name="name">The name of the parameter. Must not be null, empty, or whitespace, and must not start with the '$' symbol.</param>
+    /// <param name="value">The scalar value of the parameter.</param>
+    public NamedScalarValueAndMetadata(string name, ScalarValue value)
+        : this(name, new ScalarValueAndMetadata(value))
+    {
+    }
+    
     /// <summary>
-    /// Converts a tuple of (string Name, object? Value) to a <see cref="SqlNamedParameter"/>.
+    /// Implicitly converts a tuple of (string Name, ScalarValueAndMetadata Value) to a <see cref="NamedScalarValueAndMetadata"/> record struct.
     /// </summary>
-    /// <param name="tuple">A tuple containing the parameter name and value.</param>
-    /// <returns>>A new instance of <see cref="SqlNamedParameter"/> initialized with the provided name and value.</returns>
-    /// <exception cref="ArgumentException">Thrown when the parameter name is invalid or when the value type is unsupported.</exception>
-    public static SqlNamedParameter ToSqlNamedParameter((string Name, object? Value) tuple) => new(tuple.Name, tuple.Value);
+    /// <param name="tuple">The tuple containing the name and value to convert.</param>
+    /// <returns>>A new instance of <see cref="NamedScalarValueAndMetadata"/>.</returns>
+    public static implicit operator NamedScalarValueAndMetadata((string Name, ScalarValueAndMetadata Value) tuple) => new(tuple.Name, tuple.Value);
+    
+    /// <summary>
+    /// Converts a tuple of (string Name, ScalarValueAndMetadata Value) to a <see cref="NamedScalarValueAndMetadata"/> record struct.
+    /// </summary>
+    /// <param name="tuple">The tuple containing the name and value to convert.</param>
+    /// <returns>>A new instance of <see cref="NamedScalarValueAndMetadata"/>.</returns>
+    public static NamedScalarValueAndMetadata ToNamedScalarValueAndMetadata((string Name, ScalarValueAndMetadata Value) tuple) => new(tuple.Name, tuple.Value);
+    
+    /// <summary>
+    /// Implicitly converts a tuple of (string Name, ScalarValue Value) to a <see cref="NamedScalarValueAndMetadata"/> record struct.
+    /// </summary>
+    /// <param name="tuple">The tuple containing the name and value to convert.</param>
+    /// <returns>>A new instance of <see cref="NamedScalarValueAndMetadata"/>.</returns>
+    public static implicit operator NamedScalarValueAndMetadata((string Name, ScalarValue Value) tuple) => new(tuple.Name, tuple.Value);
+    
+    /// <summary>
+    /// Converts a tuple of (string Name, ScalarValue Value) to a <see cref="NamedScalarValueAndMetadata"/> record struct.
+    /// </summary>
+    /// <param name="tuple">The tuple containing the name and value to convert.</param>
+    /// <returns>>A new instance of <see cref="NamedScalarValueAndMetadata"/>.</returns>
+    public static NamedScalarValueAndMetadata ToNamedScalarValueAndMetadata((string Name, ScalarValue Value) tuple) => new(tuple.Name, tuple.Value);
 }
 
 /// <summary>

@@ -22,10 +22,6 @@ message DataFrameWriteOptions {
   datafusion.SortExprNodeCollection sort_by = 4;
 }
 
-message SqlParameters {
-  map<string, datafusion_common.ScalarValue> values = 1;
-}
-
 message ScalarValueAndMetadata {
   datafusion_common.ScalarValue value = 1;
   map<string, string> metadata = 2;

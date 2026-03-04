@@ -216,7 +216,7 @@ public sealed class DataFrameTests : IDisposable
         using var df = await _context.SqlAsync("SELECT $val AS result");
 
         // Act
-        await df.WithParametersAsync([("val", 42L)]);
+        df.WithParameters([("val", 42L)]);
         using var collected = await df.CollectAsync();
 
         // Assert
@@ -261,8 +261,8 @@ public sealed class DataFrameTests : IDisposable
         using var cloned = df.Clone();
 
         // Act
-        await df.WithParametersAsync([("val", 1L)]);
-        await cloned.WithParametersAsync([("val", 2L)]);
+        df.WithParameters([("val", 1L)]);
+        cloned.WithParameters([("val", 2L)]);
 
         using var originalResult = await df.CollectAsync();
         using var clonedResult = await cloned.CollectAsync();

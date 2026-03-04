@@ -35,15 +35,15 @@ public abstract record ScalarValue
         /// <summary>
         /// A Boolean scalar with a null value.
         /// </summary>
-        public static Boolean Null => new(null);
-        
-        /// <summary>
-        /// Implicit conversion from bool to Boolean for convenience.
-        /// </summary>
-        /// <param name="value">The bool value to convert.</param>
-        /// <returns>>A Boolean scalar with the given value.</returns>
-        public static implicit operator Boolean(bool value) => new(value);
+        public static Boolean Null => new((bool?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from bool to Boolean for convenience.
+    /// </summary>
+    /// <param name="value">The bool value to convert.</param>
+    /// <returns>>A Boolean scalar with the given value.</returns>
+    public static implicit operator ScalarValue(bool? value) => new Boolean(value);
 
     /// <summary>
     /// 32-bit floating-point value.
@@ -53,15 +53,15 @@ public abstract record ScalarValue
         /// <summary>
         /// A Float32 scalar with a null value.
         /// </summary>
-        public static Float32 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from float to Float32 for convenience.
-        /// </summary>
-        /// <param name="value">The float value to convert.</param>
-        /// <returns>A Float32 scalar with the given value.</returns>
-        public static implicit operator Float32(float value) => new(value);
+        public static Float32 Null => new((float?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from float to Float32 for convenience.
+    /// </summary>
+    /// <param name="value">The float value to convert.</param>
+    /// <returns>A Float32 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(float? value) => new Float32(value);
 
     /// <summary>
     /// 64-bit floating-point value.
@@ -71,21 +71,31 @@ public abstract record ScalarValue
         /// <summary>
         /// A Float64 scalar with a null value.
         /// </summary>
-        public static Float64 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from double to Float64 for convenience.
-        /// </summary>
-        /// <param name="value">The double value to convert.</param>
-        /// <returns>A Float64 scalar with the given value.</returns>
-        public static implicit operator Float64(double value) => new(value);
+        public static Float64 Null => new((double?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from double to Float64 for convenience.
+    /// </summary>
+    /// <param name="value">The double value to convert.</param>
+    /// <returns>A Float64 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(double? value) => new Float64(value);
 
     /// <summary>
     /// 128-bit decimal value. Scale is inferred from <see cref="Value"/> itself.
     /// </summary>
     public sealed record Decimal128 : ScalarValue
     {
+        /// <summary>
+        /// The maximum precision for Decimal128 is 38 digits.
+        /// </summary>
+        public const byte MaxPrecision = 38;
+        
+        /// <summary>
+        /// A Decimal128 scalar with a null value.
+        /// </summary>
+        public static Decimal128 Null => new(null, MaxPrecision);
+        
         /// <summary>
         /// The decimal value, or <c>null</c> if the scalar is null.
         /// </summary>
@@ -100,15 +110,22 @@ public abstract record ScalarValue
         /// Initializes a new instance of <see cref="ScalarValue.Decimal128"/>.
         /// </summary>
         /// <param name="value">The decimal value, or <c>null</c> if the scalar is null.</param>
-        /// <param name="precision">The total number of significant digits (1–38).</param>
+        /// <param name="precision">The total number of significant digits (0–38).</param>
         public Decimal128(decimal? value, byte precision)
         {
-            if (precision is < 1 or > 38)
+            if (precision > MaxPrecision)
                 throw new ArgumentOutOfRangeException(nameof(precision), "Precision must be between 1 and 38 for Decimal128.");
             Value = value;
             Precision = precision;
         }
     }
+    
+    /// <summary>
+    /// Implicit conversion from decimal to Decimal128 for convenience.
+    /// </summary>
+    /// <param name="value">The decimal value to convert.</param>
+    /// <returns>A Decimal128 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(decimal? value) => new Decimal128(value, Decimal128.MaxPrecision);
 
     /// <summary>
     /// Signed 8-bit integer.
@@ -118,15 +135,15 @@ public abstract record ScalarValue
         /// <summary>
         /// An Int8 scalar with a null value.
         /// </summary>
-        public static Int8 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from sbyte to Int8 for convenience.
-        /// </summary>
-        /// <param name="value">The sbyte value to convert.</param>
-        /// <returns>An Int8 scalar with the given value.</returns>
-        public static implicit operator Int8(sbyte value) => new(value);
+        public static Int8 Null => new((sbyte?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from sbyte to Int8 for convenience.
+    /// </summary>
+    /// <param name="value">The sbyte value to convert.</param>
+    /// <returns>An Int8 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(sbyte? value) => new Int8(value);
 
     /// <summary>
     /// Signed 16-bit integer.
@@ -136,15 +153,15 @@ public abstract record ScalarValue
         /// <summary>
         /// An Int16 scalar with a null value.
         /// </summary>
-        public static Int16 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from short to Int16 for convenience.
-        /// </summary>
-        /// <param name="value">The short value to convert.</param>
-        /// <returns>An Int16 scalar with the given value.</returns>
-        public static implicit operator Int16(short value) => new(value);
+        public static Int16 Null => new((short?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from short to Int16 for convenience.
+    /// </summary>
+    /// <param name="value">The short value to convert.</param>
+    /// <returns>An Int16 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(short? value) => new Int16(value);
 
     /// <summary>
     /// Signed 32-bit integer.
@@ -154,15 +171,15 @@ public abstract record ScalarValue
         /// <summary>
         /// An Int32 scalar with a null value.
         /// </summary>
-        public static Int32 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from int to Int32 for convenience.
-        /// </summary>
-        /// <param name="value">The int value to convert.</param>
-        /// <returns>An Int32 scalar with the given value.</returns>
-        public static implicit operator Int32(int value) => new(value);
+        public static Int32 Null => new((int?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from int to Int32 for convenience.
+    /// </summary>
+    /// <param name="value">The int value to convert.</param>
+    /// <returns>An Int32 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(int? value) => new Int32(value);
 
     /// <summary>
     /// Signed 64-bit integer.
@@ -172,15 +189,22 @@ public abstract record ScalarValue
         /// <summary>
         /// An Int64 scalar with a null value.
         /// </summary>
-        public static Int64 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from long to Int64 for convenience.
-        /// </summary>
-        /// <param name="value">The long value to convert.</param>
-        /// <returns>An Int64 scalar with the given value.</returns>
-        public static implicit operator Int64(long value) => new(value);
+        public static Int64 Null => new((long?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from long to Int64 for convenience.
+    /// </summary>
+    /// <param name="value">The long value to convert.</param>
+    /// <returns>An Int64 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(long? value) => new Int64(value);
+    
+    /// <summary>
+    /// Implicit conversion from long to Int64 for convenience.
+    /// </summary>
+    /// <param name="value">The long value to convert.</param>
+    /// <returns>An Int64 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(long value) => new Int64(value);
 
     /// <summary>
     /// Unsigned 8-bit integer.
@@ -190,15 +214,15 @@ public abstract record ScalarValue
         /// <summary>
         /// A UInt8 scalar with a null value.
         /// </summary>
-        public static UInt8 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from byte to UInt8 for convenience.
-        /// </summary>
-        /// <param name="value">The byte value to convert.</param>
-        /// <returns>A UInt8 scalar with the given value.</returns>
-        public static implicit operator UInt8(byte value) => new(value);
+        public static UInt8 Null => new((byte?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from byte to UInt8 for convenience.
+    /// </summary>
+    /// <param name="value">The byte value to convert.</param>
+    /// <returns>A UInt8 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(byte? value) => new UInt8(value);
 
     /// <summary>
     /// Unsigned 16-bit integer.
@@ -208,15 +232,15 @@ public abstract record ScalarValue
         /// <summary>
         /// A UInt16 scalar with a null value.
         /// </summary>
-        public static UInt16 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from ushort to UInt16 for convenience.
-        /// </summary>
-        /// <param name="value">The ushort value to convert.</param>
-        /// <returns>A UInt16 scalar with the given value.</returns>
-        public static implicit operator UInt16(ushort value) => new(value);
+        public static UInt16 Null => new((ushort?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from ushort to UInt16 for convenience.
+    /// </summary>
+    /// <param name="value">The ushort value to convert.</param>
+    /// <returns>A UInt16 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(ushort? value) => new UInt16(value);
 
     /// <summary>
     /// Unsigned 32-bit integer.
@@ -226,15 +250,15 @@ public abstract record ScalarValue
         /// <summary>
         /// A UInt32 scalar with a null value.
         /// </summary>
-        public static UInt32 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from uint to UInt32 for convenience.
-        /// </summary>
-        /// <param name="value">The uint value to convert.</param>
-        /// <returns>A UInt32 scalar with the given value.</returns>
-        public static implicit operator UInt32(uint value) => new(value);
+        public static UInt32 Null => new((uint?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from uint to UInt32 for convenience.
+    /// </summary>
+    /// <param name="value">The uint value to convert.</param>
+    /// <returns>A UInt32 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(uint? value) => new UInt32(value);
 
     /// <summary>
     /// Unsigned 64-bit integer.
@@ -244,15 +268,15 @@ public abstract record ScalarValue
         /// <summary>
         /// A UInt64 scalar with a null value.
         /// </summary>
-        public static UInt64 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from ulong to UInt64 for convenience.
-        /// </summary>
-        /// <param name="value">The ulong value to convert.</param>
-        /// <returns>A UInt64 scalar with the given value.</returns>
-        public static implicit operator UInt64(ulong value) => new(value);
+        public static UInt64 Null => new((ulong?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from ulong to UInt64 for convenience.
+    /// </summary>
+    /// <param name="value">The ulong value to convert.</param>
+    /// <returns>A UInt64 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(ulong? value) => new UInt64(value);
 
     /// <summary>
     /// UTF-8 encoded string.
@@ -262,15 +286,15 @@ public abstract record ScalarValue
         /// <summary>
         /// A Utf8 scalar with a null value.
         /// </summary>
-        public static Utf8 Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from string to Utf8 for convenience.
-        /// </summary>
-        /// <param name="value">The string value to convert.</param>
-        /// <returns>An Utf8 scalar with the given value.</returns>
-        public static implicit operator Utf8(string value) => new(value);
+        public static Utf8 Null => new((string?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from string to Utf8 for convenience.
+    /// </summary>
+    /// <param name="value">The string value to convert.</param>
+    /// <returns>An Utf8 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(string value) => new Utf8(value);
 
     /// <summary>
     /// UTF-8 encoded string from view types.
@@ -302,15 +326,15 @@ public abstract record ScalarValue
         /// <summary>
         /// A Binary scalar with a null value.
         /// </summary>
-        public static Binary Null => new(null);
-
-        /// <summary>
-        /// Implicit conversion from byte array to Binary for convenience.
-        /// </summary>
-        /// <param name="value">The byte array value to convert.</param>
-        /// <returns>A Binary scalar with the given value.</returns>
-        public static implicit operator Binary(byte[] value) => new(value);
+        public static Binary Null => new((byte[]?)null);
     }
+    
+    /// <summary>
+    /// Implicit conversion from byte array to Binary for convenience.
+    /// </summary>
+    /// <param name="value">The byte array value to convert.</param>
+    /// <returns>A Binary scalar with the given value.</returns>
+    public static implicit operator ScalarValue(byte[] value) => new Binary(value);
 
     /// <summary>
     /// Binary data from view types.
@@ -379,11 +403,20 @@ public abstract record ScalarValue
         public static Date32 Null => new((int?)null);
 
         /// <inheritdoc />
-        public Date32(DateOnly date)
-            : this((int)(date.ToDateTime(TimeOnly.MinValue) - DateTime.UnixEpoch).TotalDays)
+        public Date32(DateOnly? date)
+            : this(date != null
+                ? (int?)(date.Value.ToDateTime(TimeOnly.MinValue) - DateTime.UnixEpoch).TotalDays
+                : null)
         {
         }
     }
+    
+    /// <summary>
+    /// Implicit conversion from DateOnly to Date32 for convenience.
+    /// </summary>
+    /// <param name="value">The DateOnly value to convert.</param>
+    /// <returns>A Date32 scalar with the given value.</returns>
+    public static implicit operator ScalarValue(DateOnly? value) => new Date32(value);
 
     /// <summary>
     /// Date stored as a signed 64-bit int — milliseconds since UNIX epoch 1970-01-01.
@@ -396,8 +429,10 @@ public abstract record ScalarValue
         public static Date64 Null => new((long?)null);
 
         /// <inheritdoc />
-        public Date64(DateOnly date)
-            : this((long)(date.ToDateTime(TimeOnly.MinValue) - DateTime.UnixEpoch).TotalMilliseconds)
+        public Date64(DateOnly? date)
+            : this(date != null
+                ? (long)(date.Value.ToDateTime(TimeOnly.MinValue) - DateTime.UnixEpoch).TotalMilliseconds
+                : null)
         {
         }
     }
@@ -413,8 +448,8 @@ public abstract record ScalarValue
         public static Time32Second Null => new((int?)null);
 
         /// <inheritdoc />
-        public Time32Second(TimeOnly time)
-            : this (time.ToTimeSpan().Seconds)
+        public Time32Second(TimeOnly? time)
+            : this(time?.ToTimeSpan().Seconds)
         {
         }
     }
@@ -430,8 +465,8 @@ public abstract record ScalarValue
         public static Time32Millisecond Null => new((int?)null);
 
         /// <inheritdoc />
-        public Time32Millisecond(TimeOnly time)
-            : this (time.ToTimeSpan().Milliseconds)
+        public Time32Millisecond(TimeOnly? time)
+            : this(time?.ToTimeSpan().Milliseconds)
         {
         }
     }
@@ -447,8 +482,8 @@ public abstract record ScalarValue
         public static Time64Microsecond Null => new((long?)null);
 
         /// <inheritdoc />
-        public Time64Microsecond(TimeOnly time)
-            : this (time.ToTimeSpan().Ticks / 10) // 1 tick = 100 nanoseconds = 0.1 microseconds
+        public Time64Microsecond(TimeOnly? time)
+            : this(time?.ToTimeSpan().Ticks / 10) // 1 tick = 100 nanoseconds = 0.1 microseconds
         {
         }
     }
@@ -464,8 +499,8 @@ public abstract record ScalarValue
         public static Time64Nanosecond Null => new((long?)null);
 
         /// <inheritdoc />
-        public Time64Nanosecond(TimeOnly time)
-            : this (time.ToTimeSpan().Ticks * 100) // 1 tick = 100 nanoseconds
+        public Time64Nanosecond(TimeOnly? time)
+            : this(time?.ToTimeSpan().Ticks * 100) // 1 tick = 100 nanoseconds
         {
         }
     }
@@ -483,8 +518,13 @@ public abstract record ScalarValue
         public static TimestampSecond Null => new(null, null);
 
         /// <inheritdoc />
-        public TimestampSecond(DateTimeOffset timestamp)
-            : this((long)(timestamp - DateTimeOffset.UnixEpoch).TotalSeconds, timestamp.Offset == TimeSpan.Zero ? null : timestamp.Offset.ToString())
+        public TimestampSecond(DateTimeOffset? timestamp)
+            : this(timestamp != null
+                    ? (long)(timestamp.Value - DateTimeOffset.UnixEpoch).TotalSeconds
+                    : null,
+                timestamp != null
+                    ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
+                    : null)
         {
         }
     }
@@ -502,8 +542,13 @@ public abstract record ScalarValue
         public static TimestampMillisecond Null => new(null, null);
 
         /// <inheritdoc />
-        public TimestampMillisecond(DateTimeOffset timestamp)
-            : this((long)(timestamp - DateTimeOffset.UnixEpoch).TotalMilliseconds, timestamp.Offset == TimeSpan.Zero ? null : timestamp.Offset.ToString())
+        public TimestampMillisecond(DateTimeOffset? timestamp)
+            : this(timestamp != null
+                    ? (long)(timestamp.Value - DateTimeOffset.UnixEpoch).TotalMilliseconds
+                    : null,
+                timestamp != null
+                    ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
+                    : null)
         {
         }
     }
@@ -521,8 +566,13 @@ public abstract record ScalarValue
         public static TimestampMicrosecond Null => new(null, null);
 
         /// <inheritdoc />
-        public TimestampMicrosecond(DateTimeOffset timestamp)
-            : this((long)(timestamp - DateTimeOffset.UnixEpoch).TotalMicroseconds, timestamp.Offset == TimeSpan.Zero ? null : timestamp.Offset.ToString())
+        public TimestampMicrosecond(DateTimeOffset? timestamp)
+            : this(timestamp != null
+                    ? (long)(timestamp.Value - DateTimeOffset.UnixEpoch).TotalMicroseconds
+                    : null,
+                timestamp != null
+                    ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
+                    : null)
         {
         }
     }
@@ -540,8 +590,13 @@ public abstract record ScalarValue
         public static TimestampNanosecond Null => new(null, null);
 
         /// <inheritdoc />
-        public TimestampNanosecond(DateTimeOffset timestamp)
-            : this((long)(timestamp - DateTimeOffset.UnixEpoch).TotalNanoseconds, timestamp.Offset == TimeSpan.Zero ? null : timestamp.Offset.ToString())
+        public TimestampNanosecond(DateTimeOffset? timestamp)
+            : this(timestamp != null
+                    ? (long)(timestamp.Value - DateTimeOffset.UnixEpoch).TotalNanoseconds
+                    : null,
+                timestamp != null
+                    ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
+                    : null)
         {
         }
     }
@@ -642,6 +697,21 @@ public abstract record ScalarValue
     /// <param name="IndexType">The Arrow data type of the dictionary index.</param>
     /// <param name="Value">The scalar value that the dictionary entry represents.</param>
     public sealed record Dictionary(IArrowType IndexType, ScalarValue Value) : ScalarValue;
+}
+
+/// <summary>
+/// A wrapper for a <see cref="ScalarValue"/> with optional metadata.
+/// </summary>
+/// <param name="Value">The scalar value.</param>
+/// <param name="Metadata">Optional metadata as key-value pairs.</param>
+public record ScalarValueAndMetadata(ScalarValue Value, Dictionary<string, string>? Metadata = null)
+{
+    /// <summary>
+    /// Implicit conversion from ScalarValue to ScalarValueAndMetadata for convenience.
+    /// </summary>
+    /// <param name="value">The scalar value to convert.</param>
+    /// <returns>A <see cref="ScalarValueAndMetadata" /> instance with the given value and no metadata.</returns>
+    public static implicit operator ScalarValueAndMetadata(ScalarValue value) => new(value);
 }
 
 /// <summary>
@@ -912,5 +982,26 @@ internal static class ProtoScalarValueExtensions
         MemoryMarshal.Write(bytes, in unscaled);
 
         return new Proto.Decimal128 { Value = ByteString.CopyFrom(bytes), P = precision, S = scale };
+    }
+    
+    internal static Proto.ScalarValueAndMetadata ToProto(this ScalarValueAndMetadata scalarAndMeta)
+    {
+        var proto = new Proto.ScalarValueAndMetadata
+        {
+            Value = scalarAndMeta.Value.ToProto()
+        };
+        
+        if (scalarAndMeta.Metadata is { Count: > 0 })
+            proto.Metadata.Add(scalarAndMeta.Metadata);
+
+        return proto;
+    }
+
+    internal static Proto.DataFrameParamValues ToProto(this IEnumerable<NamedScalarValueAndMetadata> parameters)
+    {
+        var namedParams = new Proto.DataFrameNamedParamValues();
+        foreach (var p in parameters)
+            namedParams.Values.Add(p.Name, p.Value.ToProto());
+        return new Proto.DataFrameParamValues { Named = namedParams };
     }
 }

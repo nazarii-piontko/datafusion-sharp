@@ -69,21 +69,20 @@ pub unsafe extern "C" fn datafusion_dataframe_clone(
 ///
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
-/// - `sql_parameters_bytes` must be a valid `BytesData` containing a protobuf-encoded `SqlParameters`, or null
 /// - `callback` must be valid to call from any thread
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
     df_ptr: *mut DataFrameWrapper,
-    sql_parameters_bytes: crate::BytesData,
+    param_values_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> ErrorCode {
     let df_wrapper = ffi_ref_mut!(df_ptr);
 
-    let Ok(sql_parameters_proto) = proto::SqlParameters::decode(sql_parameters_bytes.as_slice()) else { return ErrorCode::InvalidArgument };
-    let Ok(sql_parameters) = mappers::from_proto_sql_params(&sql_parameters_proto) else { return ErrorCode::InvalidArgument };
+    let Ok(param_values_proto) = proto::DataFrameParamValues::decode(param_values_bytes.as_slice()) else { return ErrorCode::InvalidArgument };
+    let Ok(param_values) = mappers::from_proto_param_values(&param_values_proto) else { return ErrorCode::InvalidArgument };
 
-    match df_wrapper.clone_inner().with_param_values(sql_parameters) {
+    match df_wrapper.clone_inner().with_param_values(param_values) {
         Ok(new_df) => {
             df_wrapper.set_inner(new_df);
             crate::invoke_callback_null_result(callback, user_data);

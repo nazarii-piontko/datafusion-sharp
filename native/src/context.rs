@@ -300,17 +300,17 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
 pub unsafe extern "C" fn datafusion_context_sql(
     context_ptr: *mut SessionContextWrapper,
     sql_ptr: *const std::ffi::c_char,
-    sql_parameters_bytes: crate::BytesData,
+    param_values_bytes: crate::BytesData,
     callback: crate::Callback,
     user_data: u64
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let sql = ffi_cstr_to_string!(sql_ptr);
 
-    let Ok(sql_parameters_proto) = sql_parameters_bytes.as_opt_slice()
-        .map(proto::SqlParameters::decode).transpose() else { return ErrorCode::InvalidArgument };
-    let Ok(sql_parameters) = sql_parameters_proto.as_ref()
-        .map(mappers::from_proto_sql_params).transpose() else { return ErrorCode::InvalidArgument };
+    let Ok(param_values_proto) = param_values_bytes.as_opt_slice()
+        .map(proto::DataFrameParamValues::decode).transpose() else { return ErrorCode::InvalidArgument };
+    let Ok(param_values) = param_values_proto.as_ref()
+        .map(mappers::from_proto_param_values).transpose() else { return ErrorCode::InvalidArgument };
 
     dev_msg!("Executing SQL query: {}", sql);
 
@@ -319,7 +319,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
             .sql(&sql)
             .await
             .and_then(|df| {
-                let df = match sql_parameters {
+                let df = match param_values {
                     Some(p) => df.with_param_values(p),
                     _ => Ok(df)
                 }?;
