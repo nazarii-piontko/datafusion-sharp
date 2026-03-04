@@ -25,3 +25,23 @@ message DataFrameWriteOptions {
 message SqlParameters {
   map<string, datafusion_common.ScalarValue> values = 1;
 }
+
+message ScalarValueAndMetadata {
+  datafusion_common.ScalarValue value = 1;
+  map<string, string> metadata = 2;
+}
+
+message DataFramePositionalParamValues {
+  repeated ScalarValueAndMetadata values = 1;
+}
+
+message DataFrameNamedParamValues {
+  map<string, ScalarValueAndMetadata> values = 1;
+}
+
+message DataFrameParamValues {
+  oneof values {
+    DataFramePositionalParamValues positional = 1;
+    DataFrameNamedParamValues named = 2;
+  };
+}
