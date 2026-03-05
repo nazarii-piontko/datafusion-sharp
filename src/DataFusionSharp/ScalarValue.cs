@@ -9,6 +9,7 @@
 #pragma warning disable CA1724 // Type names should not match namespaces
 #pragma warning disable CA1819 // Properties should not return arrays
 #pragma warning disable CA2225 // Operator overloads have named alternates
+#pragma warning disable S3776  // Complexity of methods should not be too high
 // ReSharper disable UnusedType.Global
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -481,9 +482,7 @@ public abstract record ScalarValue
             : this(timestamp != null
                     ? (long)(timestamp.Value - DateTimeOffset.UnixEpoch).TotalSeconds
                     : null,
-                timestamp != null
-                    ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
-                    : null)
+                GetTimezoneOffsetString(timestamp))
         {
         }
     }
@@ -505,9 +504,7 @@ public abstract record ScalarValue
             : this(timestamp != null
                     ? (long)(timestamp.Value - DateTimeOffset.UnixEpoch).TotalMilliseconds
                     : null,
-                timestamp != null
-                    ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
-                    : null)
+                GetTimezoneOffsetString(timestamp))
         {
         }
     }
@@ -529,9 +526,7 @@ public abstract record ScalarValue
             : this(timestamp != null
                     ? (long)(timestamp.Value - DateTimeOffset.UnixEpoch).TotalMicroseconds
                     : null,
-                timestamp != null
-                    ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
-                    : null)
+                GetTimezoneOffsetString(timestamp))
         {
         }
     }
@@ -553,12 +548,15 @@ public abstract record ScalarValue
             : this(timestamp != null
                     ? (long)(timestamp.Value - DateTimeOffset.UnixEpoch).TotalNanoseconds
                     : null,
-                timestamp != null
-                    ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
-                    : null)
+                GetTimezoneOffsetString(timestamp))
         {
         }
     }
+    
+    private static string? GetTimezoneOffsetString(DateTimeOffset? timestamp) =>
+        timestamp != null
+            ? timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString()
+            : null;
 
     /// <summary>
     /// Number of elapsed whole months.
@@ -731,160 +729,181 @@ public readonly record struct IntervalMonthDayNanoValue(int Months, int Days, lo
 
 internal static class ProtoScalarValueExtensions
 {
-    private static Proto.ScalarValue Null(Proto.ArrowType t) => new() { NullValue = t };
+    internal static Proto.DataFrameParamValues ToProto(this IEnumerable<NamedScalarValueAndMetadata> parameters)
+    {
+        var namedParams = new Proto.DataFrameNamedParamValues();
+        foreach (var p in parameters)
+            namedParams.Values.Add(p.Name, p.Value.ToProto());
+        return new Proto.DataFrameParamValues { Named = namedParams };
+    }
+    
+    internal static Proto.ScalarValueAndMetadata ToProto(this ScalarValueAndMetadata scalarAndMeta)
+    {
+        var proto = new Proto.ScalarValueAndMetadata
+        {
+            Value = scalarAndMeta.Value.ToProto()
+        };
+        
+        if (scalarAndMeta.Metadata is { Count: > 0 })
+            proto.Metadata.Add(scalarAndMeta.Metadata);
+
+        return proto;
+    }
 
     internal static Proto.ScalarValue ToProto(this ScalarValue scalar) => scalar switch
     {
         ScalarValue.Boolean b => b.Value is { } v
             ? new Proto.ScalarValue { BoolValue = v }
-            : Null(new Proto.ArrowType { BOOL = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { BOOL = new Proto.EmptyMessage() }),
 
         ScalarValue.Float32 b => b.Value is { } v
             ? new Proto.ScalarValue { Float32Value = v }
-            : Null(new Proto.ArrowType { FLOAT32 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { FLOAT32 = new Proto.EmptyMessage() }),
 
         ScalarValue.Float64 b => b.Value is { } v
             ? new Proto.ScalarValue { Float64Value = v }
-            : Null(new Proto.ArrowType { FLOAT64 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { FLOAT64 = new Proto.EmptyMessage() }),
 
         ScalarValue.Int8 b => b.Value is { } v
             ? new Proto.ScalarValue { Int8Value = v }
-            : Null(new Proto.ArrowType { INT8 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { INT8 = new Proto.EmptyMessage() }),
 
         ScalarValue.Int16 b => b.Value is { } v
             ? new Proto.ScalarValue { Int16Value = v }
-            : Null(new Proto.ArrowType { INT16 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { INT16 = new Proto.EmptyMessage() }),
 
         ScalarValue.Int32 b => b.Value is { } v
             ? new Proto.ScalarValue { Int32Value = v }
-            : Null(new Proto.ArrowType { INT32 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { INT32 = new Proto.EmptyMessage() }),
 
         ScalarValue.Int64 b => b.Value is { } v
             ? new Proto.ScalarValue { Int64Value = v }
-            : Null(new Proto.ArrowType { INT64 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { INT64 = new Proto.EmptyMessage() }),
 
         ScalarValue.UInt8 b => b.Value is { } v
             ? new Proto.ScalarValue { Uint8Value = v }
-            : Null(new Proto.ArrowType { UINT8 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { UINT8 = new Proto.EmptyMessage() }),
 
         ScalarValue.UInt16 b => b.Value is { } v
             ? new Proto.ScalarValue { Uint16Value = v }
-            : Null(new Proto.ArrowType { UINT16 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { UINT16 = new Proto.EmptyMessage() }),
 
         ScalarValue.UInt32 b => b.Value is { } v
             ? new Proto.ScalarValue { Uint32Value = v }
-            : Null(new Proto.ArrowType { UINT32 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { UINT32 = new Proto.EmptyMessage() }),
 
         ScalarValue.UInt64 b => b.Value is { } v
             ? new Proto.ScalarValue { Uint64Value = v }
-            : Null(new Proto.ArrowType { UINT64 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { UINT64 = new Proto.EmptyMessage() }),
 
         ScalarValue.Utf8 b => b.Value is { } v
             ? new Proto.ScalarValue { Utf8Value = v }
-            : Null(new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { UTF8 = new Proto.EmptyMessage() }),
 
         ScalarValue.Utf8View b => b.Value is { } v
             ? new Proto.ScalarValue { Utf8ViewValue = v }
-            : Null(new Proto.ArrowType { UTF8VIEW = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { UTF8VIEW = new Proto.EmptyMessage() }),
 
         ScalarValue.LargeUtf8 b => b.Value is { } v
             ? new Proto.ScalarValue { LargeUtf8Value = v }
-            : Null(new Proto.ArrowType { LARGEUTF8 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { LARGEUTF8 = new Proto.EmptyMessage() }),
 
         ScalarValue.Binary b => b.Value is { } v
             ? new Proto.ScalarValue { BinaryValue = ByteString.CopyFrom(v) }
-            : Null(new Proto.ArrowType { BINARY = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { BINARY = new Proto.EmptyMessage() }),
 
         ScalarValue.BinaryView b => b.Value is { } v
             ? new Proto.ScalarValue { BinaryViewValue = ByteString.CopyFrom(v) }
-            : Null(new Proto.ArrowType { BINARYVIEW = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { BINARYVIEW = new Proto.EmptyMessage() }),
 
         ScalarValue.LargeBinary b => b.Value is { } v
             ? new Proto.ScalarValue { LargeBinaryValue = ByteString.CopyFrom(v) }
-            : Null(new Proto.ArrowType { LARGEBINARY = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { LARGEBINARY = new Proto.EmptyMessage() }),
 
         ScalarValue.Date32 b => b.Value is { } v
             ? new Proto.ScalarValue { Date32Value = v }
-            : Null(new Proto.ArrowType { DATE32 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { DATE32 = new Proto.EmptyMessage() }),
 
         ScalarValue.Date64 b => b.Value is { } v
             ? new Proto.ScalarValue { Date64Value = v }
-            : Null(new Proto.ArrowType { DATE64 = new Proto.EmptyMessage() }),
+            : ToNull(new Proto.ArrowType { DATE64 = new Proto.EmptyMessage() }),
 
         ScalarValue.IntervalYearMonth b => b.Value is { } v
             ? new Proto.ScalarValue { IntervalYearmonthValue = v }
-            : Null(new Proto.ArrowType { INTERVAL = Proto.IntervalUnit.YearMonth }),
+            : ToNull(new Proto.ArrowType { INTERVAL = Proto.IntervalUnit.YearMonth }),
 
         ScalarValue.DurationSecond b => b.Value is { } v
             ? new Proto.ScalarValue { DurationSecondValue = v }
-            : Null(new Proto.ArrowType { DURATION = Proto.TimeUnit.Second }),
+            : ToNull(new Proto.ArrowType { DURATION = Proto.TimeUnit.Second }),
 
         ScalarValue.DurationMillisecond b => b.Value is { } v
             ? new Proto.ScalarValue { DurationMillisecondValue = v }
-            : Null(new Proto.ArrowType { DURATION = Proto.TimeUnit.Millisecond }),
+            : ToNull(new Proto.ArrowType { DURATION = Proto.TimeUnit.Millisecond }),
 
         ScalarValue.DurationMicrosecond b => b.Value is { } v
             ? new Proto.ScalarValue { DurationMicrosecondValue = v }
-            : Null(new Proto.ArrowType { DURATION = Proto.TimeUnit.Microsecond }),
+            : ToNull(new Proto.ArrowType { DURATION = Proto.TimeUnit.Microsecond }),
 
         ScalarValue.DurationNanosecond b => b.Value is { } v
             ? new Proto.ScalarValue { DurationNanosecondValue = v }
-            : Null(new Proto.ArrowType { DURATION = Proto.TimeUnit.Nanosecond }),
+            : ToNull(new Proto.ArrowType { DURATION = Proto.TimeUnit.Nanosecond }),
 
         ScalarValue.Time32Second b => b.Value is { } v
             ? new Proto.ScalarValue { Time32Value = new Proto.ScalarTime32Value { Time32SecondValue = v } }
-            : Null(new Proto.ArrowType { TIME32 = Proto.TimeUnit.Second }),
+            : ToNull(new Proto.ArrowType { TIME32 = Proto.TimeUnit.Second }),
 
         ScalarValue.Time32Millisecond b => b.Value is { } v
             ? new Proto.ScalarValue { Time32Value = new Proto.ScalarTime32Value { Time32MillisecondValue = v } }
-            : Null(new Proto.ArrowType { TIME32 = Proto.TimeUnit.Millisecond }),
+            : ToNull(new Proto.ArrowType { TIME32 = Proto.TimeUnit.Millisecond }),
 
         ScalarValue.Time64Microsecond b => b.Value is { } v
             ? new Proto.ScalarValue { Time64Value = new Proto.ScalarTime64Value { Time64MicrosecondValue = v } }
-            : Null(new Proto.ArrowType { TIME64 = Proto.TimeUnit.Microsecond }),
+            : ToNull(new Proto.ArrowType { TIME64 = Proto.TimeUnit.Microsecond }),
 
         ScalarValue.Time64Nanosecond b => b.Value is { } v
             ? new Proto.ScalarValue { Time64Value = new Proto.ScalarTime64Value { Time64NanosecondValue = v } }
-            : Null(new Proto.ArrowType { TIME64 = Proto.TimeUnit.Nanosecond }),
+            : ToNull(new Proto.ArrowType { TIME64 = Proto.TimeUnit.Nanosecond }),
 
         ScalarValue.TimestampSecond b => b.Value is { } v
             ? new Proto.ScalarValue { TimestampValue = new Proto.ScalarTimestampValue { TimeSecondValue = v, Timezone = b.Timezone ?? "" } }
-            : Null(new Proto.ArrowType { TIMESTAMP = new Proto.Timestamp { TimeUnit = Proto.TimeUnit.Second, Timezone = b.Timezone ?? "" } }),
+            : ToNull(new Proto.ArrowType { TIMESTAMP = new Proto.Timestamp { TimeUnit = Proto.TimeUnit.Second, Timezone = b.Timezone ?? "" } }),
 
         ScalarValue.TimestampMillisecond b => b.Value is { } v
             ? new Proto.ScalarValue { TimestampValue = new Proto.ScalarTimestampValue { TimeMillisecondValue = v, Timezone = b.Timezone ?? "" } }
-            : Null(new Proto.ArrowType { TIMESTAMP = new Proto.Timestamp { TimeUnit = Proto.TimeUnit.Millisecond, Timezone = b.Timezone ?? "" } }),
+            : ToNull(new Proto.ArrowType { TIMESTAMP = new Proto.Timestamp { TimeUnit = Proto.TimeUnit.Millisecond, Timezone = b.Timezone ?? "" } }),
 
         ScalarValue.TimestampMicrosecond b => b.Value is { } v
             ? new Proto.ScalarValue { TimestampValue = new Proto.ScalarTimestampValue { TimeMicrosecondValue = v, Timezone = b.Timezone ?? "" } }
-            : Null(new Proto.ArrowType { TIMESTAMP = new Proto.Timestamp { TimeUnit = Proto.TimeUnit.Microsecond, Timezone = b.Timezone ?? "" } }),
+            : ToNull(new Proto.ArrowType { TIMESTAMP = new Proto.Timestamp { TimeUnit = Proto.TimeUnit.Microsecond, Timezone = b.Timezone ?? "" } }),
 
         ScalarValue.TimestampNanosecond b => b.Value is { } v
             ? new Proto.ScalarValue { TimestampValue = new Proto.ScalarTimestampValue { TimeNanosecondValue = v, Timezone = b.Timezone ?? "" } }
-            : Null(new Proto.ArrowType { TIMESTAMP = new Proto.Timestamp { TimeUnit = Proto.TimeUnit.Nanosecond, Timezone = b.Timezone ?? "" } }),
+            : ToNull(new Proto.ArrowType { TIMESTAMP = new Proto.Timestamp { TimeUnit = Proto.TimeUnit.Nanosecond, Timezone = b.Timezone ?? "" } }),
 
         ScalarValue.IntervalDayTime b => b.Value is { } v
             ? new Proto.ScalarValue { IntervalDaytimeValue = new Proto.IntervalDayTimeValue { Days = v.Days, Milliseconds = v.Milliseconds } }
-            : Null(new Proto.ArrowType { INTERVAL = Proto.IntervalUnit.DayTime }),
+            : ToNull(new Proto.ArrowType { INTERVAL = Proto.IntervalUnit.DayTime }),
 
         ScalarValue.IntervalMonthDayNano b => b.Value is { } v
             ? new Proto.ScalarValue { IntervalMonthDayNano = new Proto.IntervalMonthDayNanoValue { Months = v.Months, Days = v.Days, Nanos = v.Nanoseconds } }
-            : Null(new Proto.ArrowType { INTERVAL = Proto.IntervalUnit.MonthDayNano }),
+            : ToNull(new Proto.ArrowType { INTERVAL = Proto.IntervalUnit.MonthDayNano }),
 
         ScalarValue.FixedSizeBinary b => b.Value is { } v
             ? new Proto.ScalarValue { FixedSizeBinaryValue = new Proto.ScalarFixedSizeBinary { Values = ByteString.CopyFrom(v), Length = b.Size } }
-            : Null(new Proto.ArrowType { FIXEDSIZEBINARY = b.Size }),
+            : ToNull(new Proto.ArrowType { FIXEDSIZEBINARY = b.Size }),
 
         ScalarValue.Decimal128 b => b.Value is { } v
             ? new Proto.ScalarValue { Decimal128Value = ToProtoDecimal128(v, b.Precision, b.Scale) }
-            : Null(new Proto.ArrowType { DECIMAL = new Proto.Decimal { Precision = b.Precision, Scale = b.Scale } }),
+            : ToNull(new Proto.ArrowType { DECIMAL = new Proto.Decimal { Precision = b.Precision, Scale = b.Scale } }),
         
         ScalarValue.Decimal256 b => b.Value is { } v
             ? new Proto.ScalarValue { Decimal256Value = ToProtoDecimal256(v, b.Precision, b.Scale) }
-            : Null(new Proto.ArrowType { DECIMAL256 = new Proto.Decimal256Type { Precision = b.Precision, Scale = b.Scale } }),
+            : ToNull(new Proto.ArrowType { DECIMAL256 = new Proto.Decimal256Type { Precision = b.Precision, Scale = b.Scale } }),
 
         _ => throw new ArgumentOutOfRangeException(nameof(scalar), scalar.GetType().Name, "Unsupported ScalarValue type")
     };
+    
+    private static Proto.ScalarValue ToNull(Proto.ArrowType t) => new() { NullValue = t };
 
     private static Proto.Decimal128 ToProtoDecimal128(decimal value, byte precision, byte scale)
     {
@@ -906,7 +925,7 @@ internal static class ProtoScalarValueExtensions
     private static void GetDecimalBytes(decimal value, int precision, int scale, int byteWidth, Span<byte> bytes)
     {
         Span<int> decimalBits = stackalloc int[4];
-        decimal.GetBits(value, decimalBits);
+        _ = decimal.GetBits(value, decimalBits);
 
         var decScale = (decimalBits[3] >> 16) & 0x7F;
         Span<byte> bigIntBytes = stackalloc byte[13];
@@ -950,26 +969,5 @@ internal static class ProtoScalarValueExtensions
         // DataFusion expects big-endian byte order
         for (var i = 0; i < byteWidth / 2; ++i)
             (bytes[i], bytes[byteWidth - 1 - i]) = (bytes[byteWidth - 1 - i], bytes[i]);
-    }
-    
-    internal static Proto.ScalarValueAndMetadata ToProto(this ScalarValueAndMetadata scalarAndMeta)
-    {
-        var proto = new Proto.ScalarValueAndMetadata
-        {
-            Value = scalarAndMeta.Value.ToProto()
-        };
-        
-        if (scalarAndMeta.Metadata is { Count: > 0 })
-            proto.Metadata.Add(scalarAndMeta.Metadata);
-
-        return proto;
-    }
-
-    internal static Proto.DataFrameParamValues ToProto(this IEnumerable<NamedScalarValueAndMetadata> parameters)
-    {
-        var namedParams = new Proto.DataFrameNamedParamValues();
-        foreach (var p in parameters)
-            namedParams.Values.Add(p.Name, p.Value.ToProto());
-        return new Proto.DataFrameParamValues { Named = namedParams };
     }
 }
