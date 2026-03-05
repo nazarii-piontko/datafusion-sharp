@@ -1,14 +1,14 @@
-use std::collections::{BTreeMap, HashMap};
 use anyhow::{anyhow, bail, Result};
+use std::collections::HashMap;
 
+use crate::data_frame_param_values::Values;
+use crate::proto;
 use datafusion::arrow::datatypes::{DataType, Schema};
-use datafusion::common::{ParamValues};
 use datafusion::common::metadata::{FieldMetadata, ScalarAndMetadata};
+use datafusion::common::ParamValues;
 use datafusion::datasource::file_format::file_compression_type::FileCompressionType;
 use datafusion::logical_expr::SortExpr;
 use datafusion::prelude::CsvReadOptions;
-use crate::data_frame_param_values::Values;
-use crate::proto;
 
 pub(crate) fn from_proto_schema(schema: Option<&datafusion_proto::protobuf::Schema>) -> Result<Option<Schema>> {
     schema
@@ -215,13 +215,13 @@ fn from_proto_insert_op(v: i32) -> Result<datafusion::logical_expr::dml::InsertO
 pub(crate) fn from_proto_scalar_value_and_metadata(scalar_and_meta_proto: &proto::ScalarValueAndMetadata) -> Result<ScalarAndMetadata> {
     let scalar_proto = scalar_and_meta_proto.value.as_ref().ok_or_else(|| anyhow!("Missing scalar value"))?;
     let scalar = scalar_proto.try_into()?;
-    
-    let metadata = if !scalar_and_meta_proto.metadata.is_empty() {
-        Some(FieldMetadata::new(BTreeMap::from_iter(scalar_and_meta_proto.metadata.iter().map(|(k, v)| (k.clone(), v.clone())))))
-    } else {
+
+    let metadata = if scalar_and_meta_proto.metadata.is_empty() {
         None
+    } else {
+        Some(FieldMetadata::new(scalar_and_meta_proto.metadata.iter().map(|(k, v)| (k.clone(), v.clone())).collect()))
     };
-    
+
     Ok(ScalarAndMetadata { value: scalar, metadata })
 }
 
@@ -231,7 +231,7 @@ pub(crate) fn from_proto_param_values(values: &proto::DataFrameParamValues) -> R
     match values {
         Values::Positional(p) => {
             p.values.iter()
-                .map(|v| Ok(from_proto_scalar_value_and_metadata(v)?))
+                .map(from_proto_scalar_value_and_metadata)
                 .collect::<Result<Vec<_>>>()
                 .map(ParamValues::List)
         },
