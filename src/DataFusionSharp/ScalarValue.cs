@@ -33,7 +33,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Boolean scalar with a null value.
         /// </summary>
-        public static Boolean Null => new((bool?)null);
+        public static Boolean Null { get; } = new((bool?)null);
     }
     
     /// <summary>
@@ -58,7 +58,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Float32 scalar with a null value.
         /// </summary>
-        public static Float32 Null => new((float?)null);
+        public static Float32 Null { get; } = new((float?)null);
     }
     
     /// <summary>
@@ -83,7 +83,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Float64 scalar with a null value.
         /// </summary>
-        public static Float64 Null => new((double?)null);
+        public static Float64 Null { get; } = new((double?)null);
     }
     
     /// <summary>
@@ -108,7 +108,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Decimal128 scalar with a null value.
         /// </summary>
-        public static Decimal128 Null => new(null, 1, 0);
+        public static Decimal128 Null { get; } = new(null, 1, 0);
 
         /// <inheritdoc />
         public Decimal128(decimal? value)
@@ -154,7 +154,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Decimal256 scalar with a null value.
         /// </summary>
-        public static Decimal256 Null => new(null, 1, 0);
+        public static Decimal256 Null { get; } = new(null, 1, 0);
     }
 
     /// <summary>
@@ -165,7 +165,7 @@ public abstract record ScalarValue
         /// <summary>
         /// An Int8 scalar with a null value.
         /// </summary>
-        public static Int8 Null => new((sbyte?)null);
+        public static Int8 Null { get; } = new((sbyte?)null);
     }
     
     /// <summary>
@@ -190,7 +190,7 @@ public abstract record ScalarValue
         /// <summary>
         /// An Int16 scalar with a null value.
         /// </summary>
-        public static Int16 Null => new((short?)null);
+        public static Int16 Null { get; } = new((short?)null);
     }
     
     /// <summary>
@@ -215,7 +215,7 @@ public abstract record ScalarValue
         /// <summary>
         /// An Int32 scalar with a null value.
         /// </summary>
-        public static Int32 Null => new((int?)null);
+        public static Int32 Null { get; } = new((int?)null);
     }
     
     /// <summary>
@@ -240,7 +240,7 @@ public abstract record ScalarValue
         /// <summary>
         /// An Int64 scalar with a null value.
         /// </summary>
-        public static Int64 Null => new((long?)null);
+        public static Int64 Null { get; } = new((long?)null);
     }
     
     /// <summary>
@@ -265,7 +265,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A UInt8 scalar with a null value.
         /// </summary>
-        public static UInt8 Null => new((byte?)null);
+        public static UInt8 Null { get; } = new((byte?)null);
     }
     
     /// <summary>
@@ -290,7 +290,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A UInt16 scalar with a null value.
         /// </summary>
-        public static UInt16 Null => new((ushort?)null);
+        public static UInt16 Null { get; } = new((ushort?)null);
     }
     
     /// <summary>
@@ -315,7 +315,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A UInt32 scalar with a null value.
         /// </summary>
-        public static UInt32 Null => new((uint?)null);
+        public static UInt32 Null { get; } = new((uint?)null);
     }
     
     /// <summary>
@@ -340,7 +340,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A UInt64 scalar with a null value.
         /// </summary>
-        public static UInt64 Null => new((ulong?)null);
+        public static UInt64 Null { get; } = new((ulong?)null);
     }
     
     /// <summary>
@@ -365,7 +365,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Utf8 scalar with a null value.
         /// </summary>
-        public static Utf8 Null => new((string?)null);
+        public static Utf8 Null { get; } = new((string?)null);
     }
     
     /// <summary>
@@ -383,7 +383,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Utf8View scalar with a null value.
         /// </summary>
-        public static Utf8View Null => new((string?)null);
+        public static Utf8View Null { get; } = new((string?)null);
     }
 
     /// <summary>
@@ -394,7 +394,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A LargeUtf8 scalar with a null value.
         /// </summary>
-        public static LargeUtf8 Null => new((string?)null);
+        public static LargeUtf8 Null { get; } = new((string?)null);
     }
 
     /// <summary>
@@ -405,7 +405,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Binary scalar with a null value.
         /// </summary>
-        public static Binary Null => new((byte[]?)null);
+        public static Binary Null { get; } = new((byte[]?)null);
     }
     
     /// <summary>
@@ -423,7 +423,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A BinaryView scalar with a null value.
         /// </summary>
-        public static BinaryView Null => new((byte[]?)null);
+        public static BinaryView Null { get; } = new((byte[]?)null);
     }
 
     /// <summary>
@@ -436,7 +436,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A FixedSizeBinary scalar with a null value.
         /// </summary>
-        public static FixedSizeBinary Null => new(0, null);
+        public static FixedSizeBinary Null { get; } = new(0, null);
     }
 
     /// <summary>
@@ -447,7 +447,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A LargeBinary scalar with a null value.
         /// </summary>
-        public static LargeBinary Null => new((byte[]?)null);
+        public static LargeBinary Null { get; } = new((byte[]?)null);
     }
 
     /// <summary>
@@ -458,7 +458,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Date32 scalar with a null value.
         /// </summary>
-        public static Date32 Null => new((int?)null);
+        public static Date32 Null { get; } = new((int?)null);
 
         /// <inheritdoc />
         public Date32(DateOnly? date)
@@ -491,7 +491,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Date64 scalar with a null value.
         /// </summary>
-        public static Date64 Null => new((long?)null);
+        public static Date64 Null { get; } = new((long?)null);
 
         /// <inheritdoc />
         public Date64(DateOnly? date)
@@ -510,7 +510,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Time32Second scalar with a null value.
         /// </summary>
-        public static Time32Second Null => new((int?)null);
+        public static Time32Second Null { get; } = new((int?)null);
 
         /// <inheritdoc />
         public Time32Second(TimeOnly? time)
@@ -527,7 +527,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Time32Millisecond scalar with a null value.
         /// </summary>
-        public static Time32Millisecond Null => new((int?)null);
+        public static Time32Millisecond Null { get; } = new((int?)null);
 
         /// <inheritdoc />
         public Time32Millisecond(TimeOnly? time)
@@ -544,7 +544,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Time64Microsecond scalar with a null value.
         /// </summary>
-        public static Time64Microsecond Null => new((long?)null);
+        public static Time64Microsecond Null { get; } = new((long?)null);
 
         /// <inheritdoc />
         public Time64Microsecond(TimeOnly? time)
@@ -575,7 +575,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A Time64Nanosecond scalar with a null value.
         /// </summary>
-        public static Time64Nanosecond Null => new((long?)null);
+        public static Time64Nanosecond Null { get; } = new((long?)null);
 
         /// <inheritdoc />
         public Time64Nanosecond(TimeOnly? time)
@@ -594,7 +594,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A TimestampSecond scalar with a null value.
         /// </summary>
-        public static TimestampSecond Null => new(null, null);
+        public static TimestampSecond Null { get; } = new(null, null);
 
         /// <inheritdoc />
         public TimestampSecond(DateTimeOffset? timestamp)
@@ -616,7 +616,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A TimestampMillisecond scalar with a null value.
         /// </summary>
-        public static TimestampMillisecond Null => new(null, null);
+        public static TimestampMillisecond Null { get; } = new(null, null);
 
         /// <inheritdoc />
         public TimestampMillisecond(DateTimeOffset? timestamp)
@@ -638,7 +638,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A TimestampMicrosecond scalar with a null value.
         /// </summary>
-        public static TimestampMicrosecond Null => new(null, null);
+        public static TimestampMicrosecond Null { get; } = new(null, null);
 
         /// <inheritdoc />
         public TimestampMicrosecond(DateTimeOffset? timestamp)
@@ -660,7 +660,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A TimestampNanosecond scalar with a null value.
         /// </summary>
-        public static TimestampNanosecond Null => new(null, null);
+        public static TimestampNanosecond Null { get; } = new(null, null);
 
         /// <inheritdoc />
         public TimestampNanosecond(DateTimeOffset? timestamp)
@@ -687,7 +687,7 @@ public abstract record ScalarValue
         /// <summary>
         /// An IntervalYearMonth scalar with a null value.
         /// </summary>
-        public static IntervalYearMonth Null => new((int?)null);
+        public static IntervalYearMonth Null { get; } = new((int?)null);
     }
 
     /// <summary>
@@ -699,7 +699,7 @@ public abstract record ScalarValue
         /// <summary>
         /// An IntervalDayTime scalar with a null value.
         /// </summary>
-        public static IntervalDayTime Null => new((IntervalDayTimeValue?)null);
+        public static IntervalDayTime Null { get; } = new((IntervalDayTimeValue?)null);
     }
 
     /// <summary>
@@ -711,7 +711,7 @@ public abstract record ScalarValue
         /// <summary>
         /// An IntervalMonthDayNano scalar with a null value.
         /// </summary>
-        public static IntervalMonthDayNano Null => new((IntervalMonthDayNanoValue?)null);
+        public static IntervalMonthDayNano Null { get; } = new((IntervalMonthDayNanoValue?)null);
     }
 
     /// <summary>
@@ -722,7 +722,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A DurationSecond scalar with a null value.
         /// </summary>
-        public static DurationSecond Null => new((long?)null);
+        public static DurationSecond Null { get; } = new((long?)null);
     }
 
     /// <summary>
@@ -733,7 +733,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A DurationMillisecond scalar with a null value.
         /// </summary>
-        public static DurationMillisecond Null => new((long?)null);
+        public static DurationMillisecond Null { get; } = new((long?)null);
     }
 
     /// <summary>
@@ -744,7 +744,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A DurationMicrosecond scalar with a null value.
         /// </summary>
-        public static DurationMicrosecond Null => new((long?)null);
+        public static DurationMicrosecond Null { get; } = new((long?)null);
     }
 
     /// <summary>
@@ -755,7 +755,7 @@ public abstract record ScalarValue
         /// <summary>
         /// A DurationNanosecond scalar with a null value.
         /// </summary>
-        public static DurationNanosecond Null => new((long?)null);
+        public static DurationNanosecond Null { get; } = new((long?)null);
     }
 }
 

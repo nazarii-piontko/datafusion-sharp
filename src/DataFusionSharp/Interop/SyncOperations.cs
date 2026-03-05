@@ -59,7 +59,7 @@ internal sealed class SyncOperations
         public Exception? Exception { get; set; }
     }
 
-    private class SyncOperationResult<TResult> : SyncOperationResult
+    private sealed class SyncOperationResult<TResult> : SyncOperationResult
     {
         public TResult? Result { get; set; }
     }
