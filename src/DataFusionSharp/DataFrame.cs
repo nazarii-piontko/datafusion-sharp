@@ -1,4 +1,3 @@
-using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Apache.Arrow;
 using DataFusionSharp.Formats;
@@ -49,25 +48,17 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         ArgumentNullException.ThrowIfNull(parameters);
 
         using var paramValuesData = PinnedProtobufData.FromMessage(parameters.ToProto());
-        var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
-            AsyncOperations.Instance.Abort(id);
+            SyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to parameterize DataFrame with SQL parameters");
         }
-
-        switch (tcs.Task.Status)
-        {
-            case TaskStatus.RanToCompletion:
-                return this;
-            case TaskStatus.Faulted:
-                if (tcs.Task.Exception != null)
-                    ExceptionDispatchInfo.Throw(tcs.Task.Exception.InnerException ?? tcs.Task.Exception);
-                throw new DataFusionException(DataFusionErrorCode.Panic, "DataFrameWithParameters task faulted without exception");
-            default:
-                throw new DataFusionException(DataFusionErrorCode.Panic, "Unexpected asynchronous completion of DataFrameWithParameters native method");
-        }
+        
+        SyncOperations.Instance.PeekResult(id);
+        
+        return this;
     }
 
     /// <summary>
