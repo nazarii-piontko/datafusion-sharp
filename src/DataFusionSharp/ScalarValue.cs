@@ -13,10 +13,7 @@
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 using System.Buffers.Binary;
-using System.Runtime.InteropServices;
-using Apache.Arrow;
-using Apache.Arrow.Ipc;
-using Apache.Arrow.Types;
+using System.Numerics;
 using Google.Protobuf;
 
 namespace DataFusionSharp;
@@ -84,40 +81,12 @@ public abstract record ScalarValue
     /// <summary>
     /// 128-bit decimal value. Scale is inferred from <see cref="Value"/> itself.
     /// </summary>
-    public sealed record Decimal128 : ScalarValue
+    public sealed record Decimal128(decimal? Value, byte Precision, byte Scale) : ScalarValue
     {
-        /// <summary>
-        /// The maximum precision for Decimal128 is 38 digits.
-        /// </summary>
-        public const byte MaxPrecision = 38;
-        
         /// <summary>
         /// A Decimal128 scalar with a null value.
         /// </summary>
-        public static Decimal128 Null => new(null, MaxPrecision);
-        
-        /// <summary>
-        /// The decimal value, or <c>null</c> if the scalar is null.
-        /// </summary>
-        public decimal? Value { get; init; }
-
-        /// <summary>
-        /// The total number of significant digits (1–38).
-        /// </summary>
-        public byte Precision { get; init; }
-
-        /// <summary>
-        /// Initializes a new instance of <see cref="ScalarValue.Decimal128"/>.
-        /// </summary>
-        /// <param name="value">The decimal value, or <c>null</c> if the scalar is null.</param>
-        /// <param name="precision">The total number of significant digits (0–38).</param>
-        public Decimal128(decimal? value, byte precision)
-        {
-            if (precision > MaxPrecision)
-                throw new ArgumentOutOfRangeException(nameof(precision), "Precision must be between 1 and 38 for Decimal128.");
-            Value = value;
-            Precision = precision;
-        }
+        public static Decimal128 Null => new(null, 1, 0);
     }
     
     /// <summary>
@@ -125,7 +94,18 @@ public abstract record ScalarValue
     /// </summary>
     /// <param name="value">The decimal value to convert.</param>
     /// <returns>A Decimal128 scalar with the given value.</returns>
-    public static implicit operator ScalarValue(decimal? value) => new Decimal128(value, Decimal128.MaxPrecision);
+    public static implicit operator ScalarValue(decimal? value) => new Decimal128(value, Math.Max((byte)1, value?.Scale ?? 1), value?.Scale ?? 0);
+    
+    /// <summary>
+    /// 256-bit decimal value. Scale is inferred from <see cref="Value"/> itself.
+    /// </summary>
+    public sealed record Decimal256(decimal? Value, byte Precision, byte Scale) : ScalarValue
+    {
+        /// <summary>
+        /// A Decimal256 scalar with a null value.
+        /// </summary>
+        public static Decimal256 Null => new(null, 1, 0);
+    }
 
     /// <summary>
     /// Signed 8-bit integer.
@@ -352,7 +332,13 @@ public abstract record ScalarValue
     /// </summary>
     /// <param name="Size">The fixed byte-width of each value.</param>
     /// <param name="Value">The binary data, or <c>null</c> if the scalar is null.</param>
-    public sealed record FixedSizeBinary(int Size, byte[]? Value) : ScalarValue;
+    public sealed record FixedSizeBinary(int Size, byte[]? Value) : ScalarValue
+    {
+        /// <summary>
+        /// A FixedSizeBinary scalar with a null value.
+        /// </summary>
+        public static FixedSizeBinary Null => new(0, null);
+    }
 
     /// <summary>
     /// Large binary data.
@@ -364,33 +350,6 @@ public abstract record ScalarValue
         /// </summary>
         public static LargeBinary Null => new((byte[]?)null);
     }
-
-    /// <summary>
-    /// Fixed-size list scalar. The array must be a <see cref="FixedSizeListArray"/> with length 1.
-    /// </summary>
-    public sealed record FixedSizeList(FixedSizeListArray Array) : ScalarValue;
-
-    /// <summary>
-    /// Represents a single element of a <see cref="ListArray"/>.
-    /// The array must be a <see cref="ListArray"/> with length 1.
-    /// </summary>
-    public sealed record List(ListArray Array) : ScalarValue;
-
-    /// <summary>
-    /// Represents a single element of a <see cref="Apache.Arrow.LargeListArray"/>.
-    /// The array must be a <see cref="Apache.Arrow.LargeListArray"/> with length 1.
-    /// </summary>
-    public sealed record LargeList(LargeListArray Array) : ScalarValue;
-
-    /// <summary>
-    /// Represents a single element <see cref="StructArray"/>.
-    /// </summary>
-    public sealed record Struct(StructArray Array) : ScalarValue;
-
-    /// <summary>
-    /// Represents a single element <see cref="MapArray"/>.
-    /// </summary>
-    public sealed record Map(MapArray Array) : ScalarValue;
 
     /// <summary>
     /// Date stored as a signed 32-bit int — days since UNIX epoch 1970-01-01.
@@ -679,24 +638,6 @@ public abstract record ScalarValue
         /// </summary>
         public static DurationNanosecond Null => new((long?)null);
     }
-
-    /// <summary>
-    /// A nested datatype that can represent slots of differing types.
-    /// </summary>
-    /// <param name="TypeIdAndValue">A tuple of the union <c>type_id</c> and the single value held by this scalar, or <c>null</c>.</param>
-    /// <param name="Fields">The union fields descriptor (zero-to-one of which will be set).</param>
-    /// <param name="Mode">The physical storage mode of the source/destination <see cref="UnionArray"/>.</param>
-    public sealed record Union(
-        (ArrowTypeId TypeId, ScalarValue Value)? TypeIdAndValue,
-        UnionType Fields,
-        UnionMode Mode) : ScalarValue;
-
-    /// <summary>
-    /// Dictionary-encoded scalar: an index type and a value.
-    /// </summary>
-    /// <param name="IndexType">The Arrow data type of the dictionary index.</param>
-    /// <param name="Value">The scalar value that the dictionary entry represents.</param>
-    public sealed record Dictionary(IArrowType IndexType, ScalarValue Value) : ScalarValue;
 }
 
 /// <summary>
@@ -878,110 +819,80 @@ internal static class ProtoScalarValueExtensions
             : Null(new Proto.ArrowType { FIXEDSIZEBINARY = b.Size }),
 
         ScalarValue.Decimal128 b => b.Value is { } v
-            ? new Proto.ScalarValue { Decimal128Value = ToProtoDecimal128(v, b.Precision) }
-            : Null(new Proto.ArrowType { DECIMAL = new Proto.Decimal { Precision = b.Precision, Scale = 0 } }),
-
-        ScalarValue.List b => new Proto.ScalarValue { ListValue = ToScalarNestedValue(b.Array) },
-        ScalarValue.LargeList b => new Proto.ScalarValue { LargeListValue = ToScalarNestedValue(b.Array) },
-        ScalarValue.FixedSizeList b => new Proto.ScalarValue { FixedSizeListValue = ToScalarNestedValue(b.Array) },
-        ScalarValue.Struct b => new Proto.ScalarValue { StructValue = ToScalarNestedValue(b.Array) },
-        ScalarValue.Map b => new Proto.ScalarValue { MapValue = ToScalarNestedValue(b.Array) },
-
-        ScalarValue.Union b => new Proto.ScalarValue { UnionValue = ToUnionValue(b) },
-
-        ScalarValue.Dictionary b => new Proto.ScalarValue
-        {
-            DictionaryValue = new Proto.ScalarDictionaryValue
-            {
-                IndexType = b.IndexType.ToProto(),
-                Value = b.Value.ToProto()
-            }
-        },
+            ? new Proto.ScalarValue { Decimal128Value = ToProtoDecimal128(v, b.Precision, b.Scale) }
+            : Null(new Proto.ArrowType { DECIMAL = new Proto.Decimal { Precision = b.Precision, Scale = b.Scale } }),
+        
+        ScalarValue.Decimal256 b => b.Value is { } v
+            ? new Proto.ScalarValue { Decimal256Value = ToProtoDecimal256(v, b.Precision, b.Scale) }
+            : Null(new Proto.ArrowType { DECIMAL256 = new Proto.Decimal256Type { Precision = b.Precision, Scale = b.Scale } }),
 
         _ => throw new ArgumentOutOfRangeException(nameof(scalar), scalar.GetType().Name, "Unsupported ScalarValue type")
     };
 
-    private static Proto.UnionValue ToUnionValue(ScalarValue.Union v)
+    private static Proto.Decimal128 ToProtoDecimal128(decimal value, byte precision, byte scale)
     {
-        var unionValue = new Proto.UnionValue
-        {
-            ValueId = v.TypeIdAndValue is { } tv ? (byte)tv.TypeId : 128,
-            Mode = v.Mode switch
-            {
-                UnionMode.Dense => Proto.UnionMode.Dense,
-                UnionMode.Sparse => Proto.UnionMode.Sparse,
-                _ => throw new ArgumentOutOfRangeException(nameof(v), v.Mode, "Unknown UnionMode")
-            }
-        };
-
-        if (v.TypeIdAndValue is { Value: var innerValue })
-            unionValue.Value = innerValue.ToProto();
-
-        unionValue.Fields.AddRange(
-            v.Fields.Fields.Zip(v.Fields.TypeIds, (f, id) =>
-                new Proto.UnionField { FieldId = id, Field = ProtoArrowExtensions.FieldToProto(f) }));
-
-        return unionValue;
-    }
-
-    private static Proto.ScalarNestedValue ToScalarNestedValue(IArrowArray array)
-    {
-        var schema = new Schema([new Field("item", array.Data.DataType, true)], null);
-        
-        using var batch = new RecordBatch(schema, [array], array.Length);
-
-        using var ms = new MemoryStream();
-        using var writer = new ArrowStreamWriter(ms, schema);
-        writer.WriteRecordBatch(batch);
-        writer.WriteEnd();
-
-        var bytes = ms.GetBuffer();
-        var bytesLength = (int) ms.Length;
-        var offset = 0;
-
-        // Skip schema IPC message: [4-byte continuation][4-byte len][flatbuffer][padding]
-        offset += 4; // continuation marker
-        var schemaLen = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(offset));
-        offset += 4;
-        offset += schemaLen + (8 - schemaLen % 8) % 8;
-
-        // Extract record batch IPC message: [4-byte continuation][4-byte len][ipc_message][padding]
-        offset += 4; // continuation marker
-        var recBatchLen = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(offset));
-        offset += 4;
-        var ipcMessage = bytes[offset..(offset + recBatchLen)];
-        offset += recBatchLen + (8 - recBatchLen % 8) % 8;
-
-        // Body data: remaining bytes minus 8-byte EOS marker
-        var bodyLength = bytesLength - offset - 8;
-        var arrowData = bodyLength > 0 ? bytes[offset..(offset + bodyLength)] : [];
-
-        return new Proto.ScalarNestedValue
-        {
-            IpcMessage = ByteString.CopyFrom(ipcMessage),
-            ArrowData = ByteString.CopyFrom(arrowData),
-            Schema = schema.ToProto()
-        };
-    }
-
-    private static Proto.Decimal128 ToProtoDecimal128(decimal value, byte precision)
-    {
-        Span<byte> raw = stackalloc byte[16];
-        MemoryMarshal.Write(raw, in value);
-        // .NET decimal memory layout: [flags(4), hi32(4), lo64(8)]
-        // flags: sign = bit 31 (byte 3), scale = bits 16-23 (byte 2)
-        var negative = (raw[3] & 0x80) != 0;
-        var scale = (sbyte)raw[2];
-
-        UInt128 mantissa = new(
-            BinaryPrimitives.ReadUInt32LittleEndian(raw[4..8]),   // hi32
-            BinaryPrimitives.ReadUInt64LittleEndian(raw[8..16])); // lo64 = lo | (mid << 32)
-        var unscaled = negative ? -(Int128)mantissa : (Int128)mantissa;
-
         Span<byte> bytes = stackalloc byte[16];
-        MemoryMarshal.Write(bytes, in unscaled);
+        GetDecimalBytes(value, precision, scale, bytes.Length, bytes);
+        return new Proto.Decimal128 { Value = ByteString.CopyFrom(bytes), S = scale, P = precision };
+    }
+    
+    private static Proto.Decimal256 ToProtoDecimal256(decimal value, byte precision, byte scale)
+    {
+        Span<byte> bytes = stackalloc byte[32];
+        GetDecimalBytes(value, precision, scale, bytes.Length, bytes);
+        return new Proto.Decimal256 { Value = ByteString.CopyFrom(bytes), S = scale, P = precision };
+    }
+    
+    /// <summary>
+    /// Converts a decimal value to its byte representation. Inspired by Apache.Arrow DecimalUtility.GetBytes.
+    /// </summary>
+    private static void GetDecimalBytes(decimal value, int precision, int scale, int byteWidth, Span<byte> bytes)
+    {
+        Span<int> decimalBits = stackalloc int[4];
+        decimal.GetBits(value, decimalBits);
 
-        return new Proto.Decimal128 { Value = ByteString.CopyFrom(bytes), P = precision, S = scale };
+        var decScale = (decimalBits[3] >> 16) & 0x7F;
+        Span<byte> bigIntBytes = stackalloc byte[13];
+
+        Span<byte> intBytes = stackalloc byte[4];
+        for (var i = 0; i < 3; i++)
+        {
+            var bit = decimalBits[i];
+            if (!BitConverter.TryWriteBytes(intBytes, bit))
+                throw new OverflowException($"Could not extract bytes from int {bit}");
+
+            BinaryPrimitives.WriteInt32LittleEndian(bigIntBytes[(4 * i)..], decimalBits[i]);
+        }
+        var bigInt = new BigInteger(bigIntBytes);
+
+        if (value < 0)
+            bigInt = -bigInt;
+        
+        if (decScale > scale)
+            throw new OverflowException($"Decimal scale cannot be greater than that in the Arrow vector: {decScale} != {scale}");
+        
+        if (bigInt >= BigInteger.Pow(10, precision))
+            throw new OverflowException($"Decimal precision cannot be greater than that in the Arrow vector: {value} has precision > {precision}");
+
+        if (decScale < scale)
+            bigInt *= BigInteger.Pow(10, scale - decScale);
+        
+        if (bytes.Length != byteWidth)
+            throw new OverflowException($"ValueBuffer size not equal to {byteWidth} byte width: {bytes.Length}");
+        
+        if (!bigInt.TryWriteBytes(bytes, out var bytesWritten))
+            throw new OverflowException("Could not extract bytes from integer value " + bigInt);
+
+        if (bytes.Length > byteWidth)
+            throw new OverflowException($"Decimal size greater than {byteWidth} bytes: {bytes.Length}");
+
+        if (bigInt.Sign == -1)
+            for (var i = bytesWritten; i < byteWidth; i++)
+                bytes[i] = 0xFF;
+        
+        // DataFusion expects big-endian byte order
+        for (var i = 0; i < byteWidth / 2; ++i)
+            (bytes[i], bytes[byteWidth - 1 - i]) = (bytes[byteWidth - 1 - i], bytes[i]);
     }
     
     internal static Proto.ScalarValueAndMetadata ToProto(this ScalarValueAndMetadata scalarAndMeta)

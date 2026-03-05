@@ -212,19 +212,17 @@ fn from_proto_insert_op(v: i32) -> Result<datafusion::logical_expr::dml::InsertO
     Ok(df)
 }
 
-pub(crate) fn from_proto_scalar_value_and_metadata(value: &proto::ScalarValueAndMetadata) -> Result<ScalarAndMetadata> {
-    let scalar_proto = value.value.as_ref().ok_or_else(|| anyhow!("Missing scalar value"))?;
-
-    let metadata = if !value.metadata.is_empty() {
-        Some(FieldMetadata::new(BTreeMap::from_iter(value.metadata.iter().map(|(k, v)| (k.clone(), v.clone())))))
+pub(crate) fn from_proto_scalar_value_and_metadata(scalar_and_meta_proto: &proto::ScalarValueAndMetadata) -> Result<ScalarAndMetadata> {
+    let scalar_proto = scalar_and_meta_proto.value.as_ref().ok_or_else(|| anyhow!("Missing scalar value"))?;
+    let scalar = scalar_proto.try_into()?;
+    
+    let metadata = if !scalar_and_meta_proto.metadata.is_empty() {
+        Some(FieldMetadata::new(BTreeMap::from_iter(scalar_and_meta_proto.metadata.iter().map(|(k, v)| (k.clone(), v.clone())))))
     } else {
         None
     };
-
-    Ok(ScalarAndMetadata {
-        value: scalar_proto.try_into()?,
-        metadata,
-    })
+    
+    Ok(ScalarAndMetadata { value: scalar, metadata })
 }
 
 pub(crate) fn from_proto_param_values(values: &proto::DataFrameParamValues) -> Result<ParamValues> {
