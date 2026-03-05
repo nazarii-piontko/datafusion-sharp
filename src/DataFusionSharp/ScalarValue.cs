@@ -656,6 +656,63 @@ public record ScalarValueAndMetadata(ScalarValue Value, Dictionary<string, strin
 }
 
 /// <summary>
+/// Represents a named scalar value with metadata.
+/// This is used for parameterizing SQL queries in DataFusion.
+/// </summary>
+public readonly record struct NamedScalarValueAndMetadata
+{
+    /// <summary>
+    /// Gets the name of the parameter.
+    /// </summary>
+    public string Name { get; }
+
+    /// <summary>
+    /// Gets the value of the parameter.
+    /// </summary>
+    public ScalarValueAndMetadata Value { get; }
+    
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NamedScalarValueAndMetadata"/> record struct with the specified name and value.
+    /// </summary>
+    /// <param name="name">The name of the parameter. Must not be null, empty, or whitespace, and must not start with the '$' symbol.</param>
+    /// <param name="value">The value of the parameter, including its metadata.</param>
+    /// <exception cref="ArgumentException">Thrown when invalid parameters.</exception>
+    public NamedScalarValueAndMetadata(string name, ScalarValueAndMetadata value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (name.StartsWith('$'))
+            throw new ArgumentException("Parameter name should not start with '$' symbol", nameof(name));
+
+        Name = name;
+        Value = value;
+    }
+    
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NamedScalarValueAndMetadata"/> record struct with the specified name and scalar value.
+    /// </summary>
+    /// <param name="name">The name of the parameter. Must not be null, empty, or whitespace, and must not start with the '$' symbol.</param>
+    /// <param name="value">The scalar value of the parameter.</param>
+    public NamedScalarValueAndMetadata(string name, ScalarValue value)
+        : this(name, new ScalarValueAndMetadata(value))
+    {
+    }
+    
+    /// <summary>
+    /// Implicitly converts a tuple of (string Name, ScalarValueAndMetadata Value) to a <see cref="NamedScalarValueAndMetadata"/> record struct.
+    /// </summary>
+    /// <param name="tuple">The tuple containing the name and value to convert.</param>
+    /// <returns>>A new instance of <see cref="NamedScalarValueAndMetadata"/>.</returns>
+    public static implicit operator NamedScalarValueAndMetadata((string Name, ScalarValueAndMetadata Value) tuple) => new(tuple.Name, tuple.Value);
+    
+    /// <summary>
+    /// Implicitly converts a tuple of (string Name, ScalarValue Value) to a <see cref="NamedScalarValueAndMetadata"/> record struct.
+    /// </summary>
+    /// <param name="tuple">The tuple containing the name and value to convert.</param>
+    /// <returns>>A new instance of <see cref="NamedScalarValueAndMetadata"/>.</returns>
+    public static implicit operator NamedScalarValueAndMetadata((string Name, ScalarValue Value) tuple) => new(tuple.Name, tuple.Value);
+}
+
+/// <summary>
 /// Represents a day-time interval as elapsed days and milliseconds (no leap seconds).
 /// Stored as two contiguous 32-bit signed integers in Arrow.
 /// </summary>
