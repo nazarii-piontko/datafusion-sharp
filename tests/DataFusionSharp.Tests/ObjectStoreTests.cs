@@ -92,6 +92,29 @@ public sealed class ObjectStoreTests : IDisposable
         Assert.Equal(["Good", "Good", "Good", "Good", "Good"], cutData);
     }
 
+    [Theory]
+    [MemberData(nameof(S3OptionsToProtoCases))]
+    public void S3Options_ToProto_SetsExpectedField(
+        S3ObjectStoreOptions options, Func<Proto.S3ObjectStoreOptions, bool> assertion)
+    {
+        var proto = options.ToProto();
+
+        Assert.True(assertion(proto));
+    }
+
+    public static TheoryData<S3ObjectStoreOptions, Func<Proto.S3ObjectStoreOptions, bool>> S3OptionsToProtoCases => new()
+    {
+        { new S3ObjectStoreOptions { BucketName = "b" }, p => p is { BucketName: "b", HasRegion: false, HasAccessKeyId: false } },
+        { new S3ObjectStoreOptions { BucketName = "b", Region = "us-east-1" }, p => p is { HasRegion: true, Region: "us-east-1" } },
+        { new S3ObjectStoreOptions { BucketName = "b", AccessKeyId = "AK" }, p => p is { HasAccessKeyId: true, AccessKeyId: "AK" } },
+        { new S3ObjectStoreOptions { BucketName = "b", SecretAccessKey = "SK" }, p => p is { HasSecretAccessKey: true, SecretAccessKey: "SK" } },
+        { new S3ObjectStoreOptions { BucketName = "b", Endpoint = "http://localhost" }, p => p is { HasEndpoint: true, Endpoint: "http://localhost" } },
+        { new S3ObjectStoreOptions { BucketName = "b", Token = "tok" }, p => p is { HasToken: true, Token: "tok" } },
+        { new S3ObjectStoreOptions { BucketName = "b", AllowHttp = true }, p => p is { HasAllowHttp: true, AllowHttp: true } },
+        { new S3ObjectStoreOptions { BucketName = "b", VirtualHostedStyleRequest = true }, p => p is { HasVirtualHostedStyleRequest: true, VirtualHostedStyleRequest: true } },
+        { new S3ObjectStoreOptions { BucketName = "b", SkipSignature = true }, p => p is { HasSkipSignature: true, SkipSignature: true } },
+    };
+
     public void Dispose()
     {
         _runtime.Dispose();
