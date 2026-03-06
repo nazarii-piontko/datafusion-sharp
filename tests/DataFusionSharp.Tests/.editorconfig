@@ -9,3 +9,4 @@ dotnet_diagnostic.ca2007.severity = none # Do not directly await a Task without 
 dotnet_diagnostic.ca5394.severity = none # Do not use insecure randomness
 dotnet_diagnostic.xUnit1044.severity = none # The type argument is not serializable
 dotnet_diagnostic.xUnit1045.severity = none # The type argument might not be serializable
+dotnet_diagnostic.S2699.severity = none # Tests should include assertions
