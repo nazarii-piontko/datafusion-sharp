@@ -276,6 +276,26 @@ pub(crate) fn from_proto_azure_blob_storage(
     builder.build().map_err(|e| anyhow!("Failed to build Azure Blob Storage object store: {e}"))
 }
 
+pub(crate) fn from_proto_gcs_object_store(
+    opts: Option<&proto::GoogleCloudStorageOptions>,
+    url: &url::Url,
+) -> Result<object_store::gcp::GoogleCloudStorage> {
+    let mut builder = object_store::gcp::GoogleCloudStorageBuilder::from_env();
+
+    if let Some(opts) = opts {
+        builder = builder.with_bucket_name(&opts.bucket_name);
+        if let Some(ref v) = opts.credentials_path { builder = builder.with_service_account_path(v); }
+        if let Some(ref v) = opts.credentials { builder = builder.with_service_account_key(v); }
+        if let Some(v) = opts.allow_http { builder = builder.with_config(object_store::gcp::GoogleConfigKey::Client(object_store::ClientConfigKey::AllowHttp), v.to_string()); }
+        if let Some(v) = opts.skip_signature { builder = builder.with_skip_signature(v); }
+    } else {
+        let bucket = url.host_str().ok_or_else(|| anyhow!("GCS URL must contain a bucket name as host"))?;
+        builder = builder.with_bucket_name(bucket);
+    }
+
+    builder.build().map_err(|e| anyhow!("Failed to build Google Cloud Storage object store: {e}"))
+}
+
 pub(crate) fn from_proto_param_values(values: &proto::DataFrameParamValues) -> Result<ParamValues> {
     let values = values.values.as_ref().ok_or_else(|| anyhow!("Missing parameter values"))?;
 

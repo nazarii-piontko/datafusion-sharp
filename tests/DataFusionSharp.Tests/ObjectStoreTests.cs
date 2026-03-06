@@ -187,6 +187,37 @@ public sealed class ObjectStoreTests : IDisposable
         { new AzureBlobStorageOptions { ContainerName = "c", SkipSignature = true }, p => p is { HasSkipSignature: true, SkipSignature: true } },
     };
 
+    [Fact]
+    public void RegisterGoogleCloudStorage_WithoutOptions_ExtractsBucketFromUrl()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+
+        // Act & Assert
+        context.RegisterGoogleCloudStorage("gs://my-bucket");
+    }
+
+    [Theory]
+    [MemberData(nameof(GcsOptionsToProtoCases))]
+    public void GcsOptions_ToProto_SetsExpectedField(GoogleCloudStorageOptions options, Func<Proto.GoogleCloudStorageOptions, bool> assertion)
+    {
+        var proto = options.ToProto();
+
+        Assert.True(assertion(proto));
+    }
+
+    public static TheoryData<GoogleCloudStorageOptions, Func<Proto.GoogleCloudStorageOptions, bool>> GcsOptionsToProtoCases => new()
+    {
+        { new GoogleCloudStorageOptions { BucketName = "b" }, p => p is { BucketName: "b", HasProjectId: false, HasCredentialsPath: false } },
+        { new GoogleCloudStorageOptions { BucketName = "b", ProjectId = "proj" }, p => p is { HasProjectId: true, ProjectId: "proj" } },
+        { new GoogleCloudStorageOptions { BucketName = "b", CredentialsPath = "/path/to/key.json" }, p => p is { HasCredentialsPath: true, CredentialsPath: "/path/to/key.json" } },
+        { new GoogleCloudStorageOptions { BucketName = "b", Credentials = "{\"key\":\"val\"}" }, p => p is { HasCredentials: true, Credentials: "{\"key\":\"val\"}" } },
+        { new GoogleCloudStorageOptions { BucketName = "b", ServiceAccountEmail = "sa@proj.iam.gserviceaccount.com" }, p => p is { HasServiceAccountEmail: true, ServiceAccountEmail: "sa@proj.iam.gserviceaccount.com" } },
+        { new GoogleCloudStorageOptions { BucketName = "b", CustomEndpoint = "http://localhost:4443" }, p => p is { HasCustomEndpoint: true, CustomEndpoint: "http://localhost:4443" } },
+        { new GoogleCloudStorageOptions { BucketName = "b", AllowHttp = true }, p => p is { HasAllowHttp: true, AllowHttp: true } },
+        { new GoogleCloudStorageOptions { BucketName = "b", SkipSignature = true }, p => p is { HasSkipSignature: true, SkipSignature: true } },
+    };
+
     public void Dispose()
     {
         _runtime.Dispose();

@@ -243,6 +243,28 @@ public sealed partial class SessionContext : IDisposable
     }
 
     /// <summary>
+    /// Registers a Google Cloud Storage object store for the given URL.
+    /// </summary>
+    /// <param name="url">The GCS URL to register (e.g., "gs://my-bucket").</param>
+    /// <param name="options">Optional GCS configuration. If null, bucket name is extracted from URL and credentials from environment.</param>
+    /// <exception cref="DataFusionException">Thrown when registration fails.</exception>
+#pragma warning disable CA1054 // URL is passed as-is to DataFusion's native, System.Uri would add redundant conversion.
+    public void RegisterGoogleCloudStorage(string url, GoogleCloudStorageOptions? options = null)
+#pragma warning restore CA1054
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterObjectStoreGcs(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            SyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to register Google Cloud Storage object store");
+        }
+        SyncOperations.Instance.TakeResult(id);
+    }
+
+    /// <summary>
     /// Deregisters an object store for the given URL.
     /// </summary>
     /// <param name="url">The URL of the object store to deregister.</param>
