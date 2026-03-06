@@ -27,6 +27,38 @@
     <File Path="datasets\orders\parquet\customers.parquet" />
     <File Path="datasets\orders\parquet\orders.parquet" />
   </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs\docusaurus.config.ts" />
+    <File Path="docs\package-lock.json" />
+    <File Path="docs\package.json" />
+    <File Path="docs\sidebars.ts" />
+    <File Path="docs\tsconfig.json" />
+  </Folder>
+  <Folder Name="/docs/content/">
+    <File Path="docs\content\index.md" />
+  </Folder>
+  <Folder Name="/docs/content/getting-started/">
+    <File Path="docs\content\getting-started\installation.md" />
+    <File Path="docs\content\getting-started\quick-start.md" />
+  </Folder>
+  <Folder Name="/docs/content/guides/">
+    <File Path="docs\content\guides\core-concepts.md" />
+    <File Path="docs\content\guides\hive-partitioning.md" />
+    <File Path="docs\content\guides\object-stores.md" />
+    <File Path="docs\content\guides\querying-data.md" />
+    <File Path="docs\content\guides\reading-data.md" />
+    <File Path="docs\content\guides\writing-data.md" />
+  </Folder>
+  <Folder Name="/docs/src/" />
+  <Folder Name="/docs/src/css/">
+    <File Path="docs\src\css\custom.css" />
+  </Folder>
+  <Folder Name="/docs/static/">
+    <File Path="docs\static\.nojekyll" />
+  </Folder>
+  <Folder Name="/docs/static/img/">
+    <File Path="docs\static\img\.gitkeep" />
+  </Folder>
   <Folder Name="/examples/">
     <Project Path="examples\QueryData\QueryData.csproj" />
   </Folder>
