@@ -373,7 +373,7 @@ public abstract record ScalarValue
     /// </summary>
     /// <param name="value">The string value to convert.</param>
     /// <returns>An Utf8 scalar with the given value.</returns>
-    public static implicit operator ScalarValue(string value) => new Utf8(value);
+    public static implicit operator ScalarValue(string? value) => new Utf8(value);
 
     /// <summary>
     /// UTF-8 encoded string from view types.
@@ -413,7 +413,7 @@ public abstract record ScalarValue
     /// </summary>
     /// <param name="value">The byte array value to convert.</param>
     /// <returns>A Binary scalar with the given value.</returns>
-    public static implicit operator ScalarValue(byte[] value) => new Binary(value);
+    public static implicit operator ScalarValue(byte[]? value) => new Binary(value);
 
     /// <summary>
     /// Binary data from view types.

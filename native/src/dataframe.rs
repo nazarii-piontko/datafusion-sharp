@@ -49,7 +49,7 @@ pub unsafe extern "C" fn datafusion_dataframe_destroy(df_ptr: *mut DataFrameWrap
 
 /// Clones a `DataFrame`, creating a new independent instance.
 ///
-/// This is a sync operation.
+/// This is a synchronous operation.
 ///
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
