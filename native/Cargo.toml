@@ -20,6 +20,8 @@ arrow-array = { version = "57.3.0", features = ["ffi"] }
 datafusion = "52.1.0"
 datafusion-proto = "52.1.0"
 futures = "0.3.31"
+object_store = { version = "0.12.5", features = ["aws"] }
+url = "2.5.8"
 prost = "0.14.3"
 tokio = { version = "1.49.0", features = ["rt-multi-thread"] }
 

@@ -3,6 +3,7 @@ using DataFusionSharp.Formats.Csv;
 using DataFusionSharp.Formats.Json;
 using DataFusionSharp.Formats.Parquet;
 using DataFusionSharp.Interop;
+using DataFusionSharp.ObjectStore;
 
 namespace DataFusionSharp;
 
@@ -176,6 +177,69 @@ public sealed partial class SessionContext : IDisposable
         return new DataFrame(this, dataFrameSafeHandle);
     }
     
+    /// <summary>
+    /// Registers a local filesystem object store for the given URL.
+    /// </summary>
+    /// <param name="url">The URL scheme to register (e.g., "file:///").</param>
+    /// <exception cref="DataFusionException">Thrown when registration fails (e.g., invalid URL).</exception>
+#pragma warning disable CA1054 // URL is passed as-is to DataFusion's native, System.Uri would add redundant conversion.
+    public void RegisterLocalFileSystem(string url)
+#pragma warning restore CA1054
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterObjectStoreLocal(_handle, url, GenericCallbacks.CallbackForVoidSyncHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            SyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to register local file system object store");
+        }
+        SyncOperations.Instance.TakeResult(id);
+    }
+
+    /// <summary>
+    /// Registers an S3-compatible object store for the given URL.
+    /// </summary>
+    /// <param name="url">The S3 URL to register (e.g., "s3://my-bucket").</param>
+    /// <param name="options">Optional S3 configuration. If null, bucket name is extracted from URL and credentials from environment.</param>
+    /// <exception cref="DataFusionException">Thrown when registration fails.</exception>
+#pragma warning disable CA1054 // URL is passed as-is to DataFusion's native, System.Uri would add redundant conversion.
+    public void RegisterS3ObjectStore(string url, S3ObjectStoreOptions? options = null)
+#pragma warning restore CA1054
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterObjectStoreS3(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            SyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to register S3 object store");
+        }
+        SyncOperations.Instance.TakeResult(id);
+    }
+
+    /// <summary>
+    /// Deregisters an object store for the given URL.
+    /// </summary>
+    /// <param name="url">The URL of the object store to deregister.</param>
+    /// <exception cref="DataFusionException">Thrown when deregistration fails.</exception>
+#pragma warning disable CA1054 // URL is passed as-is to DataFusion's native, System.Uri would add redundant conversion.
+    public void DeregisterObjectStore(string url)
+#pragma warning restore CA1054
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.ContextDeregisterObjectStore(_handle, url, GenericCallbacks.CallbackForVoidSyncHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            SyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to deregister object store");
+        }
+        SyncOperations.Instance.TakeResult(id);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

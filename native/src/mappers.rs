@@ -225,6 +225,30 @@ pub(crate) fn from_proto_scalar_value_and_metadata(scalar_and_meta_proto: &proto
     Ok(ScalarAndMetadata { value: scalar, metadata })
 }
 
+pub(crate) fn from_proto_s3_object_store(
+    opts: Option<&proto::S3ObjectStoreOptions>,
+    url: &url::Url,
+) -> Result<object_store::aws::AmazonS3> {
+    let mut builder = object_store::aws::AmazonS3Builder::from_env();
+
+    if let Some(opts) = opts {
+        builder = builder.with_bucket_name(&opts.bucket_name);
+        if let Some(ref region) = opts.region { builder = builder.with_region(region); }
+        if let Some(ref key) = opts.access_key_id { builder = builder.with_access_key_id(key); }
+        if let Some(ref secret) = opts.secret_access_key { builder = builder.with_secret_access_key(secret); }
+        if let Some(ref endpoint) = opts.endpoint { builder = builder.with_endpoint(endpoint); }
+        if let Some(ref token) = opts.token { builder = builder.with_token(token); }
+        if let Some(allow_http) = opts.allow_http { builder = builder.with_allow_http(allow_http); }
+        if let Some(vhost) = opts.virtual_hosted_style_request { builder = builder.with_virtual_hosted_style_request(vhost); }
+        if let Some(skip_sig) = opts.skip_signature { builder = builder.with_skip_signature(skip_sig); }
+    } else {
+        let bucket = url.host_str().ok_or_else(|| anyhow!("S3 URL must contain a bucket name as host"))?;
+        builder = builder.with_bucket_name(bucket);
+    }
+
+    builder.build().map_err(|e| anyhow!("Failed to build S3 object store: {e}"))
+}
+
 pub(crate) fn from_proto_param_values(values: &proto::DataFrameParamValues) -> Result<ParamValues> {
     let values = values.values.as_ref().ok_or_else(|| anyhow!("Missing parameter values"))?;
 
