@@ -50,6 +50,9 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_s3")]
     public static partial DataFusionErrorCode ContextRegisterObjectStoreS3(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, IntPtr callback, ulong userData);
 
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_azure")]
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreAzure(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, IntPtr callback, ulong userData);
+
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_deregister_object_store")]
     public static partial DataFusionErrorCode ContextDeregisterObjectStore(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, IntPtr callback, ulong userData);
 

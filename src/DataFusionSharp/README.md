@@ -53,7 +53,7 @@ await foreach (var batch in stream)
 - **Runtime Management** - Create and manage Tokio runtime with configurable threads
 - **Session Context** - Execute SQL queries with full DataFusion SQL support
 - **Data Sources** - Read and write CSV, Parquet, and JSON files
-- **Object Store** - Local filesystem and Amazon S3 support
+- **Object Store** - Local filesystem, Amazon S3, and Azure Blob Storage support
 - **DataFrame API** - Count rows, get schema, collect data, and stream results
 
 ## Requirements

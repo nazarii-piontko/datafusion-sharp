@@ -221,6 +221,28 @@ public sealed partial class SessionContext : IDisposable
     }
 
     /// <summary>
+    /// Registers an Azure Blob Storage object store for the given URL.
+    /// </summary>
+    /// <param name="url">The Azure URL to register (e.g., "az://my-container").</param>
+    /// <param name="options">Optional Azure configuration. If null, container name is extracted from URL and credentials from environment.</param>
+    /// <exception cref="DataFusionException">Thrown when registration fails.</exception>
+#pragma warning disable CA1054 // URL is passed as-is to DataFusion's native, System.Uri would add redundant conversion.
+    public void RegisterAzureBlobStorage(string url, AzureBlobStorageOptions? options = null)
+#pragma warning restore CA1054
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterObjectStoreAzure(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            SyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to register Azure Blob Storage object store");
+        }
+        SyncOperations.Instance.TakeResult(id);
+    }
+
+    /// <summary>
     /// Deregisters an object store for the given URL.
     /// </summary>
     /// <param name="url">The URL of the object store to deregister.</param>

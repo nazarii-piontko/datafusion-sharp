@@ -25,3 +25,31 @@ message S3ObjectStoreOptions {
   // Skip signing requests (for anonymous access to public buckets). Default false.
   optional bool skip_signature = 9;
 }
+
+// Options for configuring an Azure Blob Storage object store.
+message AzureBlobStorageOptions {
+  // Azure container name (required)
+  string container_name = 1;
+  // Azure storage account name
+  optional string account_name = 2;
+  // Azure storage access key
+  optional string access_key = 3;
+  // Bearer token for authentication
+  optional string bearer_token = 4;
+  // Client ID for service principal authentication
+  optional string client_id = 5;
+  // Client secret for service principal authentication
+  optional string client_secret = 6;
+  // Tenant ID for service principal authentication
+  optional string tenant_id = 7;
+  // Shared Access Signature key
+  optional string sas_key = 8;
+  // Custom endpoint URL
+  optional string endpoint = 9;
+  // Use Azurite emulator. Default false.
+  optional bool use_emulator = 10;
+  // Allow HTTP (non-TLS) connections. Default false.
+  optional bool allow_http = 11;
+  // Skip signing requests (for anonymous access). Default false.
+  optional bool skip_signature = 12;
+}

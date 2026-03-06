@@ -22,7 +22,7 @@
 |                  | In-memory tables                             | ❌      |                                                   |
 | **Object Store** | Local filesystem                             | ✅      |                                                   |
 |                  | Amazon S3                                    | ✅      |                                                   |
-|                  | Azure Blob Storage                           | ❌      |                                                   |
+|                  | Azure Blob Storage                           | ✅      |                                                   |
 |                  | Google Cloud Storage                         | ❌      |                                                   |
 | **DataFrame**    | Count rows                                   | ✅      | `CountAsync()`                                    |
 |                  | Get schema                                   | ✅      | `GetSchema()` → Arrow Schema                 |
