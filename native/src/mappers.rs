@@ -249,6 +249,33 @@ pub(crate) fn from_proto_s3_object_store(
     builder.build().map_err(|e| anyhow!("Failed to build S3 object store: {e}"))
 }
 
+pub(crate) fn from_proto_azure_blob_storage(
+    opts: Option<&proto::AzureBlobStorageOptions>,
+    url: &url::Url,
+) -> Result<object_store::azure::MicrosoftAzure> {
+    let mut builder = object_store::azure::MicrosoftAzureBuilder::from_env();
+
+    if let Some(opts) = opts {
+        builder = builder.with_container_name(&opts.container_name);
+        if let Some(ref v) = opts.account_name { builder = builder.with_account(v); }
+        if let Some(ref v) = opts.access_key { builder = builder.with_access_key(v); }
+        if let Some(ref v) = opts.bearer_token { builder = builder.with_bearer_token_authorization(v); }
+        if let Some(ref v) = opts.client_id { builder = builder.with_client_id(v); }
+        if let Some(ref v) = opts.client_secret { builder = builder.with_client_secret(v); }
+        if let Some(ref v) = opts.tenant_id { builder = builder.with_tenant_id(v); }
+        if let Some(ref v) = opts.sas_key { builder = builder.with_config(object_store::azure::AzureConfigKey::SasKey, v); }
+        if let Some(ref v) = opts.endpoint { builder = builder.with_endpoint(v.clone()); }
+        if let Some(v) = opts.use_emulator { builder = builder.with_use_emulator(v); }
+        if let Some(v) = opts.allow_http { builder = builder.with_allow_http(v); }
+        if let Some(v) = opts.skip_signature { builder = builder.with_skip_signature(v); }
+    } else {
+        let container = url.host_str().ok_or_else(|| anyhow!("Azure URL must contain a container name as host"))?;
+        builder = builder.with_container_name(container);
+    }
+
+    builder.build().map_err(|e| anyhow!("Failed to build Azure Blob Storage object store: {e}"))
+}
+
 pub(crate) fn from_proto_param_values(values: &proto::DataFrameParamValues) -> Result<ParamValues> {
     let values = values.values.as_ref().ok_or_else(|| anyhow!("Missing parameter values"))?;
 
