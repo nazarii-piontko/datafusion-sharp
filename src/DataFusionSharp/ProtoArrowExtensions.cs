@@ -528,7 +528,7 @@ internal static class ProtoArrowExtensions
         // Children are handled separately
     }
 
-    private static Proto.Field FieldToProto(Field field)
+    internal static Proto.Field FieldToProto(Field field)
     {
         var protoField = new Proto.Field
         {

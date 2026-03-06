@@ -16,7 +16,7 @@ namespace DataFusionSharp;
 /// is called (e.g., <see cref="CollectAsync"/>, <see cref="ExecuteStreamAsync"/>, or one of the Write methods).
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
-public sealed partial class DataFrame : IDisposable
+public sealed partial class DataFrame : IDisposable, ICloneable
 {
     private readonly DataFrameSafeHandle _handle;
 
@@ -30,7 +30,37 @@ public sealed partial class DataFrame : IDisposable
         Context = sessionContext;
         _handle = handle;
     }
-    
+
+    /// <summary>
+    /// Parameterizes DataFrame with the provided SQL parameters. This is used to bind values to parameter placeholders in the original SQL query that created this DataFrame.
+    /// </summary>
+    /// <param name="parameters">A named parameters to bind to the query.</param>
+    /// <returns>A DataFrame instance for chaining.</returns>
+    /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
+    /// <example>
+    /// <code language="csharp">
+    /// using var df = await session.SqlAsync("SELECT * FROM my_table WHERE id = $id");
+    /// df.WithParameters([("id", 123)]);
+    /// </code>
+    /// </example>
+    public DataFrame WithParameters(IEnumerable<NamedScalarValueAndMetadata> parameters)
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        using var paramValuesData = PinnedProtobufData.FromMessage(parameters.ToProto());
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            SyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to parameterize DataFrame with SQL parameters");
+        }
+        
+        SyncOperations.Instance.PeekResult(id);
+        
+        return this;
+    }
+
     /// <summary>
     /// Returns the number of rows in this DataFrame.
     /// </summary>
@@ -228,10 +258,41 @@ public sealed partial class DataFrame : IDisposable
         return tcs.Task;
     }
     
+    /// <summary>
+    /// Creates a deep clone of this DataFrame.
+    /// The cloned DataFrame will have its own independent query execution and lifecycle, allowing it to be used concurrently with the original DataFrame without interference.
+    /// </summary>
+    /// <returns>A cloned <see cref="DataFrame"/>.</returns>
+    public DataFrame Clone()
+    {
+        var clonedDataFrame = NativeMethods.DataFrameClone(_handle);
+        var clonedDataFrameSafeHandle = new DataFrameSafeHandle(clonedDataFrame);
+        return new DataFrame(Context, clonedDataFrameSafeHandle);
+    }
+    
+    object ICloneable.Clone() => Clone();
+    
     /// <inheritdoc />
     public void Dispose()
     {
         _handle.Dispose();
+    }
+    
+    [DataFusionSharpNativeCallback]
+    private static void CallbackForClone(IntPtr result, IntPtr error, ulong handle)
+    {
+        if (error != IntPtr.Zero)
+        {
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<DataFrameSafeHandle>(handle, ex);
+            return;
+        }
+
+        var dataFrameHandle = Marshal.ReadIntPtr(result);
+#pragma warning disable CA2000
+        var clonedDataFrameSafeHandle = new DataFrameSafeHandle(dataFrameHandle);
+#pragma warning restore CA2000
+        AsyncOperations.Instance.CompleteWithResult(handle, clonedDataFrameSafeHandle);
     }
     
     [DataFusionSharpNativeCallback]

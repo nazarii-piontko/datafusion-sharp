@@ -19,6 +19,10 @@ impl BytesData {
         }
     }
 
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts( self.data, self.len as usize) }
+    }
+
     pub(crate) fn as_opt_slice(&self) -> Option<&[u8]> {
         if self.data.is_null() {
             None

@@ -8,6 +8,13 @@ internal static partial class GenericCallbacks
         var ex = error != IntPtr.Zero ? ErrorInfoData.FromIntPtr(error).ToException() : null;
         AsyncOperations.Instance.CompleteVoid(handle, ex);
     }
+    
+    [DataFusionSharpNativeCallback]
+    internal static void CallbackForVoidSync(IntPtr _, IntPtr error, ulong handle)
+    {
+        var ex = error != IntPtr.Zero ? ErrorInfoData.FromIntPtr(error).ToException() : null;
+        SyncOperations.Instance.CompleteVoid(handle, ex);
+    }
 
     [DataFusionSharpNativeCallback]
     internal static void CallbackForString(IntPtr result, IntPtr error, ulong handle)

@@ -1,12 +1,14 @@
-use std::collections::HashMap;
 use anyhow::{anyhow, bail, Result};
+use std::collections::HashMap;
 
+use crate::data_frame_param_values::Values;
+use crate::proto;
 use datafusion::arrow::datatypes::{DataType, Schema};
-use datafusion::common::{ParamValues, ScalarValue};
+use datafusion::common::metadata::{FieldMetadata, ScalarAndMetadata};
+use datafusion::common::ParamValues;
 use datafusion::datasource::file_format::file_compression_type::FileCompressionType;
 use datafusion::logical_expr::SortExpr;
 use datafusion::prelude::CsvReadOptions;
-use crate::proto;
 
 pub(crate) fn from_proto_schema(schema: Option<&datafusion_proto::protobuf::Schema>) -> Result<Option<Schema>> {
     schema
@@ -210,14 +212,34 @@ fn from_proto_insert_op(v: i32) -> Result<datafusion::logical_expr::dml::InsertO
     Ok(df)
 }
 
-pub(crate) fn from_proto_sql_params(params: &proto::SqlParameters) -> Result<ParamValues> {
-    let map: HashMap<String, ScalarValue> = params.values.iter()
-        .map(|(key, proto_val)| {
-            let scalar = ScalarValue::try_from(proto_val)
-                .map_err(|e| anyhow!("Failed to convert parameter '{key}': {e}"))?;
-            Ok((key.to_owned(), scalar))
-        })
-        .collect::<Result<_>>()?;
+pub(crate) fn from_proto_scalar_value_and_metadata(scalar_and_meta_proto: &proto::ScalarValueAndMetadata) -> Result<ScalarAndMetadata> {
+    let scalar_proto = scalar_and_meta_proto.value.as_ref().ok_or_else(|| anyhow!("Missing scalar value"))?;
+    let scalar = scalar_proto.try_into()?;
 
-    Ok(map.into())
+    let metadata = if scalar_and_meta_proto.metadata.is_empty() {
+        None
+    } else {
+        Some(FieldMetadata::new(scalar_and_meta_proto.metadata.iter().map(|(k, v)| (k.clone(), v.clone())).collect()))
+    };
+
+    Ok(ScalarAndMetadata { value: scalar, metadata })
+}
+
+pub(crate) fn from_proto_param_values(values: &proto::DataFrameParamValues) -> Result<ParamValues> {
+    let values = values.values.as_ref().ok_or_else(|| anyhow!("Missing parameter values"))?;
+
+    match values {
+        Values::Positional(p) => {
+            p.values.iter()
+                .map(from_proto_scalar_value_and_metadata)
+                .collect::<Result<Vec<_>>>()
+                .map(ParamValues::List)
+        },
+        Values::Named(n) => {
+            n.values.iter()
+                .map(|(k, v)| Ok((k.clone(), from_proto_scalar_value_and_metadata(v)?)))
+                .collect::<Result<HashMap<_, _>>>()
+                .map(ParamValues::Map)
+        }
+    }
 }
