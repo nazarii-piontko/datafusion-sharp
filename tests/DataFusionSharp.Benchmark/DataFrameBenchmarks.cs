@@ -35,7 +35,7 @@ public class DataFrameBenchmarks
     public Task<ulong> CountAsync() => _dataFrame.CountAsync();
 
     [Benchmark]
-    public Task<Schema> GetSchemaAsync() => _dataFrame.GetSchemaAsync();
+    public Schema GetSchema() => _dataFrame.GetSchema();
 
     [Benchmark]
     public Task<DataFrameCollectedResult> CollectAsync() => _dataFrame.CollectAsync();

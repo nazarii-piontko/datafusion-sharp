@@ -110,7 +110,7 @@ public sealed class CsvTests : FileFormatTests
         await Context.RegisterCsvAsync("test", tempFile.Path, options);
         using var df = await Context.SqlAsync("SELECT * FROM test");
         var count = await df.CountAsync();
-        var schema = await df.GetSchemaAsync();
+        var schema = df.GetSchema();
 
         // Assert
         Assert.Equal(2UL, count);
@@ -139,7 +139,7 @@ public sealed class CsvTests : FileFormatTests
         await Context.RegisterCsvAsync("test", tempFile.Path, options);
         using var df = await Context.SqlAsync("SELECT * FROM test");
         var count = await df.CountAsync();
-        var schema = await df.GetSchemaAsync();
+        var schema = df.GetSchema();
 
         // Assert
         Assert.Equal(2UL, count);
@@ -218,7 +218,7 @@ public sealed class CsvTests : FileFormatTests
         await Context.RegisterCsvAsync("test", tempFile.Path, options);
         using var df = await Context.SqlAsync("SELECT * FROM test");
         var count = await df.CountAsync();
-        var schema = await df.GetSchemaAsync();
+        var schema = df.GetSchema();
 
         // Assert
         Assert.Equal(2UL, count);
@@ -307,7 +307,7 @@ public sealed class CsvTests : FileFormatTests
         // Act
         await Context.RegisterCsvAsync("test", tempFile.Path, options);
         using var df = await Context.SqlAsync("SELECT * FROM test");
-        var schema = await df.GetSchemaAsync();
+        var schema = df.GetSchema();
 
         // Assert
         Assert.Equal(2, schema.FieldsList.Count);
