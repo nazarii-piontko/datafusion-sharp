@@ -42,6 +42,17 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_sql")]
     public static partial DataFusionErrorCode ContextSql(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, BytesData paramValuesData, IntPtr callback, ulong userData);
 
+    // Object Store
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_local")]
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreLocal(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, IntPtr callback, ulong userData);
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_s3")]
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreS3(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, IntPtr callback, ulong userData);
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_deregister_object_store")]
+    public static partial DataFusionErrorCode ContextDeregisterObjectStore(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, IntPtr callback, ulong userData);
+
     // DataFrame
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_destroy")]

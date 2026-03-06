@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package datafusion_sharp_proto;
+
+option csharp_namespace = "DataFusionSharp.Proto";
+
+// Options for configuring an S3 object store.
+message S3ObjectStoreOptions {
+  // S3 bucket name (required)
+  string bucket_name = 1;
+  // AWS region
+  optional string region = 2;
+  // AWS access key ID
+  optional string access_key_id = 3;
+  // AWS secret access key
+  optional string secret_access_key = 4;
+  // Custom endpoint URL (for S3-compatible services like `MinIO`)
+  optional string endpoint = 5;
+  // Session token for temporary credentials
+  optional string token = 6;
+  // Allow HTTP (non-TLS) connections. Default false.
+  optional bool allow_http = 7;
+  // Use virtual hosted style requests. Default false.
+  optional bool virtual_hosted_style_request = 8;
+  // Skip signing requests (for anonymous access to public buckets). Default false.
+  optional bool skip_signature = 9;
+}
