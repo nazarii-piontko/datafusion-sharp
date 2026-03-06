@@ -49,6 +49,8 @@ pub unsafe extern "C" fn datafusion_dataframe_destroy(df_ptr: *mut DataFrameWrap
 
 /// Clones a `DataFrame`, creating a new independent instance.
 ///
+/// This is a sync operation.
+///
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
 #[unsafe(no_mangle)]
@@ -65,7 +67,7 @@ pub unsafe extern "C" fn datafusion_dataframe_clone(
 
 /// Creates a new `DataFrame` by applying the given SQL parameters to the existing `DataFrame`.
 ///
-/// This is an async operation. The callback is invoked on completion with a pointer to the new `DataFrameWrapper`.
+/// This is a synchronous operation. The callback is invoked on completion.
 ///
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
