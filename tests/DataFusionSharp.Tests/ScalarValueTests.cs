@@ -3,12 +3,12 @@ using Apache.Arrow.Types;
 
 namespace DataFusionSharp.Tests;
 
-public sealed class DataFrameParameterTests : IDisposable
+public sealed class ScalarValueTests : IDisposable
 {
     private readonly DataFusionRuntime _runtime = DataFusionRuntime.Create();
     private readonly SessionContext _context;
 
-    public DataFrameParameterTests() => _context = _runtime.CreateSessionContext();
+    public ScalarValueTests() => _context = _runtime.CreateSessionContext();
 
     public static TheoryData<ScalarValue, ArrowTypeId, string> SupportedParameters => new()
     {
@@ -92,6 +92,8 @@ public sealed class DataFrameParameterTests : IDisposable
         { new ScalarValue.DurationSecond(60L), ArrowTypeId.Duration, "0 days 0 hours 1 mins 0 secs" },
         { ScalarValue.DurationSecond.Null, ArrowTypeId.Duration, "" },
         { new ScalarValue.DurationMillisecond(1000L), ArrowTypeId.Duration, "0 days 0 hours 0 mins 1.000 secs" },
+        { TimeSpan.FromMilliseconds(1000), ArrowTypeId.Duration, "0 days 0 hours 0 mins 1.000 secs" },
+        { (TimeSpan?)TimeSpan.FromMilliseconds(1000), ArrowTypeId.Duration, "0 days 0 hours 0 mins 1.000 secs" },
         { ScalarValue.DurationMillisecond.Null, ArrowTypeId.Duration, "" },
         { new ScalarValue.DurationMicrosecond(1_000_000L), ArrowTypeId.Duration, "0 days 0 hours 0 mins 1.000000 secs" },
         { ScalarValue.DurationMicrosecond.Null, ArrowTypeId.Duration, "" },
@@ -109,6 +111,8 @@ public sealed class DataFrameParameterTests : IDisposable
         { new ScalarValue.TimestampSecond(1_000_000L, "UTC"), ArrowTypeId.Timestamp, "1970-01-12T13:46:40Z" },
         { ScalarValue.TimestampSecond.Null, ArrowTypeId.Timestamp, "" },
         { new ScalarValue.TimestampMillisecond(1_000_000L, null), ArrowTypeId.Timestamp, "1970-01-01T00:16:40" },
+        { DateTimeOffset.Parse("1970-01-01T00:16:40Z", CultureInfo.InvariantCulture), ArrowTypeId.Timestamp, "1970-01-01T00:16:40" },
+        { (DateTimeOffset?)DateTimeOffset.Parse("1970-01-01T00:16:40Z", CultureInfo.InvariantCulture), ArrowTypeId.Timestamp, "1970-01-01T00:16:40" },
         { ScalarValue.TimestampMillisecond.Null, ArrowTypeId.Timestamp, "" },
         { new ScalarValue.TimestampMicrosecond(1_000_000L, "UTC"), ArrowTypeId.Timestamp, "1970-01-01T00:00:01Z" },
         { ScalarValue.TimestampMicrosecond.Null, ArrowTypeId.Timestamp, "" },

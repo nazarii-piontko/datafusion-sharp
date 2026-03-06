@@ -627,6 +627,20 @@ public abstract record ScalarValue
         {
         }
     }
+    
+    /// <summary>
+    /// Implicit conversion from DateTimeOffset to TimestampMillisecond for convenience.
+    /// </summary>
+    /// <param name="value">The DateTimeOffset value to convert.</param>
+    /// <returns>A TimestampMillisecond scalar with the given value.</returns>
+    public static implicit operator ScalarValue(DateTimeOffset? value) => new TimestampMillisecond(value);
+    
+    /// <summary>
+    /// Implicit conversion from DateTimeOffset to TimestampMillisecond for convenience.
+    /// </summary>
+    /// <param name="value">The DateTimeOffset value to convert.</param>
+    /// <returns>A TimestampMillisecond scalar with the given value.</returns>
+    public static implicit operator ScalarValue(DateTimeOffset value) => new TimestampMillisecond(value);
 
     /// <summary>
     /// Timestamp with microsecond precision.
@@ -676,7 +690,8 @@ public abstract record ScalarValue
     {
         if (timestamp is null)
             return null;
-        return timestamp.Value.Offset == TimeSpan.Zero ? null : timestamp.Value.Offset.ToString();
+        
+        return timestamp.Value.Offset == TimeSpan.Zero ? null : $"GMT{timestamp.Value.Hour}";
     }
 
     /// <summary>
@@ -723,6 +738,12 @@ public abstract record ScalarValue
         /// A DurationSecond scalar with a null value.
         /// </summary>
         public static DurationSecond Null { get; } = new((long?)null);
+
+        /// <inheritdoc />
+        public DurationSecond(TimeSpan? duration)
+            : this(duration != null ? (long)duration.Value.TotalSeconds : null)
+        {
+        }
     }
 
     /// <summary>
@@ -734,7 +755,27 @@ public abstract record ScalarValue
         /// A DurationMillisecond scalar with a null value.
         /// </summary>
         public static DurationMillisecond Null { get; } = new((long?)null);
+
+        /// <inheritdoc />
+        public DurationMillisecond(TimeSpan? duration)
+            : this(duration != null ? (long)duration.Value.TotalMilliseconds : null)
+        {
+        }
     }
+    
+    /// <summary>
+    /// Implicit conversion from TimeSpan to DurationMillisecond for convenience.
+    /// </summary>
+    /// <param name="value">The TimeSpan value to convert.</param>
+    /// <returns>A DurationMillisecond scalar with the given value.</returns>
+    public static implicit operator ScalarValue(TimeSpan? value) => new DurationMillisecond(value);
+    
+    /// <summary>
+    /// Implicit conversion from TimeSpan to DurationMillisecond for convenience.
+    /// </summary>
+    /// <param name="value">The TimeSpan value to convert.</param>
+    /// <returns>A DurationMillisecond scalar with the given value.</returns>
+    public static implicit operator ScalarValue(TimeSpan value) => new DurationMillisecond(value);
 
     /// <summary>
     /// Duration in microseconds.
@@ -745,6 +786,12 @@ public abstract record ScalarValue
         /// A DurationMicrosecond scalar with a null value.
         /// </summary>
         public static DurationMicrosecond Null { get; } = new((long?)null);
+
+        /// <inheritdoc />
+        public DurationMicrosecond(TimeSpan? duration)
+            : this((duration?.Ticks / 10)) // 1 tick = 100 nanoseconds = 0.1 microseconds
+        {
+        }
     }
 
     /// <summary>
@@ -756,6 +803,12 @@ public abstract record ScalarValue
         /// A DurationNanosecond scalar with a null value.
         /// </summary>
         public static DurationNanosecond Null { get; } = new((long?)null);
+
+        /// <inheritdoc />
+        public DurationNanosecond(TimeSpan? duration)
+            : this(duration?.Ticks * 100) // 1 tick = 100 nanoseconds
+        {
+        }
     }
 }
 
