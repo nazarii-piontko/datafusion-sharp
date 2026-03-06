@@ -16,14 +16,14 @@
 | **Runtime**      | Tokio runtime                                | ✅      | Configurable threads, supports multiple instances |
 | **Session**      | Create session context                       | ✅      |                                                   |
 |                  | Execute SQL queries                          | ✅      | Returns DataFrame, supports parameters            |
-| **Data Sources** | CSV read                                     | ✅     |                                                   |
-|                  | CSV write                                    | ✅     |                                                   |
-|                  | Parquet read                                 | ✅     |                                                   |
-|                  | Parquet write                                | ✅     |                                                   |
-|                  | JSON read                                    | ✅     |                                                   |
-|                  | JSON write                                   | ✅     |                                                   |
+| **Data Sources** | CSV (read/write)                             | ✅     |                                                   |
+|                  | Parquet (read/write)                         | ✅     |                                                   |
+|                  | JSON (read/write)                            | ✅     |                                                   |
 |                  | In-memory tables                             | ❌      |                                                   |
-|                  | Object Store                                 | ❌      |                                                   |
+| **Object Store** | Local filesystem                             | ✅      |                                                   |
+|                  | Amazon S3                                    | ✅      |                                                   |
+|                  | Azure Blob Storage                           | ❌      |                                                   |
+|                  | Google Cloud Storage                         | ❌      |                                                   |
 | **DataFrame**    | Count rows                                   | ✅      | `CountAsync()`                                    |
 |                  | Get schema                                   | ✅      | `GetSchema()` → Arrow Schema                 |
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches                  |
