@@ -56,7 +56,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
             throw new DataFusionException(result, "Failed to parameterize DataFrame with SQL parameters");
         }
         
-        SyncOperations.Instance.PeekResult(id);
+        SyncOperations.Instance.TakeResult(id);
         
         return this;
     }
@@ -122,11 +122,11 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <summary>
     /// Returns the Arrow schema of this DataFrame.
     /// </summary>
-    /// <returns>A task containing the <see cref="Schema"/>.</returns>
+    /// <returns>A <see cref="Schema"/>.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task<Schema> GetSchemaAsync()
+    public Schema GetSchema()
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<Schema>();
+        var id = SyncOperations.Instance.Create();
         var result = NativeMethods.DataFrameSchema(_handle, CallbackForGetSchemaHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
@@ -134,7 +134,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
             throw new DataFusionException(result, "Failed to start getting DataFrame schema");
         }
 
-        return tcs.Task;
+        return SyncOperations.Instance.TakeResult<Schema>(id);
     }
     
     /// <summary>
@@ -314,7 +314,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         if (error != IntPtr.Zero)
         {
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
+            SyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
             return;
         }
 
@@ -325,11 +325,11 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         }
         catch (Exception ex)
         {
-            AsyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
+            SyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
             return;
         }
         
-        AsyncOperations.Instance.CompleteWithResult(handle, schema);
+        SyncOperations.Instance.CompleteWithResult(handle, schema);
     }
     
     [DataFusionSharpNativeCallback]

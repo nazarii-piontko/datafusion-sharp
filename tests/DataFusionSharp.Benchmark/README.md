@@ -15,11 +15,11 @@ dotnet run -c Release
 
 Tests DataFrame operations with varying row counts (1, 100, 10,000, 1,000,000 rows).
 
-| Benchmark        | Description                       |
-|------------------|-----------------------------------|
-| `CountAsync`     | Count rows in DataFrame           |
-| `GetSchemaAsync` | Retrieve Arrow schema             |
-| `CollectAsync`   | Collect all data as RecordBatches |
+| Benchmark      | Description                       |
+|----------------|-----------------------------------|
+| `CountAsync`   | Count rows in DataFrame           |
+| `GetSchema`    | Retrieve Arrow schema             |
+| `CollectAsync` | Collect all data as RecordBatches |
 
 ## Results
 
@@ -31,20 +31,20 @@ Neoverse-N1, 2 physical cores
 DefaultJob : .NET 10.0.3 (10.0.3, 10.0.326.7603), Arm64 RyuJIT armv8.0-a
 ```
 
-| Method         | RowCount | Mean         | Error     | StdDev    | Gen0      | Gen1      | Gen2      | Allocated |
-|--------------- |--------- |-------------:|----------:|----------:|----------:|----------:|----------:|----------:|
-| CountAsync     | 1        |   617.201 us | 2.8458 us | 2.5227 us |         - |         - |         - |     240 B |
-| GetSchemaAsync | 1        |     1.809 us | 0.0029 us | 0.0027 us |    0.0687 |         - |         - |    1176 B |
-| CollectAsync   | 1        |   361.289 us | 3.7899 us | 3.5451 us |         - |         - |         - |    1824 B |
-| CountAsync     | 100      |   616.386 us | 3.4186 us | 3.1978 us |         - |         - |         - |     240 B |
-| GetSchemaAsync | 100      |     1.726 us | 0.0031 us | 0.0029 us |    0.0687 |         - |         - |    1176 B |
-| CollectAsync   | 100      |   361.824 us | 3.0167 us | 2.8218 us |         - |         - |         - |    1824 B |
-| CountAsync     | 10000    |   620.959 us | 1.8969 us | 1.7743 us |         - |         - |         - |     240 B |
-| GetSchemaAsync | 10000    |     1.828 us | 0.0023 us | 0.0022 us |    0.0687 |         - |         - |    1176 B |
-| CollectAsync   | 10000    |   385.928 us | 1.3691 us | 1.2137 us |   18.0664 |   18.0664 |   18.0664 |    2302 B |
-| CountAsync     | 1000000  | 3,415.513 us | 8.8833 us | 8.3094 us |         - |         - |         - |     240 B |
-| GetSchemaAsync | 1000000  |     1.685 us | 0.0020 us | 0.0019 us |    0.0687 |         - |         - |    1176 B |
-| CollectAsync   | 1000000  | 3,001.268 us | 5.0928 us | 4.2527 us | 1230.4688 | 1230.4688 | 1230.4688 |   59737 B |
+| Method       | RowCount | Mean         | Error     | StdDev    | Gen0      | Gen1      | Gen2      | Allocated |
+|--------------|--------- |-------------:|----------:|----------:|----------:|----------:|----------:|----------:|
+| CountAsync   | 1        |   617.201 us | 2.8458 us | 2.5227 us |         - |         - |         - |     240 B |
+| GetSchema    | 1        |     1.809 us | 0.0029 us | 0.0027 us |    0.0687 |         - |         - |    1176 B |
+| CollectAsync | 1        |   361.289 us | 3.7899 us | 3.5451 us |         - |         - |         - |    1824 B |
+| CountAsync   | 100      |   616.386 us | 3.4186 us | 3.1978 us |         - |         - |         - |     240 B |
+| GetSchema    | 100      |     1.726 us | 0.0031 us | 0.0029 us |    0.0687 |         - |         - |    1176 B |
+| CollectAsync | 100      |   361.824 us | 3.0167 us | 2.8218 us |         - |         - |         - |    1824 B |
+| CountAsync   | 10000    |   620.959 us | 1.8969 us | 1.7743 us |         - |         - |         - |     240 B |
+| GetSchema    | 10000    |     1.828 us | 0.0023 us | 0.0022 us |    0.0687 |         - |         - |    1176 B |
+| CollectAsync | 10000    |   385.928 us | 1.3691 us | 1.2137 us |   18.0664 |   18.0664 |   18.0664 |    2302 B |
+| CountAsync   | 1000000  | 3,415.513 us | 8.8833 us | 8.3094 us |         - |         - |         - |     240 B |
+| GetSchema    | 1000000  |     1.685 us | 0.0020 us | 0.0019 us |    0.0687 |         - |         - |    1176 B |
+| CollectAsync | 1000000  | 3,001.268 us | 5.0928 us | 4.2527 us | 1230.4688 | 1230.4688 | 1230.4688 |   59737 B |
 
 ## Reference Results From Native DataFusion
 

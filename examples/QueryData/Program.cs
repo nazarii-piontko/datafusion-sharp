@@ -44,7 +44,7 @@ Console.WriteLine($"Total rows: {await df.CountAsync()}");
 Console.WriteLine();
 
 Console.WriteLine("=== Schema ===");
-var schema = await df.GetSchemaAsync();
+var schema = df.GetSchema();
 foreach (var field in schema.FieldsList)
     Console.WriteLine($"  {field.Name}: {field.DataType}");
 Console.WriteLine();

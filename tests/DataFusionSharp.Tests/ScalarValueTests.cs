@@ -126,7 +126,7 @@ public sealed class ScalarValueTests : IDisposable
     {
         // Act
         using var df = await _context.SqlAsync("SELECT $p AS val", [("p", param)]);
-        var schema = await df.GetSchemaAsync();
+        var schema = df.GetSchema();
         var str = await df.ToStringAsync();
         
         // Assert

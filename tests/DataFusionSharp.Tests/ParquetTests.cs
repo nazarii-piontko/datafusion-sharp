@@ -52,7 +52,7 @@ public sealed class ParquetTests : FileFormatTests
         // Act
         await Context.RegisterParquetAsync("customers", DataSet.CustomersParquetPath, options);
         using var df = await Context.SqlAsync("SELECT * FROM customers");
-        var schema = await df.GetSchemaAsync();
+        var schema = df.GetSchema();
         var count = await df.CountAsync();
 
         // Assert

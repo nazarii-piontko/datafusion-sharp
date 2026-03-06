@@ -68,13 +68,13 @@ public sealed class DataFrameTests : IDisposable
     }
 
     [Fact]
-    public async Task GetSchemaAsync_ReturnsSchema()
+    public async Task GetSchema_ReturnsSchema()
     {
         // Arrange
         using var df = await _context.SqlAsync(GetIdValueTableSelectSql(1));
 
         // Act
-        var schema = await df.GetSchemaAsync();
+        var schema = df.GetSchema();
 
         // Assert
         Assert.NotNull(schema);
@@ -195,7 +195,7 @@ public sealed class DataFrameTests : IDisposable
         using var df = await _context.SqlAsync(GetIdValueTableSelectSql(5));
 
         // Act
-        var dfSchema = await df.GetSchemaAsync();
+        var dfSchema = df.GetSchema();
         
         using var stream = await df.ExecuteStreamAsync();
         var streamSchema = stream.Schema;

@@ -33,7 +33,7 @@ using var df = await context.SqlAsync( "SELECT customer_id, sum(amount) AS total
 await df.ShowAsync();
 
 // Access schema
-var schema = await df.GetSchemaAsync();
+var schema = df.GetSchema();
 foreach (var field in schema.FieldsList)
     ... // Process schema field (name, type, etc.)
 
