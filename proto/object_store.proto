@@ -53,3 +53,23 @@ message AzureBlobStorageOptions {
   // Skip signing requests (for anonymous access). Default false.
   optional bool skip_signature = 12;
 }
+
+// Options for configuring a Google Cloud Storage object store.
+message GoogleCloudStorageOptions {
+  // GCS bucket name (required)
+  string bucket_name = 1;
+  // GCP project ID
+  optional string project_id = 2;
+  // Path to a service account JSON key file
+  optional string credentials_path = 3;
+  // Service account JSON key as a string
+  optional string credentials = 4;
+  // Service account email
+  optional string service_account_email = 5;
+  // Custom endpoint URL
+  optional string custom_endpoint = 6;
+  // Allow HTTP (non-TLS) connections. Default false.
+  optional bool allow_http = 7;
+  // Skip signing requests (for anonymous access). Default false.
+  optional bool skip_signature = 8;
+}

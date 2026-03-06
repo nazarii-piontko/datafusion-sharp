@@ -23,7 +23,7 @@
 | **Object Store** | Local filesystem                             | ✅      |                                                   |
 |                  | Amazon S3                                    | ✅      |                                                   |
 |                  | Azure Blob Storage                           | ✅      |                                                   |
-|                  | Google Cloud Storage                         | ❌      |                                                   |
+|                  | Google Cloud Storage                         | ✅      |                                                   |
 | **DataFrame**    | Count rows                                   | ✅      | `CountAsync()`                                    |
 |                  | Get schema                                   | ✅      | `GetSchema()` → Arrow Schema                 |
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches                  |
