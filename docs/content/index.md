@@ -43,6 +43,7 @@ using var runtime = DataFusionRuntime.Create();
 using var context = runtime.CreateSessionContext();
 
 await context.RegisterCsvAsync("orders", "orders.csv");
+
 using var df = await context.SqlAsync("SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id");
 await df.ShowAsync();
 ```
