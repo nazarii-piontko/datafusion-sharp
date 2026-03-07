@@ -129,7 +129,7 @@ See [**examples/**](examples) for more details.
 
 ## Documentation
 
-TODO: Documentation is in progress. Please refer to the [source code](src/DataFusionSharp) and [examples](examples) for usage details.
+Full documentation is available at **[nazarii-piontko.github.io/datafusion-sharp](https://nazarii-piontko.github.io/datafusion-sharp/)**.
 
 ## Project Structure
 

@@ -599,3 +599,7 @@ FodyWeavers.xsd
 
 ### Project Specific Excludes
 *.zst
+
+# Docusaurus
+docs/build/
+docs/.docusaurus/
