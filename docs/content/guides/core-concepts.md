@@ -42,13 +42,13 @@ using var df = await context.SqlAsync("SELECT * FROM orders");
 
 ## DataFrame
 
-A DataFrame represents a lazy query plan. The query is **not executed** until a terminal operation is called.
+A DataFrame represents a lazy query plan. The query is **not executed** until a materialization operation is called.
 
 ```csharp
 // Lazy — just builds the plan
 using var df = await context.SqlAsync("SELECT * FROM orders WHERE amount > 100");
 
-// Terminal operations — these trigger execution
+// Materialization operations — these trigger execution
 await df.ShowAsync();                    // Print to stdout
 string text = await df.ToStringAsync();  // Get as string
 ulong count = await df.CountAsync();     // Row count
@@ -58,7 +58,6 @@ using var stream = await df.ExecuteStreamAsync(); // Streaming batches
 
 **Guidelines:**
 - **Not thread-safe** — do not call methods concurrently.
-- Use `Clone()` if you need to execute the same query plan multiple times.
 - Always dispose DataFrames, collected results, and streams — they reference native memory.
 
 ## Resource Lifecycle

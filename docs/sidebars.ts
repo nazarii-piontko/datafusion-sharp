@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
       label: 'Guides',
       items: [
         'guides/core-concepts',
+        'guides/working-with-arrow',
         'guides/querying-data',
         'guides/reading-data',
         'guides/writing-data',

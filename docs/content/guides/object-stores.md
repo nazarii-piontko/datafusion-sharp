@@ -9,12 +9,12 @@ Object stores let you query remote data via URL schemes. The pattern is: **regis
 
 ## URL Schemes
 
-| Scheme | Store |
-|--------|-------|
-| `file:///` | Local filesystem |
-| `s3://bucket` | Amazon S3 (and compatible) |
-| `az://container` | Azure Blob Storage |
-| `gs://bucket` | Google Cloud Storage |
+| Scheme           | Store                      |
+|------------------|----------------------------|
+| `file:///`       | Local filesystem           |
+| `s3://bucket`    | Amazon S3 (and compatible) |
+| `az://container` | Azure Blob Storage         |
+| `gs://bucket`    | Google Cloud Storage       |
 
 ## Local Filesystem
 
@@ -66,17 +66,17 @@ context.RegisterS3ObjectStore("s3://my-bucket", new S3ObjectStoreOptions
 
 ### S3ObjectStoreOptions
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `BucketName` | `string` | Yes | S3 bucket name |
-| `Region` | `string?` | No | AWS region (e.g., `us-east-1`) |
-| `AccessKeyId` | `string?` | No | AWS access key ID |
-| `SecretAccessKey` | `string?` | No | AWS secret access key |
-| `Endpoint` | `string?` | No | Custom endpoint for S3-compatible services |
-| `Token` | `string?` | No | Session token for temporary credentials |
-| `AllowHttp` | `bool?` | No | Allow HTTP (non-TLS) connections |
-| `VirtualHostedStyleRequest` | `bool?` | No | Use virtual hosted style requests |
-| `SkipSignature` | `bool?` | No | Skip request signing (for public buckets) |
+| Property                    | Type      | Required | Description                                |
+|-----------------------------|-----------|----------|--------------------------------------------|
+| `BucketName`                | `string`  | Yes      | S3 bucket name                             |
+| `Region`                    | `string?` | No       | AWS region (e.g., `us-east-1`)             |
+| `AccessKeyId`               | `string?` | No       | AWS access key ID                          |
+| `SecretAccessKey`           | `string?` | No       | AWS secret access key                      |
+| `Endpoint`                  | `string?` | No       | Custom endpoint for S3-compatible services |
+| `Token`                     | `string?` | No       | Session token for temporary credentials    |
+| `AllowHttp`                 | `bool?`   | No       | Allow HTTP (non-TLS) connections           |
+| `VirtualHostedStyleRequest` | `bool?`   | No       | Use virtual hosted style requests          |
+| `SkipSignature`             | `bool?`   | No       | Skip request signing (for public buckets)  |
 
 ## Azure Blob Storage
 
@@ -98,7 +98,7 @@ context.RegisterAzureBlobStorage("az://my-container", new AzureBlobStorageOption
 {
     ContainerName = "my-container",
     AccountName = "myaccount",
-    SasKey = "sv=2021-06-08&ss=b&srt=sco...",
+    SasKey = "...",
 });
 ```
 
@@ -127,20 +127,20 @@ context.RegisterAzureBlobStorage("az://my-container", new AzureBlobStorageOption
 
 ### AzureBlobStorageOptions
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `ContainerName` | `string` | Yes | Azure container name |
-| `AccountName` | `string?` | No | Storage account name |
-| `AccessKey` | `string?` | No | Storage access key |
-| `BearerToken` | `string?` | No | Bearer token |
-| `ClientId` | `string?` | No | Service principal client ID |
-| `ClientSecret` | `string?` | No | Service principal client secret |
-| `TenantId` | `string?` | No | Service principal tenant ID |
-| `SasKey` | `string?` | No | Shared Access Signature key |
-| `Endpoint` | `string?` | No | Custom endpoint URL |
-| `UseEmulator` | `bool?` | No | Use Azurite emulator |
-| `AllowHttp` | `bool?` | No | Allow HTTP connections |
-| `SkipSignature` | `bool?` | No | Skip request signing |
+| Property        | Type      | Required | Description                     |
+|-----------------|-----------|----------|---------------------------------|
+| `ContainerName` | `string`  | Yes      | Azure container name            |
+| `AccountName`   | `string?` | No       | Storage account name            |
+| `AccessKey`     | `string?` | No       | Storage access key              |
+| `BearerToken`   | `string?` | No       | Bearer token                    |
+| `ClientId`      | `string?` | No       | Service principal client ID     |
+| `ClientSecret`  | `string?` | No       | Service principal client secret |
+| `TenantId`      | `string?` | No       | Service principal tenant ID     |
+| `SasKey`        | `string?` | No       | Shared Access Signature key     |
+| `Endpoint`      | `string?` | No       | Custom endpoint URL             |
+| `UseEmulator`   | `bool?`   | No       | Use Azurite emulator            |
+| `AllowHttp`     | `bool?`   | No       | Allow HTTP connections          |
+| `SkipSignature` | `bool?`   | No       | Skip request signing            |
 
 ## Google Cloud Storage
 
@@ -167,16 +167,16 @@ context.RegisterGoogleCloudStorage("gs://public-bucket", new GoogleCloudStorageO
 
 ### GoogleCloudStorageOptions
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `BucketName` | `string` | Yes | GCS bucket name |
-| `ProjectId` | `string?` | No | GCP project ID |
-| `CredentialsPath` | `string?` | No | Path to service account JSON key file |
-| `Credentials` | `string?` | No | Service account JSON key as string |
-| `ServiceAccountEmail` | `string?` | No | Service account email |
-| `CustomEndpoint` | `string?` | No | Custom endpoint URL |
-| `AllowHttp` | `bool?` | No | Allow HTTP connections |
-| `SkipSignature` | `bool?` | No | Skip request signing |
+| Property              | Type      | Required | Description                           |
+|-----------------------|-----------|----------|---------------------------------------|
+| `BucketName`          | `string`  | Yes      | GCS bucket name                       |
+| `ProjectId`           | `string?` | No       | GCP project ID                        |
+| `CredentialsPath`     | `string?` | No       | Path to service account JSON key file |
+| `Credentials`         | `string?` | No       | Service account JSON key as string    |
+| `ServiceAccountEmail` | `string?` | No       | Service account email                 |
+| `CustomEndpoint`      | `string?` | No       | Custom endpoint URL                   |
+| `AllowHttp`           | `bool?`   | No       | Allow HTTP connections                |
+| `SkipSignature`       | `bool?`   | No       | Skip request signing                  |
 
 ## Deregistering Object Stores
 

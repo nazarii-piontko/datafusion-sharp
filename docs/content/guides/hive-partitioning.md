@@ -25,6 +25,7 @@ Use `TablePartitionCols` on the read options to declare partition columns:
 
 ```csharp
 using Apache.Arrow.Types;
+using DataFusionSharp;
 using DataFusionSharp.Formats;
 using DataFusionSharp.Formats.Csv;
 
@@ -34,8 +35,7 @@ await context.RegisterCsvAsync("products", "products/", new CsvReadOptions
 });
 
 // 'category' is now a regular column
-using var df = await context.SqlAsync(
-    "SELECT name, price, category FROM products WHERE category = 'electronics'");
+using var df = await context.SqlAsync("SELECT name, price, category FROM products WHERE category = 'electronics'");
 ```
 
 DataFusion prunes partitions automatically — only directories matching the filter are read.
@@ -54,8 +54,7 @@ await context.RegisterParquetAsync("trips", "data/", new ParquetReadOptions
     ]
 });
 
-using var df = await context.SqlAsync(
-    "SELECT * FROM trips WHERE puYear = 2024 AND puMonth = 1");
+using var df = await context.SqlAsync("SELECT * FROM trips WHERE puYear = 2024 AND puMonth = 1");
 ```
 
 ### PartitionColumn
@@ -67,7 +66,6 @@ public record PartitionColumn(string Name, IArrowType ArrowType);
 The `ArrowType` must match the actual values in the directory names. Common choices:
 - `StringType.Default` — for text values
 - `Int32Type.Default` — for integer values
-- `BooleanType.Default` — for boolean values
 
 ### Supported Formats
 
@@ -132,6 +130,5 @@ await context.RegisterParquetAsync("nyc_trips",
     });
 
 // Query with partition pruning
-using var df = await context.SqlAsync(
-    "SELECT * FROM nyc_trips WHERE year = 2024 AND month = 1 LIMIT 10");
+using var df = await context.SqlAsync("SELECT * FROM nyc_trips WHERE year = 2024 AND month = 1 LIMIT 10");
 ```

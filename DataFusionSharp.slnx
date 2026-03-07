@@ -1,4 +1,12 @@
 <Solution>
+  <Folder Name="/.github/">
+    <File Path=".github\dependabot.yml" />
+  </Folder>
+  <Folder Name="/.github/workflows/">
+    <File Path=".github\workflows\ci.yml" />
+    <File Path=".github\workflows\docs.yml" />
+    <File Path=".github\workflows\release.yml" />
+  </Folder>
   <Folder Name="/datasets/" />
   <Folder Name="/datasets/orders/" />
   <Folder Name="/datasets/orders/csv/">
@@ -47,6 +55,7 @@
     <File Path="docs\content\guides\object-stores.md" />
     <File Path="docs\content\guides\querying-data.md" />
     <File Path="docs\content\guides\reading-data.md" />
+    <File Path="docs\content\guides\working-with-arrow.md" />
     <File Path="docs\content\guides\writing-data.md" />
   </Folder>
   <Folder Name="/docs/src/" />
@@ -68,27 +77,6 @@
     <File Path="LICENSE.txt" />
     <File Path="NOTICE.txt" />
     <File Path="README.md" />
-  </Folder>
-  <Folder Name="/misc/.github/">
-    <File Path=".github\dependabot.yml" />
-  </Folder>
-  <Folder Name="/misc/.github/workflows/">
-    <File Path=".github\workflows\ci.yml" />
-    <File Path=".github\workflows\release.yml" />
-  </Folder>
-  <Folder Name="/misc/datasets/" />
-  <Folder Name="/misc/datasets/orders/" />
-  <Folder Name="/misc/datasets/orders/csv/">
-    <File Path="datasets\orders\csv\customers.csv" />
-    <File Path="datasets\orders\csv\orders.csv" />
-  </Folder>
-  <Folder Name="/misc/datasets/orders/json/">
-    <File Path="datasets\orders\json\customers.json" />
-    <File Path="datasets\orders\json\orders.json" />
-  </Folder>
-  <Folder Name="/misc/datasets/orders/parquet/">
-    <File Path="datasets\orders\parquet\customers.parquet" />
-    <File Path="datasets\orders\parquet\orders.parquet" />
   </Folder>
   <Folder Name="/proto/">
     <File Path="proto\csv.proto" />

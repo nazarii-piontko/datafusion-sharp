@@ -23,12 +23,12 @@ Or add to your `.csproj`:
 
 ## Platform Support
 
-| Platform     | Architecture | Status |
-|-------------|-------------|--------|
-| Linux       | x64         | Supported |
-| Linux       | arm64       | Supported |
-| Windows     | x64         | Supported |
-| macOS       | arm64       | Supported |
+| Platform     | Architecture |
+|-------------|--------------|
+| Linux       | x64          |
+| Linux       | arm64        |
+| Windows     | x64          |
+| macOS       | arm64        |
 
 The native DataFusion library is bundled inside the NuGet package and loaded automatically at runtime — no additional setup is required.
 

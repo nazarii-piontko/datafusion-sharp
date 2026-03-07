@@ -90,7 +90,7 @@ const config: Config = {
       additionalLanguages: ['csharp', 'bash', 'json'],
     },
     colorMode: {
-      defaultMode: 'light',
+      defaultMode: 'dark',
       respectPrefersColorScheme: true,
     },
   } satisfies Preset.ThemeConfig,

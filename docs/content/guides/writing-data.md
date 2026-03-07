@@ -32,11 +32,11 @@ var writeOptions = new DataFrameWriteOptions
 await df.WriteCsvAsync("output/", dataFrameWriteOptions: writeOptions);
 ```
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `InsertOp` | `InsertOp` | `Append` | Insert behavior: `Append`, `Overwrite`, or `Replace` |
-| `IsSingleFileOutput` | `bool` | `false` | Coalesce all partitions into a single file |
-| `PartitionBy` | `IEnumerable<string>` | `[]` | Columns for [Hive-style partitioned writes](./hive-partitioning) |
+| Property             | Type                  | Default  | Description                                                      |
+|----------------------|-----------------------|----------|------------------------------------------------------------------|
+| `InsertOp`           | `InsertOp`            | `Append` | Insert behavior: `Append`, `Overwrite`, or `Replace`             |
+| `IsSingleFileOutput` | `bool`                | `false`  | Coalesce all partitions into a single file                       |
+| `PartitionBy`        | `IEnumerable<string>` | `[]`     | Columns for [Hive-style partitioned writes](./hive-partitioning) |
 
 ## CSV Write Options
 
@@ -44,31 +44,31 @@ await df.WriteCsvAsync("output/", dataFrameWriteOptions: writeOptions);
 await df.WriteCsvAsync("output/", csvWriteOptions: new CsvWriteOptions
 {
     HasHeader = true,
-    Delimiter = ',',
+    Delimiter = ';',
     Compression = CompressionType.Gzip,
 });
 ```
 
 ### CsvWriteOptions
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `HasHeader` | `bool?` | Write a header row |
-| `Delimiter` | `char?` | Column delimiter |
-| `Quote` | `char?` | Quote character |
-| `Escape` | `char?` | Escape character |
-| `Compression` | `CompressionType?` | Output compression |
-| `DateFormat` | `string?` | Date format string |
-| `DatetimeFormat` | `string?` | Datetime format string |
-| `TimestampFormat` | `string?` | Timestamp format string |
-| `TimestampTzFormat` | `string?` | Timestamp with timezone format |
-| `TimeFormat` | `string?` | Time format string |
-| `NullValue` | `string?` | String representation of null |
-| `DoubleQuote` | `bool?` | Double-quote special characters |
-| `NewlinesInValues` | `bool?` | Support newlines in quoted values |
-| `Terminator` | `char?` | Line terminator character |
-| `Comment` | `char?` | Comment character |
-| `NullRegex` | `string?` | Regex pattern for null values |
+| Property            | Type               | Description                       |
+|---------------------|--------------------|-----------------------------------|
+| `HasHeader`         | `bool?`            | Write a header row                |
+| `Delimiter`         | `char?`            | Column delimiter                  |
+| `Quote`             | `char?`            | Quote character                   |
+| `Escape`            | `char?`            | Escape character                  |
+| `Compression`       | `CompressionType?` | Output compression                |
+| `DateFormat`        | `string?`          | Date format string                |
+| `DatetimeFormat`    | `string?`          | Datetime format string            |
+| `TimestampFormat`   | `string?`          | Timestamp format string           |
+| `TimestampTzFormat` | `string?`          | Timestamp with timezone format    |
+| `TimeFormat`        | `string?`          | Time format string                |
+| `NullValue`         | `string?`          | String representation of null     |
+| `DoubleQuote`       | `bool?`            | Double-quote special characters   |
+| `NewlinesInValues`  | `bool?`            | Support newlines in quoted values |
+| `Terminator`        | `char?`            | Line terminator character         |
+| `Comment`           | `char?`            | Comment character                 |
+| `NullRegex`         | `string?`          | Regex pattern for null values     |
 
 ## Parquet Write Options
 
@@ -82,10 +82,10 @@ await df.WriteParquetAsync("output/", parquetWriteOptions: new ParquetWriteOptio
 
 ### ParquetWriteOptions
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Compression` | `ParquetCompression?` | Compression codec |
-| `MaxRowGroupSize` | `ulong?` | Maximum rows per row group |
+| Property          | Type                  | Description                |
+|-------------------|-----------------------|----------------------------|
+| `Compression`     | `ParquetCompression?` | Compression codec          |
+| `MaxRowGroupSize` | `ulong?`              | Maximum rows per row group |
 
 ### ParquetCompression
 
@@ -102,6 +102,6 @@ await df.WriteJsonAsync("output/", jsonWriteOptions: new JsonWriteOptions
 
 ### JsonWriteOptions
 
-| Property | Type | Description |
-|----------|------|-------------|
+| Property      | Type               | Description        |
+|---------------|--------------------|--------------------|
 | `Compression` | `CompressionType?` | Output compression |
