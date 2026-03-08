@@ -29,7 +29,7 @@
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches                  |
 |                  | Stream results                               | ✅      | `ExecuteStreamAsync()` → IAsyncEnumerable         |
 |                  | Show/print                                   | ✅      | `ShowAsync()`, `ToStringAsync()`                  |
-|                  | Select, Aggregate, Join, Filter, Limit, Sort | ❌      | Use SQL instead                                   |
+|                  | Select, Aggregate, Join, Filter, Limit, Sort | 🟡      | Use SQL instead                                   |
 |                  | Explain plan                                 | ❌      |                                                   |
 | **Arrow**        | Apache Arrow support                         | ✅      | Via Apache.Arrow nuget package                    |
 |                  | Zero copy support                            | ✅      |                                                   |
