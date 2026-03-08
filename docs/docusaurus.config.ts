@@ -3,7 +3,7 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'DataFusion Sharp',
+  title: 'DataFusionSharp',
   tagline: '.NET bindings for Apache DataFusion',
   favicon: 'img/favicon.ico',
 
@@ -45,9 +45,9 @@ const config: Config = {
 
   themeConfig: {
     navbar: {
-      title: 'DataFusion Sharp',
+      title: 'DataFusionSharp',
       logo: {
-        alt: 'DataFusion Sharp',
+        alt: 'DataFusionSharp',
         src: 'img/logo-wide.png',
       },
       items: [
@@ -82,7 +82,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright ${new Date().getFullYear()} DataFusion Sharp Contributors. Licensed under Apache 2.0.`,
+      copyright: `Copyright ${new Date().getFullYear()} DataFusionSharp Contributors. Licensed under Apache 2.0.`,
     },
     prism: {
       theme: prismThemes.github,

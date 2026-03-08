@@ -5,7 +5,7 @@ title: Core Concepts
 
 # Core Concepts
 
-DataFusion Sharp follows a three-tier architecture: **Runtime** -> **SessionContext** -> **DataFrame**.
+DataFusionSharp follows a three-tier architecture: **Runtime** -> **SessionContext** -> **DataFrame**.
 
 ## DataFusionRuntime
 

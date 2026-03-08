@@ -4,11 +4,7 @@ sidebar_position: 1
 title: Home
 ---
 
-# DataFusion Sharp
-
-<div style={{textAlign: 'center'}}>
-  <img src="/datafusion-sharp/img/logo-wide.png" alt="DataFusion Sharp" style={{maxWidth: '100%', width: '640px'}} />
-</div>
+# DataFusionSharp
 
 [![CI](https://github.com/nazarii-piontko/datafusion-sharp/actions/workflows/ci.yml/badge.svg)](https://github.com/nazarii-piontko/datafusion-sharp/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-8.0+-purple.svg)](https://dotnet.microsoft.com/download)

@@ -4,8 +4,13 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'native/**'
+      - 'tests/**'
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_call:
     outputs:
       check-passed:

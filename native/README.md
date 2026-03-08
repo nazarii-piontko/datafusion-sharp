@@ -1,4 +1,4 @@
-# DataFusion Sharp Native
+# DataFusionSharp Native
 
 Rust FFI library providing DataFusion bindings for .NET. Compiles to a C dynamic library (`cdylib`) that the C# project loads via P/Invoke.
 
