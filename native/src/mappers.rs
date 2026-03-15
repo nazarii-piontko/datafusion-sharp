@@ -314,9 +314,9 @@ pub(crate) fn from_proto_http_object_store(
             let mut headers = reqwest::header::HeaderMap::new();
             for (k, v) in &opts.headers {
                 let name = reqwest::header::HeaderName::from_bytes(k.as_bytes())
-                    .map_err(|e| anyhow!("Invalid header name '{}': {}", k, e))?;
+                    .map_err(|e| anyhow!("Invalid header name '{k}': {e}"))?;
                 let value = reqwest::header::HeaderValue::from_str(v)
-                    .map_err(|e| anyhow!("Invalid header value for '{}': {}", k, e))?;
+                    .map_err(|e| anyhow!("Invalid header value for '{k}': {e}"))?;
                 headers.insert(name, value);
             }
             let client_options = object_store::ClientOptions::new()
