@@ -229,7 +229,7 @@ public sealed class ObjectStoreTests : IDisposable
         {
             Url = "https://example.com/",
             AllowInvalidCertificates = true,
-            CustomHeaders = new Dictionary<string, string> { ["X-Custom"] = "value" }
+            Headers = { ["X-Custom"] = "value" }
         });
     }
 
@@ -247,7 +247,7 @@ public sealed class ObjectStoreTests : IDisposable
         { new HttpObjectStoreOptions { Url = "https://example.com/" }, p => p is { Url: "https://example.com/", HasAllowHttp: false, HasAllowInvalidCertificates: false } },
         { new HttpObjectStoreOptions { Url = "http://localhost/", AllowHttp = true }, p => p is { HasAllowHttp: true, AllowHttp: true } },
         { new HttpObjectStoreOptions { Url = "https://example.com/", AllowInvalidCertificates = true }, p => p is { HasAllowInvalidCertificates: true, AllowInvalidCertificates: true } },
-        { new HttpObjectStoreOptions { Url = "https://example.com/", CustomHeaders = new Dictionary<string, string> { ["Authorization"] = "Bearer tok" } }, p => p.CustomHeaders.Count == 1 && p.CustomHeaders["Authorization"] == "Bearer tok" },
+        { new HttpObjectStoreOptions { Url = "https://example.com/", Headers = { ["Authorization"] = "Bearer tok" } }, p => p.Headers.Count == 1 && p.Headers["Authorization"] == "Bearer tok" },
     };
 
     [Fact]

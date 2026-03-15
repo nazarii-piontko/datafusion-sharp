@@ -23,16 +23,19 @@ public sealed class HttpObjectStoreOptions
     public bool? AllowInvalidCertificates { get; set; }
 
     /// <summary>
-    /// Custom HTTP headers (e.g., Authorization, API keys).
+    /// HTTP headers (e.g., Authorization, API keys).
     /// </summary>
-    public Dictionary<string, string>? CustomHeaders { get; init; }
+    public Dictionary<string, string> Headers { get; } = new();
 }
 
 internal static class ProtoHttpObjectStoreExtensions
 {
     internal static Proto.HttpObjectStoreOptions ToProto(this HttpObjectStoreOptions options)
     {
-        var proto = new Proto.HttpObjectStoreOptions { Url = options.Url };
+        var proto = new Proto.HttpObjectStoreOptions
+        {
+            Url = options.Url
+        };
 
         if (options.AllowHttp is not null)
             proto.AllowHttp = options.AllowHttp.Value;
@@ -40,11 +43,8 @@ internal static class ProtoHttpObjectStoreExtensions
         if (options.AllowInvalidCertificates is not null)
             proto.AllowInvalidCertificates = options.AllowInvalidCertificates.Value;
 
-        if (options.CustomHeaders is not null)
-        {
-            foreach (var (key, value) in options.CustomHeaders)
-                proto.CustomHeaders.Add(key, value);
-        }
+        foreach (var (key, value) in options.Headers)
+            proto.Headers.Add(key, value);
 
         return proto;
     }

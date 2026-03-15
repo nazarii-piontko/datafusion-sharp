@@ -310,9 +310,9 @@ pub(crate) fn from_proto_http_object_store(
         if let Some(allow_invalid_certs) = opts.allow_invalid_certificates {
             builder = builder.with_config(object_store::ClientConfigKey::AllowInvalidCertificates, allow_invalid_certs.to_string());
         }
-        if !opts.custom_headers.is_empty() {
+        if !opts.headers.is_empty() {
             let mut headers = reqwest::header::HeaderMap::new();
-            for (k, v) in &opts.custom_headers {
+            for (k, v) in &opts.headers {
                 let name = reqwest::header::HeaderName::from_bytes(k.as_bytes())
                     .map_err(|e| anyhow!("Invalid header name '{}': {}", k, e))?;
                 let value = reqwest::header::HeaderValue::from_str(v)

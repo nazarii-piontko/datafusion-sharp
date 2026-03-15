@@ -83,5 +83,5 @@ message HttpObjectStoreOptions {
   // Allow invalid TLS certificates. Default false.
   optional bool allow_invalid_certificates = 3;
   // Custom HTTP headers (e.g., Authorization, API keys)
-  map<string, string> custom_headers = 4;
+  map<string, string> headers = 4;
 }
