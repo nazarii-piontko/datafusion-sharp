@@ -296,6 +296,38 @@ pub(crate) fn from_proto_gcs_object_store(
     builder.build().map_err(|e| anyhow!("Failed to build Google Cloud Storage object store: {e}"))
 }
 
+pub(crate) fn from_proto_http_object_store(
+    opts: Option<&proto::HttpObjectStoreOptions>,
+    url: &url::Url,
+) -> Result<object_store::http::HttpStore> {
+    let mut builder = object_store::http::HttpBuilder::new()
+        .with_url(url.as_str());
+
+    if let Some(opts) = opts {
+        if let Some(allow_http) = opts.allow_http {
+            builder = builder.with_config(object_store::ClientConfigKey::AllowHttp, allow_http.to_string());
+        }
+        if let Some(allow_invalid_certs) = opts.allow_invalid_certificates {
+            builder = builder.with_config(object_store::ClientConfigKey::AllowInvalidCertificates, allow_invalid_certs.to_string());
+        }
+        if !opts.custom_headers.is_empty() {
+            let mut headers = reqwest::header::HeaderMap::new();
+            for (k, v) in &opts.custom_headers {
+                let name = reqwest::header::HeaderName::from_bytes(k.as_bytes())
+                    .map_err(|e| anyhow!("Invalid header name '{}': {}", k, e))?;
+                let value = reqwest::header::HeaderValue::from_str(v)
+                    .map_err(|e| anyhow!("Invalid header value for '{}': {}", k, e))?;
+                headers.insert(name, value);
+            }
+            let client_options = object_store::ClientOptions::new()
+                .with_default_headers(headers);
+            builder = builder.with_client_options(client_options);
+        }
+    }
+
+    builder.build().map_err(|e| anyhow!("Failed to build HTTP object store: {e}"))
+}
+
 pub(crate) fn from_proto_param_values(values: &proto::DataFrameParamValues) -> Result<ParamValues> {
     let values = values.values.as_ref().ok_or_else(|| anyhow!("Missing parameter values"))?;
 

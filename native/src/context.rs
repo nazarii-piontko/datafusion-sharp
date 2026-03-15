@@ -507,6 +507,51 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_gcs(
     ErrorCode::Ok
 }
 
+/// Registers an HTTP object store for the given URL.
+///
+/// This is a synchronous operation. The callback is invoked with the result.
+///
+/// # Safety
+/// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
+/// - `url_ptr` must be a valid null-terminated UTF-8 string
+/// - `http_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `HttpObjectStoreOptions`, or null
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_context_register_object_store_http(
+    context_ptr: *mut SessionContextWrapper,
+    url_ptr: *const std::ffi::c_char,
+    http_options_bytes: crate::BytesData,
+    callback: crate::Callback,
+    user_data: u64,
+) -> ErrorCode {
+    let context = ffi_ref!(context_ptr);
+
+    let url = ffi_cstr_to_string!(url_ptr);
+    let Ok(url) = url::Url::parse(&url) else { return ErrorCode::InvalidArgument };
+
+    let http_options_proto = match http_options_bytes.as_opt_slice() {
+        Some(b) => match proto::HttpObjectStoreOptions::decode(b) {
+            Ok(opts) => Some(opts),
+            Err(_) => return ErrorCode::InvalidArgument,
+        },
+        None => None,
+    };
+    let store = match mappers::from_proto_http_object_store(http_options_proto.as_ref(), &url) {
+        Ok(s) => s,
+        Err(e) => {
+            let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, e);
+            crate::invoke_callback_error(&error_info, callback, user_data);
+            return ErrorCode::Ok;
+        }
+    };
+
+    context.inner.register_object_store(&url, Arc::new(store));
+
+    crate::invoke_callback_null_result(callback, user_data);
+
+    ErrorCode::Ok
+}
+
 /// Deregisters an object store for the given URL.
 ///
 /// This is a synchronous operation. The callback is invoked with the result.

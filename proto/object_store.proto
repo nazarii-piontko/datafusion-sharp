@@ -73,3 +73,15 @@ message GoogleCloudStorageOptions {
   // Skip signing requests (for anonymous access). Default false.
   optional bool skip_signature = 8;
 }
+
+// Options for configuring an HTTP object store.
+message HttpObjectStoreOptions {
+  // Base URL of the HTTP server (required)
+  string url = 1;
+  // Allow HTTP (non-TLS) connections. Default false.
+  optional bool allow_http = 2;
+  // Allow invalid TLS certificates. Default false.
+  optional bool allow_invalid_certificates = 3;
+  // Custom HTTP headers (e.g., Authorization, API keys)
+  map<string, string> custom_headers = 4;
+}

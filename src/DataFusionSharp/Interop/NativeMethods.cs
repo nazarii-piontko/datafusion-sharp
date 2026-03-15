@@ -56,6 +56,9 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_gcs")]
     public static partial DataFusionErrorCode ContextRegisterObjectStoreGcs(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, IntPtr callback, ulong userData);
 
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_http")]
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreHttp(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, IntPtr callback, ulong userData);
+
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_deregister_object_store")]
     public static partial DataFusionErrorCode ContextDeregisterObjectStore(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, IntPtr callback, ulong userData);
 

@@ -218,6 +218,62 @@ public sealed class ObjectStoreTests : IDisposable
         { new GoogleCloudStorageOptions { BucketName = "b", SkipSignature = true }, p => p is { HasSkipSignature: true, SkipSignature: true } },
     };
 
+    [Fact]
+    public void RegisterHttpObjectStore_WithOptions_Succeeds()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+
+        // Act & Assert — registration succeeds (no network call at registration time)
+        context.RegisterHttpObjectStore("https://example.com/", new HttpObjectStoreOptions
+        {
+            Url = "https://example.com/",
+            AllowInvalidCertificates = true,
+            CustomHeaders = new Dictionary<string, string> { ["X-Custom"] = "value" }
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(HttpOptionsToProtoCases))]
+    public void HttpOptions_ToProto_SetsExpectedField(HttpObjectStoreOptions options, Func<Proto.HttpObjectStoreOptions, bool> assertion)
+    {
+        var proto = options.ToProto();
+
+        Assert.True(assertion(proto));
+    }
+
+    public static TheoryData<HttpObjectStoreOptions, Func<Proto.HttpObjectStoreOptions, bool>> HttpOptionsToProtoCases => new()
+    {
+        { new HttpObjectStoreOptions { Url = "https://example.com/" }, p => p is { Url: "https://example.com/", HasAllowHttp: false, HasAllowInvalidCertificates: false } },
+        { new HttpObjectStoreOptions { Url = "http://localhost/", AllowHttp = true }, p => p is { HasAllowHttp: true, AllowHttp: true } },
+        { new HttpObjectStoreOptions { Url = "https://example.com/", AllowInvalidCertificates = true }, p => p is { HasAllowInvalidCertificates: true, AllowInvalidCertificates: true } },
+        { new HttpObjectStoreOptions { Url = "https://example.com/", CustomHeaders = new Dictionary<string, string> { ["Authorization"] = "Bearer tok" } }, p => p.CustomHeaders.Count == 1 && p.CustomHeaders["Authorization"] == "Bearer tok" },
+    };
+
+    [Fact]
+    [Trait("Category", "Internet")]
+    [Trait("Category", "Http")]
+    public async Task RegisterHttpObjectStore_ThenQueryCsv_ReturnsData()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+
+        // Act
+        context.RegisterHttpObjectStore("https://raw.githubusercontent.com/", new HttpObjectStoreOptions
+        {
+            Url = "https://raw.githubusercontent.com/"
+        });
+        await context.RegisterCsvAsync(
+            "aggregate_test_100",
+            "https://raw.githubusercontent.com/apache/arrow-testing/master/data/csv/aggregate_test_100.csv");
+
+        using var df = await context.SqlAsync("SELECT * FROM aggregate_test_100");
+        var count = await df.CountAsync();
+
+        // Assert
+        Assert.True(count > 0, "Expected rows from CSV on HTTP object store");
+    }
+
     public void Dispose()
     {
         _runtime.Dispose();
