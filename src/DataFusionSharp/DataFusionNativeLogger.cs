@@ -9,7 +9,12 @@ namespace DataFusionSharp;
 public static partial class DataFusionNativeLogger
 {
     private static ILogger? _logger;
-    
+
+    static DataFusionNativeLogger()
+    {
+        _ = NativeMethods.SetLogger(LogCallbackHandle);
+    }
+
     /// <summary>
     /// Configures the logger for the native DataFusion library.
     /// This method must be called before any other DataFusion operations to ensure that native log messages are captured and forwarded to the provided logger.
@@ -23,7 +28,18 @@ public static partial class DataFusionNativeLogger
     public static void ConfigureLogger(ILogger logger, LogLevel minLevel = LogLevel.Information)
     {
         _logger = logger;
-        
+
+        SetLogLevel(minLevel);
+    }
+
+    /// <summary>
+    /// Sets the minimum log level for the native DataFusion library.
+    /// This can be called at any time to change the log level without re-registering the logger.
+    /// </summary>
+    /// <param name="minLevel">The minimum log level for messages to be forwarded.</param>
+    /// <exception cref="DataFusionException">Thrown when setting the log level fails.</exception>
+    public static void SetLogLevel(LogLevel minLevel)
+    {
         var nativeLogLevel = minLevel switch
         {
             LogLevel.Trace => NativeMethods.LogLevel.Trace,
@@ -33,9 +49,9 @@ public static partial class DataFusionNativeLogger
             LogLevel.Error => NativeMethods.LogLevel.Error,
             _ => NativeMethods.LogLevel.None
         };
-        
-        var errorCode = NativeMethods.ConfigureLogger(LogCallbackHandle, nativeLogLevel);
-        DataFusionException.ThrowIfError(errorCode, "Failed to configure native logger");
+
+        var errorCode = NativeMethods.SetLogLevel(nativeLogLevel);
+        DataFusionException.ThrowIfError(errorCode, "Failed to set native log level");
     }
     
     private static void LogCallback(NativeMethods.LogLevel level, BytesData targetBytes, BytesData messageBytes)

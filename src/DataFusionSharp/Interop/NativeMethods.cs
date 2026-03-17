@@ -26,8 +26,11 @@ internal static partial class NativeMethods
     
     // Logger
 
-    [LibraryImport(LibraryName, EntryPoint = "datafusion_configure_logger")]
-    public static partial DataFusionErrorCode ConfigureLogger(IntPtr callback, LogLevel minLevel);
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_set_logger")]
+    public static partial DataFusionErrorCode SetLogger(IntPtr callback);
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_set_log_level")]
+    public static partial DataFusionErrorCode SetLogLevel(LogLevel minLevel);
 
     // Runtime
 
