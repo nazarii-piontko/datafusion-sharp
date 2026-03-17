@@ -8,6 +8,7 @@ pub mod proto {
 mod mappers;
 pub mod error;
 pub mod common;
+pub mod logger;
 pub mod runtime;
 pub mod context;
 pub mod dataframe;

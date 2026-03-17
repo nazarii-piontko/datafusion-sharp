@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use log::{debug, error};
 
 pub type RuntimeHandle = Arc<tokio::runtime::Runtime>;
 
@@ -18,8 +19,11 @@ pub unsafe extern "C" fn datafusion_runtime_new(
     max_blocking_threads: u32,
     runtime_ptr: *mut *mut RuntimeHandle) -> crate::ErrorCode {
     if runtime_ptr.is_null() {
+        error!("Invalid runtime output pointer passed to runtime creation");
         return crate::ErrorCode::InvalidArgument;
     }
+
+    debug!("Creating Tokio runtime with worker_threads={}, max_blocking_threads={}", worker_threads, max_blocking_threads);
 
     let mut builder = tokio::runtime::Builder::new_multi_thread();
 
@@ -38,13 +42,12 @@ pub unsafe extern "C" fn datafusion_runtime_new(
             let runtime_handle: RuntimeHandle = Arc::new(runtime);
             unsafe { *runtime_ptr = Box::into_raw(Box::new(runtime_handle)); }
 
-            dev_msg!("Successfully created Tokio runtime: {:p}", unsafe { *runtime_ptr });
+            debug!("Created Tokio runtime with worker_threads={}, max_blocking_threads={}, runtime_ptr={:p}", worker_threads, max_blocking_threads, runtime_ptr);
 
             crate::ErrorCode::Ok
         }
         Err(err) => {
-            dev_msg!("Error creating Tokio runtime: {}", err);
-            eprintln!("[datafusion-sharp-native] Failed to initialize Tokio runtime: {err}");
+            error!("Failed to initialize Tokio runtime: {}", err);
             crate::ErrorCode::RuntimeInitializationFailed
         },
     }
@@ -63,27 +66,24 @@ pub unsafe extern "C" fn datafusion_runtime_new(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHandle) -> crate::ErrorCode {
     if runtime_ptr.is_null() {
+        debug!("Destroy Tokio runtime called with null pointer, ignoring");
         return crate::ErrorCode::Ok;
     }
 
-    dev_msg!("Destroying Tokio runtime: {:p}", runtime_ptr);
-
     let runtime_handle = unsafe { Box::from_raw(runtime_ptr) };
 
-    dev_msg!("Attempting to destroy Tokio runtime: {:p}", runtime_ptr);
+    debug!("Destroy Tokio runtime called with pointer {:p}", runtime_ptr);
 
     match Arc::try_unwrap(*runtime_handle) {
         Ok(runtime) => {
             runtime.shutdown_background();
 
-            dev_msg!("Successfully dropped Tokio runtime: {:p}", runtime_ptr);
+            debug!("Successfully dropped Tokio runtime: {:p}", runtime_ptr);
 
             crate::ErrorCode::Ok
         }
         Err(arc) => {
-            dev_msg!("Cannot destroy Tokio runtime due to strong references: {:p}, references: {}", runtime_ptr, Arc::strong_count(&arc));
-
-            eprintln!("[datafusion-sharp-native] Cannot destroy Tokio runtime: there are still {} strong references", Arc::strong_count(&arc));
+            error!("[datafusion-sharp-native] Cannot destroy Tokio runtime: there are still {} strong references", Arc::strong_count(&arc));
 
             crate::ErrorCode::RuntimeInitializationFailed
         }
