@@ -33,14 +33,28 @@ impl Log for DataFusionLogger {
     fn flush(&self) {}
 }
 
+/// Configures the global logger with a callback that forwards log messages via FFI.
+///
+/// # Safety
+/// - `callback` must be a valid function pointer that remains valid for the lifetime of the program
+/// - `callback` must be safe to call from any thread
+/// - This function must be called at most once; subsequent calls will return an error
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_configure_logger(callback: LogCallback, min_level: u32) -> ErrorCode {
-    let min_level = unsafe { std::mem::transmute::<usize, LevelFilter>(min_level as usize) };
+    let min_level = match min_level {
+        0 => LevelFilter::Off,
+        1 => LevelFilter::Error,
+        2 => LevelFilter::Warn,
+        3 => LevelFilter::Info,
+        4 => LevelFilter::Debug,
+        5 => LevelFilter::Trace,
+        _ => return ErrorCode::InvalidArgument,
+    };
 
     log::set_max_level(min_level);
 
     match log::set_boxed_logger(Box::new(DataFusionLogger { callback, min_level })) {
-        Ok(_) => ErrorCode::Ok,
+        Ok(()) => ErrorCode::Ok,
         Err(_) => ErrorCode::RuntimeInitializationFailed,
     }
 }

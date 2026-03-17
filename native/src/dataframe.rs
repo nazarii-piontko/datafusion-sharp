@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use futures::StreamExt;
+use log::{debug, error, trace};
 use prost::Message;
 use crate::{mappers, proto, ErrorCode, ErrorInfo};
 
@@ -40,6 +41,8 @@ impl DataFrameWrapper {
 /// - Caller must not use `df_ptr` after this call
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_destroy(df_ptr: *mut DataFrameWrapper) -> ErrorCode {
+    debug!("Destroying DataFrame {df_ptr:p}");
+
     if !df_ptr.is_null() {
         unsafe { drop(Box::from_raw(df_ptr)) };
     }
@@ -61,6 +64,8 @@ pub unsafe extern "C" fn datafusion_dataframe_clone(
         return std::ptr::null_mut();
     }
     let df_wrapper = unsafe { &*df_ptr };
+
+    debug!("Cloning DataFrame");
 
     dataframe_to_ptr(df_wrapper.runtime(), df_wrapper.clone_inner())
 }
@@ -84,12 +89,15 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
     let Ok(param_values_proto) = proto::DataFrameParamValues::decode(param_values_bytes.as_slice()) else { return ErrorCode::InvalidArgument };
     let Ok(param_values) = mappers::from_proto_param_values(&param_values_proto) else { return ErrorCode::InvalidArgument };
 
+    debug!("Applying parameters to DataFrame");
+
     match df_wrapper.clone_inner().with_param_values(param_values) {
         Ok(new_df) => {
             df_wrapper.set_inner(new_df);
             crate::invoke_callback_null_result(callback, user_data);
         },
         Err(e) => {
+            error!("Failed to apply parameters to DataFrame: {e}");
             crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::DataFrameError, e), callback, user_data);
         }
     }
@@ -112,7 +120,7 @@ pub unsafe extern "C" fn datafusion_dataframe_count(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    dev_msg!("Executing count on DataFrame: {:p}", df_ptr);
+    debug!("Executing count");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -147,7 +155,7 @@ pub unsafe extern "C" fn datafusion_dataframe_show(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    dev_msg!("Executing show on DataFrame: {:p}", df_ptr);
+    debug!("Executing show with limit={limit}");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -179,7 +187,7 @@ pub unsafe extern "C" fn datafusion_dataframe_to_string(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    dev_msg!("Executing to_string on DataFrame: {:p}", df_ptr);
+    debug!("Executing to_string");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -217,6 +225,8 @@ pub unsafe extern "C" fn datafusion_dataframe_schema(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
+    debug!("Getting DataFrame schema");
+
     let df = df_wrapper.inner();
     let schema = df.schema().as_arrow();
     let ffi_schema = arrow_array::ffi::FFI_ArrowSchema::try_from(schema)
@@ -250,6 +260,8 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
+    debug!("Collecting DataFrame");
+
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
 
@@ -262,6 +274,7 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
         };
 
         let Ok(batches) = df.collect().await else {
+            error!("Failed to collect record batches");
             let error = ErrorInfo::new(ErrorCode::DataFrameError, "Failed to collect record batches");
             crate::invoke_callback_error(&error, callback, user_data);
             return;
@@ -269,10 +282,13 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
         let ffi_batches = batches.iter().map(convert_batch_to_ffi).collect::<Vec<_>>();
 
         let Ok(num_batches) = i32::try_from(ffi_batches.len()) else {
+            error!("Too many record batches ({}) to fit in i32", ffi_batches.len());
             let error = ErrorInfo::new(ErrorCode::DataFrameError, "Too many record batches to fit in i32");
             crate::invoke_callback_error(&error, callback, user_data);
             return;
         };
+
+        debug!("Collected {num_batches} record batches");
 
         let result = CollectedData {
             schema: &raw const ffi_schema,
@@ -314,7 +330,7 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    dev_msg!("Executing dataframe stream on DataFrame: {:p}", df_ptr);
+    debug!("Executing stream");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -343,7 +359,7 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
             schema: &raw const ffi_schema,
         };
 
-        dev_msg!("Successfully executed dataframe stream on DataFrame: {:p}, stream wrapper pointer: {:p}", df_wrapper, stream_w);
+        debug!("Executed stream {stream_w:p}");
 
         crate::invoke_callback_success(result, callback, user_data);
     });
@@ -360,7 +376,7 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 pub unsafe extern "C" fn datafusion_dataframe_stream_destroy(
     stream_ptr: *mut DataFrameStreamWrapper
 ) -> ErrorCode {
-    dev_msg!("Destroying dataframe_stream: {:p}", stream_ptr);
+    debug!("Destroying stream {stream_ptr:p}");
 
     if !stream_ptr.is_null() {
         unsafe { drop(Box::from_raw(stream_ptr)) };
@@ -385,7 +401,9 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
     user_data: u64
 ) -> ErrorCode {
     let stream_wrapper = ffi_ref_mut!(stream_ptr);
-    
+
+    trace!("Fetching next stream batch from {stream_ptr:p}");
+
     let runtime = Arc::clone(&stream_wrapper.runtime);
 
     runtime.spawn(async move {
@@ -437,12 +455,16 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
         )
         .transpose() else { return ErrorCode::InvalidArgument };
 
+    debug!("Executing write_csv to '{path}'");
+
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
         let result = df
             .write_csv(&path, dataframe_write_options, csv_write_options)
             .await
             .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e));
+
+        debug!("Executed write_csv to '{path}'");
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -481,7 +503,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
         )
         .transpose() else { return ErrorCode::InvalidArgument };
 
-    dev_msg!("Executing write_json on DataFrame: {:p} to path: {}", df_ptr, path);
+    debug!("Executing write_json to '{path}'");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -490,7 +512,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
             .await
             .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e));
 
-        dev_msg!("Finished executing write_json");
+        debug!("Executed write_json to '{path}'");
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -530,7 +552,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
         )
         .transpose() else { return ErrorCode::InvalidArgument };
 
-    dev_msg!("Executing write_parquet on DataFrame: {:p} to path: {}", df_ptr, path);
+    debug!("Executing write_parquet to '{path}'");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -539,7 +561,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
             .await
             .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e));
 
-        dev_msg!("Finished executing write_parquet");
+        debug!("Executed write_parquet to '{path}'");
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -548,7 +570,9 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
 }
 
 pub(crate) fn dataframe_to_ptr(runtime: &crate::RuntimeHandle, df: datafusion::prelude::DataFrame) -> *mut DataFrameWrapper {
-    Box::into_raw(Box::new(DataFrameWrapper::new(Arc::clone(runtime), df)))
+    let ptr = Box::into_raw(Box::new(DataFrameWrapper::new(Arc::clone(runtime), df)));
+    debug!("Created DataFrame {ptr:p}");
+    ptr
 }
 
 /// Helper function to convert a `DataFrame` schema to FFI format.

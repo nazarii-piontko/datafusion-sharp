@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use log::{debug, error};
 use prost::Message;
 
 use crate::proto;
@@ -38,9 +39,10 @@ pub unsafe extern "C" fn datafusion_context_new(runtime_ptr: *mut crate::Runtime
     let runtime_handle = ffi_ref!(runtime_ptr);
 
     let context = Box::new(SessionContextWrapper::new(Arc::clone(runtime_handle)));
-    unsafe { *context_ptr = Box::into_raw(context); }
+    let raw_ptr = Box::into_raw(context);
+    unsafe { *context_ptr = raw_ptr; }
 
-    dev_msg!("Successfully created context: {:p}", unsafe { *context_ptr });
+    debug!("Created session context {raw_ptr:p}");
 
     ErrorCode::Ok
 }
@@ -52,7 +54,7 @@ pub unsafe extern "C" fn datafusion_context_new(runtime_ptr: *mut crate::Runtime
 /// - Caller must not use `context_ptr` after this call
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_destroy(context_ptr: *mut SessionContextWrapper) -> ErrorCode {
-    dev_msg!("Destroying context: {:p}", context_ptr);
+    debug!("Destroying session context {context_ptr:p}");
 
     if !context_ptr.is_null() {
         unsafe { drop(Box::from_raw(context_ptr)) };
@@ -92,7 +94,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
         None => None
     };
 
-    dev_msg!("Registering CSV table '{}' from path '{}'", table_ref, table_path);
+    debug!("Registering CSV table '{table_ref}' from '{table_path}'");
 
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
@@ -156,7 +158,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
         None => None
     };
 
-    dev_msg!("Registering JSON table '{}' from path '{}'", table_ref, table_path);
+    debug!("Registering JSON table '{table_ref}' from '{table_path}'");
 
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
@@ -184,7 +186,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
                 crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
-        dev_msg!("Finished registering JSON table '{}' from path '{}'", table_ref, table_path);
+        debug!("Registered JSON table '{table_ref}'");
     });
 
     ErrorCode::Ok
@@ -221,7 +223,7 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
         None => None
     };
 
-    dev_msg!("Registering Parquet table '{}' from path '{}'", table_ref, table_path);
+    debug!("Registering Parquet table '{table_ref}' from '{table_path}'");
 
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
@@ -249,7 +251,7 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
                 crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
-        dev_msg!("Finished registering Parquet table '{}' from path '{}'", table_ref, table_path);
+        debug!("Registered Parquet table '{table_ref}'");
     });
 
     ErrorCode::Ok
@@ -273,7 +275,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
 
-    dev_msg!("Deregistering table '{}'", table_ref);
+    debug!("Deregistering table '{table_ref}'");
 
     let result = context.inner
         .deregister_table(&table_ref)
@@ -282,7 +284,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
 
     crate::invoke_callback(result, callback, user_data);
 
-    dev_msg!("Finished deregistering table '{}'", table_ref);
+    debug!("Deregistered table '{table_ref}'");
 
     ErrorCode::Ok
 }
@@ -312,7 +314,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
     let Ok(param_values) = param_values_proto.as_ref()
         .map(mappers::from_proto_param_values).transpose() else { return ErrorCode::InvalidArgument };
 
-    dev_msg!("Executing SQL query: {}", sql);
+    debug!("Executing SQL query: {sql}");
 
     context.runtime.spawn(async move {
         let result = context.inner
@@ -328,7 +330,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
             })
             .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e));
 
-        dev_msg!("Finished executing SQL query: {}, dataframe ptr: {:p}", sql, result.as_ref().ok().map_or(std::ptr::null(), |ptr| *ptr));
+        debug!("Executed SQL query: {sql}");
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -356,9 +358,12 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_local(
     let url = ffi_cstr_to_string!(url_ptr);
     let Ok(url) = url::Url::parse(&url) else { return ErrorCode::InvalidArgument };
 
+    debug!("Registering local object store for '{url}'");
+
     let store = match object_store::local::LocalFileSystem::new_with_prefix(url.path()) {
         Ok(s) => s,
         Err(e) => {
+            error!("Failed to register local object store: {e}");
             let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, e);
             crate::invoke_callback_error(&error_info, callback, user_data);
             return ErrorCode::Ok;
@@ -401,9 +406,12 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_s3(
         },
         None => None,
     };
+    debug!("Registering S3 object store for '{url}'");
+
     let store = match mappers::from_proto_s3_object_store(s3_options_proto.as_ref(), &url) {
         Ok(s) => s,
         Err(e) => {
+            error!("Failed to register S3 object store: {e}");
             let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, e);
             crate::invoke_callback_error(&error_info, callback, user_data);
             return ErrorCode::Ok;
@@ -446,9 +454,12 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_azure(
         },
         None => None,
     };
+    debug!("Registering Azure object store for '{url}'");
+
     let store = match mappers::from_proto_azure_blob_storage(azure_options_proto.as_ref(), &url) {
         Ok(s) => s,
         Err(e) => {
+            error!("Failed to register Azure object store: {e}");
             let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, e);
             crate::invoke_callback_error(&error_info, callback, user_data);
             return ErrorCode::Ok;
@@ -491,9 +502,12 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_gcs(
         },
         None => None,
     };
+    debug!("Registering GCS object store for '{url}'");
+
     let store = match mappers::from_proto_gcs_object_store(gcs_options_proto.as_ref(), &url) {
         Ok(s) => s,
         Err(e) => {
+            error!("Failed to register GCS object store: {e}");
             let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, e);
             crate::invoke_callback_error(&error_info, callback, user_data);
             return ErrorCode::Ok;
@@ -536,9 +550,12 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_http(
         },
         None => None,
     };
+    debug!("Registering HTTP object store for '{url}'");
+
     let store = match mappers::from_proto_http_object_store(http_options_proto.as_ref(), &url) {
         Ok(s) => s,
         Err(e) => {
+            error!("Failed to register HTTP object store: {e}");
             let error_info = ErrorInfo::new(ErrorCode::InvalidArgument, e);
             crate::invoke_callback_error(&error_info, callback, user_data);
             return ErrorCode::Ok;
@@ -571,6 +588,8 @@ pub unsafe extern "C" fn datafusion_context_deregister_object_store(
 
     let url = ffi_cstr_to_string!(url_ptr);
     let Ok(url) = url::Url::parse(&url) else { return ErrorCode::InvalidArgument };
+
+    debug!("Deregistering object store for '{url}'");
 
     let result = context.inner
         .deregister_object_store(&url)
