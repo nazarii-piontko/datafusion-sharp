@@ -19,7 +19,7 @@ impl Log for DataFusionLogger {
 
     fn log(&self, record: &Record) {
         let target_bytes = BytesData::new(record.target().as_bytes());
-        let message = format!("{}", record.args());
+        let message = record.args().to_string();
         let message_bytes = BytesData::new(message.as_bytes());
 
         unsafe { (self.callback)(record.level() as u32, target_bytes, message_bytes); }
@@ -49,13 +49,13 @@ pub unsafe extern "C" fn datafusion_set_logger(callback: LogCallback) -> ErrorCo
 
 /// Sets the global log level filter.
 ///
-/// This can be called at any time to change the minimum log level.
+/// This can be called at any time to change the maximum log level.
 ///
 /// # Arguments
 /// - `min_level`: 0=Off, 1=Error, 2=Warn, 3=Info, 4=Debug, 5=Trace
 #[unsafe(no_mangle)]
-pub extern "C" fn datafusion_set_log_level(min_level: u32) -> ErrorCode {
-    let level_filter = match min_level {
+pub extern "C" fn datafusion_set_log_level(max_level: u32) -> ErrorCode {
+    let level_filter = match max_level {
         0 => LevelFilter::Off,
         1 => LevelFilter::Error,
         2 => LevelFilter::Warn,

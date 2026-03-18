@@ -25,7 +25,7 @@ public static partial class DataFusionNativeLogger
     /// <param name="logger">The logger instance to which native log messages will be forwarded.</param>
     /// <param name="minLevel">The minimum log level for messages to be forwarded. Messages below this level will be ignored. Default is <see cref="LogLevel.Information"/>.</param>
     /// <exception cref="DataFusionException">Thrown when configuring the native logger fails.</exception>
-    public static void ConfigureLogger(ILogger logger, LogLevel minLevel = LogLevel.Information)
+    public static void ConfigureLogger(ILogger logger, LogLevel minLevel = LogLevel.Error)
     {
         _logger = logger;
 
@@ -42,19 +42,19 @@ public static partial class DataFusionNativeLogger
     {
         var nativeLogLevel = minLevel switch
         {
-            LogLevel.Trace => NativeMethods.LogLevel.Trace,
-            LogLevel.Debug => NativeMethods.LogLevel.Debug,
-            LogLevel.Information => NativeMethods.LogLevel.Info,
-            LogLevel.Warning => NativeMethods.LogLevel.Warn,
-            LogLevel.Error => NativeMethods.LogLevel.Error,
-            _ => NativeMethods.LogLevel.None
+            LogLevel.Trace => NativeMethods.NativeLogLevel.Trace,
+            LogLevel.Debug => NativeMethods.NativeLogLevel.Debug,
+            LogLevel.Information => NativeMethods.NativeLogLevel.Info,
+            LogLevel.Warning => NativeMethods.NativeLogLevel.Warn,
+            LogLevel.Error => NativeMethods.NativeLogLevel.Error,
+            _ => NativeMethods.NativeLogLevel.None
         };
 
         var errorCode = NativeMethods.SetLogLevel(nativeLogLevel);
         DataFusionException.ThrowIfError(errorCode, "Failed to set native log level");
     }
     
-    private static void LogCallback(NativeMethods.LogLevel level, BytesData targetBytes, BytesData messageBytes)
+    private static void LogCallback(NativeMethods.NativeLogLevel level, BytesData targetBytes, BytesData messageBytes)
     {
         var logger = _logger;
         if (logger == null)
@@ -62,11 +62,11 @@ public static partial class DataFusionNativeLogger
 
         var logLevel = level switch
         {
-            NativeMethods.LogLevel.Error => LogLevel.Error,
-            NativeMethods.LogLevel.Warn => LogLevel.Warning,
-            NativeMethods.LogLevel.Info => LogLevel.Information,
-            NativeMethods.LogLevel.Debug => LogLevel.Debug,
-            NativeMethods.LogLevel.Trace => LogLevel.Trace,
+            NativeMethods.NativeLogLevel.Error => LogLevel.Error,
+            NativeMethods.NativeLogLevel.Warn => LogLevel.Warning,
+            NativeMethods.NativeLogLevel.Info => LogLevel.Information,
+            NativeMethods.NativeLogLevel.Debug => LogLevel.Debug,
+            NativeMethods.NativeLogLevel.Trace => LogLevel.Trace,
             _ => LogLevel.None
         };
         

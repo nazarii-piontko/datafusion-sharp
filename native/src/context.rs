@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use log::{debug, error};
+use log::{debug, error, trace};
 use prost::Message;
 
 use crate::proto;
@@ -314,7 +314,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
     let Ok(param_values) = param_values_proto.as_ref()
         .map(mappers::from_proto_param_values).transpose() else { return ErrorCode::InvalidArgument };
 
-    debug!("Executing SQL query: {sql}");
+    trace!("Executing SQL query: {sql}");
 
     context.runtime.spawn(async move {
         let result = context.inner
@@ -330,7 +330,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
             })
             .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e));
 
-        debug!("Executed SQL query: {sql}");
+        trace!("Executed SQL query: {sql}");
 
         crate::invoke_callback(result, callback, user_data);
     });
