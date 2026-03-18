@@ -65,7 +65,7 @@ pub unsafe extern "C" fn datafusion_dataframe_clone(
     }
     let df_wrapper = unsafe { &*df_ptr };
 
-    debug!("Cloning DataFrame");
+    debug!("Cloning DataFrame {df_ptr:p}");
 
     dataframe_to_ptr(df_wrapper.runtime(), df_wrapper.clone_inner())
 }
@@ -89,7 +89,7 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
     let Ok(param_values_proto) = proto::DataFrameParamValues::decode(param_values_bytes.as_slice()) else { return ErrorCode::InvalidArgument };
     let Ok(param_values) = mappers::from_proto_param_values(&param_values_proto) else { return ErrorCode::InvalidArgument };
 
-    debug!("Applying parameters to DataFrame");
+    debug!("Applying parameters to DataFrame {df_ptr:p}");
 
     match df_wrapper.clone_inner().with_param_values(param_values) {
         Ok(new_df) => {
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn datafusion_dataframe_count(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    debug!("Executing count");
+    debug!("Executing count on DataFrame {df_ptr:p}");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn datafusion_dataframe_show(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    debug!("Executing show with limit={limit}");
+    debug!("Executing show with limit={limit} on DataFrame {df_ptr:p}");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -187,7 +187,7 @@ pub unsafe extern "C" fn datafusion_dataframe_to_string(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    debug!("Executing to_string");
+    debug!("Executing to_string on DataFrame {df_ptr:p}");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -225,7 +225,7 @@ pub unsafe extern "C" fn datafusion_dataframe_schema(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    debug!("Getting DataFrame schema");
+    debug!("Getting DataFrame schema {df_ptr:p}");
 
     let df = df_wrapper.inner();
     let schema = df.schema().as_arrow();
@@ -260,7 +260,7 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    debug!("Collecting DataFrame");
+    debug!("Collecting DataFrame {df_ptr:p}");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -330,8 +330,9 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
-    debug!("Executing stream");
+    debug!("Executing stream on DataFrame {df_ptr:p}");
 
+    let df_ptr_addr = df_ptr as usize;
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
 
@@ -359,7 +360,7 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
             schema: &raw const ffi_schema,
         };
 
-        debug!("Executed stream {stream_w:p}");
+        debug!("Executed stream {stream_w:p} on DataFrame 0x{df_ptr_addr:x}");
 
         crate::invoke_callback_success(result, callback, user_data);
     });
@@ -455,7 +456,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
         )
         .transpose() else { return ErrorCode::InvalidArgument };
 
-    debug!("Executing write_csv to '{path}'");
+    debug!("Executing write_csv to '{path}' on DataFrame {df_ptr:p}");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -503,7 +504,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
         )
         .transpose() else { return ErrorCode::InvalidArgument };
 
-    debug!("Executing write_json to '{path}'");
+    debug!("Executing write_json to '{path}' on DataFrame {df_ptr:p}");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -552,7 +553,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
         )
         .transpose() else { return ErrorCode::InvalidArgument };
 
-    debug!("Executing write_parquet to '{path}'");
+    debug!("Executing write_parquet to '{path}' on DataFrame {df_ptr:p}");
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();

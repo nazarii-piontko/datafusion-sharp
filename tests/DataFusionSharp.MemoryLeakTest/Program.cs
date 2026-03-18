@@ -1,8 +1,9 @@
 ﻿using DataFusionSharp.Tests;
+using Xunit.Sdk;
 
 Console.WriteLine("=== Test started ===");
 
-var test = new StressTests();
+var test = new StressTests(new TestOutputHelper());
 try
 {
     Console.WriteLine("=== Running ConcurrentSessions_HandleMultipleQueries_Successfully with Query_WithStream ===");

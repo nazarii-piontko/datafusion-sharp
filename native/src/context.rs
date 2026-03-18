@@ -94,7 +94,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
         None => None
     };
 
-    debug!("Registering CSV table '{table_ref}' from '{table_path}'");
+    debug!("Registering CSV table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
 
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
@@ -158,8 +158,9 @@ pub unsafe extern "C" fn datafusion_context_register_json(
         None => None
     };
 
-    debug!("Registering JSON table '{table_ref}' from '{table_path}'");
+    debug!("Registering JSON table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
 
+    let context_ptr_addr = context_ptr as usize;
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
             json_options_proto.as_ref().and_then(|o| o.schema.as_ref())
@@ -186,7 +187,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
                 crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
-        debug!("Registered JSON table '{table_ref}'");
+        debug!("Registered JSON table '{table_ref}' on session 0x{context_ptr_addr:x}");
     });
 
     ErrorCode::Ok
@@ -223,8 +224,9 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
         None => None
     };
 
-    debug!("Registering Parquet table '{table_ref}' from '{table_path}'");
+    debug!("Registering Parquet table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
 
+    let context_ptr_addr = context_ptr as usize;
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
             parquet_options_proto.as_ref().and_then(|o| o.schema.as_ref())
@@ -251,7 +253,7 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
                 crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
-        debug!("Registered Parquet table '{table_ref}'");
+        debug!("Registered Parquet table '{table_ref}' on session 0x{context_ptr_addr:x}");
     });
 
     ErrorCode::Ok
@@ -275,7 +277,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
 
-    debug!("Deregistering table '{table_ref}'");
+    debug!("Deregistering table '{table_ref}' from session {context_ptr:p}");
 
     let result = context.inner
         .deregister_table(&table_ref)
@@ -284,7 +286,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
 
     crate::invoke_callback(result, callback, user_data);
 
-    debug!("Deregistered table '{table_ref}'");
+    debug!("Deregistered table '{table_ref}' from session {context_ptr:p}");
 
     ErrorCode::Ok
 }
@@ -314,8 +316,9 @@ pub unsafe extern "C" fn datafusion_context_sql(
     let Ok(param_values) = param_values_proto.as_ref()
         .map(mappers::from_proto_param_values).transpose() else { return ErrorCode::InvalidArgument };
 
-    trace!("Executing SQL query: {sql}");
+    trace!("Executing SQL query: {sql} on session {context_ptr:p}");
 
+    let context_ptr_addr = context_ptr as usize;
     context.runtime.spawn(async move {
         let result = context.inner
             .sql(&sql)
@@ -330,7 +333,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
             })
             .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e));
 
-        trace!("Executed SQL query: {sql}");
+        trace!("Executed SQL query: {sql} on session 0x{context_ptr_addr:x}");
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -358,7 +361,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_local(
     let url = ffi_cstr_to_string!(url_ptr);
     let Ok(url) = url::Url::parse(&url) else { return ErrorCode::InvalidArgument };
 
-    debug!("Registering local object store for '{url}'");
+    debug!("Registering local object store for '{url}' on session {context_ptr:p}");
 
     let store = match object_store::local::LocalFileSystem::new_with_prefix(url.path()) {
         Ok(s) => s,
@@ -406,7 +409,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_s3(
         },
         None => None,
     };
-    debug!("Registering S3 object store for '{url}'");
+    debug!("Registering S3 object store for '{url}' on session {context_ptr:p}");
 
     let store = match mappers::from_proto_s3_object_store(s3_options_proto.as_ref(), &url) {
         Ok(s) => s,
@@ -454,7 +457,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_azure(
         },
         None => None,
     };
-    debug!("Registering Azure object store for '{url}'");
+    debug!("Registering Azure object store for '{url}' on session {context_ptr:p}");
 
     let store = match mappers::from_proto_azure_blob_storage(azure_options_proto.as_ref(), &url) {
         Ok(s) => s,
@@ -502,7 +505,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_gcs(
         },
         None => None,
     };
-    debug!("Registering GCS object store for '{url}'");
+    debug!("Registering GCS object store for '{url}' on session {context_ptr:p}");
 
     let store = match mappers::from_proto_gcs_object_store(gcs_options_proto.as_ref(), &url) {
         Ok(s) => s,
@@ -550,7 +553,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_http(
         },
         None => None,
     };
-    debug!("Registering HTTP object store for '{url}'");
+    debug!("Registering HTTP object store for '{url}' on session {context_ptr:p}");
 
     let store = match mappers::from_proto_http_object_store(http_options_proto.as_ref(), &url) {
         Ok(s) => s,
@@ -589,7 +592,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_object_store(
     let url = ffi_cstr_to_string!(url_ptr);
     let Ok(url) = url::Url::parse(&url) else { return ErrorCode::InvalidArgument };
 
-    debug!("Deregistering object store for '{url}'");
+    debug!("Deregistering object store for '{url}' from session {context_ptr:p}");
 
     let result = context.inner
         .deregister_object_store(&url)
