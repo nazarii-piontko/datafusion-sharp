@@ -22,7 +22,7 @@ futures = "0.3.32"
 log = {version = "0.4.29", features = ["std"]}
 object_store = { version = "0.12.5", features = ["aws", "azure", "gcp", "http"] }
 prost = "0.14.3"
-reqwest = { version = "0.12.28", default-features = false }
+reqwest = { version = "0.13.2", default-features = false }
 tokio = { version = "1.50.0", features = ["rt-multi-thread"] }
 url = "2.5.8"
 
