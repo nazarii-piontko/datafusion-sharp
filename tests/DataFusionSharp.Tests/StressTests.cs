@@ -1,4 +1,6 @@
 using Apache.Arrow;
+using Meziantou.Extensions.Logging.Xunit;
+using Xunit.Abstractions;
 
 namespace DataFusionSharp.Tests;
 
@@ -8,6 +10,11 @@ public sealed class StressTests : IDisposable
     private readonly DataFusionRuntime _runtime = DataFusionRuntime.Create();
 
     public delegate Task QueryFunc(DataFusionRuntime runtime);
+    
+    public StressTests(ITestOutputHelper output)
+    {
+        DataFusionNativeLogger.ConfigureLogger(XUnitLogger.CreateLogger<StressTests>(output));
+    }
     
     /// <summary>
     /// Tests that the runtime can handle multiple concurrent sessions executing queries simultaneously.

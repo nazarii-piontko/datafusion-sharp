@@ -10,6 +10,27 @@ internal static partial class NativeMethods
     
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void Callback(IntPtr result, IntPtr error, ulong handle);
+    
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void LogCallback(NativeLogLevel level, BytesData target, BytesData message);
+    
+    internal enum NativeLogLevel : uint
+    {
+        None = 0,
+        Error,
+        Warn,
+        Info,
+        Debug,
+        Trace
+    }
+    
+    // Logger
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_set_logger")]
+    public static partial DataFusionErrorCode SetLogger(IntPtr callback);
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_set_log_level")]
+    public static partial DataFusionErrorCode SetLogLevel(NativeLogLevel maxLevel);
 
     // Runtime
 

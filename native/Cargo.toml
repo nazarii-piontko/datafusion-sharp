@@ -15,16 +15,16 @@ panic = "unwind"
 
 [dependencies]
 anyhow = "1.0.102"
-chrono = "0.4.44"
 arrow-array = { version = "57.3.0", features = ["ffi"] }
 datafusion = "52.2.0"
 datafusion-proto = "52.2.0"
 futures = "0.3.32"
+log = {version = "0.4.29", features = ["std"]}
 object_store = { version = "0.12.5", features = ["aws", "azure", "gcp", "http"] }
-reqwest = { version = "0.12.28", default-features = false }
-url = "2.5.8"
 prost = "0.14.3"
+reqwest = { version = "0.12.28", default-features = false }
 tokio = { version = "1.50.0", features = ["rt-multi-thread"] }
+url = "2.5.8"
 
 [build-dependencies]
 prost-build = "0.14.3"

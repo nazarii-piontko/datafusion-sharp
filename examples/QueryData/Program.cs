@@ -3,6 +3,18 @@ using Apache.Arrow.Types;
 using DataFusionSharp;
 using DataFusionSharp.Formats;
 using DataFusionSharp.Formats.Csv;
+using Microsoft.Extensions.Logging;
+
+var loggerFactory = LoggerFactory.Create(builder =>
+{
+    builder
+        .SetMinimumLevel(LogLevel.Debug)
+        .AddSimpleConsole(o =>
+        {
+            o.IncludeScopes = true;
+        });
+});
+DataFusionNativeLogger.ConfigureLogger(loggerFactory.CreateLogger("DataFusionSharp"), LogLevel.Debug);
 
 using var runtime = DataFusionRuntime.Create();
 using var context = runtime.CreateSessionContext();
