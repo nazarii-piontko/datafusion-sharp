@@ -70,6 +70,7 @@
   </Folder>
   <Folder Name="/examples/">
     <Project Path="examples\QueryData\QueryData.csproj" />
+    <Project Path="examples\QueryS3Data\QueryS3Data.csproj" />
   </Folder>
   <Folder Name="/misc/">
     <File Path=".gitignore" />
