@@ -11,27 +11,26 @@
 
 ## Features
 
-| Component        | Feature                                      | Status | Notes                                             |
-|------------------|----------------------------------------------|--------|---------------------------------------------------|
+| Component        | Feature                                      | Status  | Notes                                             |
+|------------------|----------------------------------------------|---------|---------------------------------------------------|
 | **Runtime**      | Tokio runtime                                | ✅      | Configurable threads, supports multiple instances |
 |                  | Logger                                       | ✅      | Configurable with log levels                      |
 | **Session**      | Create session context                       | ✅      |                                                   |
 |                  | Execute SQL queries                          | ✅      | Returns DataFrame, supports parameters            |
-| **Data Sources** | CSV (read/write)                             | ✅     |                                                   |
-|                  | Parquet (read/write)                         | ✅     |                                                   |
-|                  | JSON (read/write)                            | ✅     |                                                   |
-|                  | In-memory tables                             | ❌      |                                                   |
+| **Data Sources** | CSV (read/write)                             | ✅      |                                                   |
+|                  | Parquet (read/write)                         | ✅      |                                                   |
+|                  | JSON (read/write)                            | ✅      |                                                   |
+|                  | In-memory tables                             | ✅      | `RegisterBatch`                                   |
 | **Object Store** | Local filesystem                             | ✅      |                                                   |
 |                  | Amazon S3                                    | ✅      |                                                   |
 |                  | Azure Blob Storage                           | ✅      |                                                   |
 |                  | Google Cloud Storage                         | ✅      |                                                   |
 | **DataFrame**    | Count rows                                   | ✅      | `CountAsync()`                                    |
-|                  | Get schema                                   | ✅      | `GetSchema()` → Arrow Schema                 |
+|                  | Get schema                                   | ✅      | `GetSchema()` → Arrow Schema                      |
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches                  |
 |                  | Stream results                               | ✅      | `ExecuteStreamAsync()` → IAsyncEnumerable         |
 |                  | Show/print                                   | ✅      | `ShowAsync()`, `ToStringAsync()`                  |
 |                  | Select, Aggregate, Join, Filter, Limit, Sort | 🟡      | Use SQL instead                                   |
-|                  | Explain plan                                 | ❌      |                                                   |
 | **Arrow**        | Apache Arrow support                         | ✅      | Via Apache.Arrow nuget package                    |
 |                  | Zero copy support                            | ✅      |                                                   |
 | **Advanced**     | UDF registration                             | ❌      |                                                   |
