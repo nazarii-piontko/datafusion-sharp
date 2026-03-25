@@ -69,6 +69,40 @@ public sealed class RegisterBatchTests : IDisposable
             await df.CollectAsync();
         });
     }
+    
+    [Fact]
+    public async Task SelectWithJoin_ReturnsCorrectResults()
+    {
+        // Arrange
+        await _context.RegisterCsvAsync("orders", DataSet.OrdersCsvPath);
+        
+        var statusArray = new StringArray.Builder().Append("Completed").Append("Returned").Append("Cancelled").Build();
+        var statusDescArray = new StringArray.Builder().Append("Order completed successfully").Append("Order was returned by customer").Append("Order was cancelled by customer").Build();
+        var fields = new[]
+        {
+            new Field("name", StringType.Default, nullable: false),
+            new Field("desc", StringType.Default, nullable: false)
+        };
+        var schema = new Schema(fields, []); 
+        using var batch = new RecordBatch(schema,[statusArray, statusDescArray], 3);
+        _context.RegisterBatch("statuses", batch);
+        
+        // Act
+        using var df = await _context.SqlAsync(
+            @"SELECT o.order_id, s.name AS status_name, s.desc AS status_desc
+              FROM orders o
+              JOIN statuses s ON o.order_status = s.name
+              ORDER BY o.order_id
+              LIMIT 10");
+        using var collected = await df.CollectAsync();
+        
+        // Arrange
+        var count = await df.CountAsync();
+        Assert.Equal(10UL, count);
+        
+        var descriptions = collected.Batches.SelectMany(b => b.Column("status_desc").AsString()).ToList();
+        Assert.Equal("Order completed successfully", descriptions.First());
+    }
 
     public void Dispose()
     {
