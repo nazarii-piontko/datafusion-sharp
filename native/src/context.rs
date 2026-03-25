@@ -2,7 +2,7 @@ use std::sync::Arc;
 use log::{debug, error, trace};
 use prost::Message;
 
-use crate::proto;
+use crate::{proto, BytesData};
 
 use crate::{
     mappers,
@@ -86,15 +86,18 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
+    debug!("Registering CSV table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
+
     let csv_options_proto = match csv_options_bytes.as_opt_slice() {
         Some(b) => match proto::CsvReadOptions::decode(b) {
             Ok(opts) => Some(opts),
-            Err(_) => return ErrorCode::InvalidArgument
+            Err(e) => {
+                error!("Failed to decode CSV options protobuf: {e}");
+                return ErrorCode::InvalidArgument;
+            }
         },
         None => None
     };
-
-    debug!("Registering CSV table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
 
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
@@ -150,17 +153,19 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
+    debug!("Registering JSON table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
+
     let json_options_proto = match json_options_bytes.as_opt_slice() {
         Some(b) => match proto::JsonReadOptions::decode(b) {
             Ok(opts) => Some(opts),
-            Err(_) => return ErrorCode::InvalidArgument
+            Err(e) => {
+                error!("Failed to decode JSON options protobuf: {e}");
+                return ErrorCode::InvalidArgument;
+            }
         },
         None => None
     };
 
-    debug!("Registering JSON table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
-
-    let context_ptr_addr = context_ptr as usize;
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
             json_options_proto.as_ref().and_then(|o| o.schema.as_ref())
@@ -187,7 +192,6 @@ pub unsafe extern "C" fn datafusion_context_register_json(
                 crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
-        debug!("Registered JSON table '{table_ref}' on session 0x{context_ptr_addr:x}");
     });
 
     ErrorCode::Ok
@@ -216,17 +220,19 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
     let table_path = ffi_cstr_to_string!(table_path_ptr);
 
+    debug!("Registering Parquet table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
+
     let parquet_options_proto = match parquet_options_bytes.as_opt_slice() {
         Some(b) => match proto::ParquetReadOptions::decode(b) {
             Ok(opts) => Some(opts),
-            Err(_) => return ErrorCode::InvalidArgument
+            Err(e) => {
+                error!("Failed to decode Parquet options protobuf: {e}");
+                return ErrorCode::InvalidArgument;
+            }
         },
         None => None
     };
 
-    debug!("Registering Parquet table '{table_ref}' from '{table_path}' on session {context_ptr:p}");
-
-    let context_ptr_addr = context_ptr as usize;
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
             parquet_options_proto.as_ref().and_then(|o| o.schema.as_ref())
@@ -253,8 +259,53 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
                 crate::invoke_callback_error(&error_info, callback, user_data);
             }
         }
-        debug!("Registered Parquet table '{table_ref}' on session 0x{context_ptr_addr:x}");
     });
+
+    ErrorCode::Ok
+}
+
+/// Registers an Arrow `RecordBatch` as a table in the `SessionContext`.
+///
+/// This is an async operation. The callback is invoked on completion with no result data.
+///
+/// # Safety
+/// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
+/// - `table_ref_ptr` must be a valid null-terminated UTF-8 string
+/// - `batch_ipc_bytes` must be a valid `BytesData` containing an Arrow IPC stream with a single `RecordBatch`
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_context_register_batch(
+    context_ptr: *mut SessionContextWrapper,
+    table_ref_ptr: *const std::ffi::c_char,
+    batch_ipc_bytes: BytesData,
+    callback: crate::Callback,
+    user_data: u64
+) -> ErrorCode {
+    let context = ffi_ref!(context_ptr);
+    let table_ref = ffi_cstr_to_string!(table_ref_ptr);
+
+    debug!("Registering table '{table_ref}' from DataFrame on session {context_ptr:p}");
+
+    let result = datafusion::arrow::ipc::reader::StreamReader::try_new(batch_ipc_bytes.as_slice(), None)
+        .map(|mut reader| {
+            reader.next()
+                .map(|batch| {
+                    match batch {
+                        Ok(batch) => {
+                            context.inner
+                                .register_batch(&table_ref, batch)
+                                .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
+                                .map(|_| ())
+                        }
+                        Err(e) => Err(ErrorInfo::new(ErrorCode::InvalidArgument, format!("Failed to read RecordBatch from Arrow IPC stream: {e}")))
+                    }
+                })
+                .unwrap_or(Err(ErrorInfo::new(ErrorCode::InvalidArgument, format!("Arrow IPC stream did not contain any RecordBatch for table '{table_ref}'"))))
+        })
+        .map_err(|e| ErrorInfo::new(ErrorCode::InvalidArgument, format!("Failed to create Arrow IPC stream reader: {e}")))
+        .flatten();
+
+    crate::invoke_callback(result, callback, user_data);
 
     ErrorCode::Ok
 }

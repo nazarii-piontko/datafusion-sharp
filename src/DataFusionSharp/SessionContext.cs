@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Apache.Arrow;
 using DataFusionSharp.Formats.Csv;
 using DataFusionSharp.Formats.Json;
 using DataFusionSharp.Formats.Parquet;
@@ -40,6 +41,9 @@ public sealed partial class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null)
     {
+        ArgumentNullException.ThrowIfNull(tableName);
+        ArgumentNullException.ThrowIfNull(filePath);
+        
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
         
         var (id, tcs) = AsyncOperations.Instance.Create();
@@ -63,6 +67,9 @@ public sealed partial class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterJsonAsync(string tableName, string filePath, JsonReadOptions? options = null)
     {
+        ArgumentNullException.ThrowIfNull(tableName);
+        ArgumentNullException.ThrowIfNull(filePath);
+        
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
@@ -85,6 +92,9 @@ public sealed partial class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
     public Task RegisterParquetAsync(string tableName, string filePath, ParquetReadOptions? options = null)
     {
+        ArgumentNullException.ThrowIfNull(tableName);
+        ArgumentNullException.ThrowIfNull(filePath);
+        
         using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
@@ -96,6 +106,38 @@ public sealed partial class SessionContext : IDisposable
         }
         return tcs.Task;
     }
+
+    /// <summary>
+    /// Registers an in-memory Arrow RecordBatch as a table in this session.
+    /// </summary>
+    /// <remarks>
+    /// It uses Arrow IPC format to transfer the RecordBatch to the native side.
+    /// </remarks>
+    /// <param name="tableName">The name to use for the table.</param>
+    /// <param name="batch">The Arrow RecordBatch to register as a table.</param>
+    /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
+    public void RegisterBatch(string tableName, RecordBatch batch)
+    {
+        ArgumentNullException.ThrowIfNull(tableName);
+        ArgumentNullException.ThrowIfNull(batch);
+        
+        using var memoryStream = new MemoryStream();
+        using (var writer = new Apache.Arrow.Ipc.ArrowStreamWriter(memoryStream, batch.Schema, true))
+        {
+            writer.WriteRecordBatch(batch);
+            writer.WriteEnd();
+        }
+        using var memoryHandle = memoryStream.GetBuffer().AsMemory().Pin();
+
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterBatch(_handle, tableName, BytesData.FromPinned(memoryHandle, (int)memoryStream.Length), GenericCallbacks.CallbackForVoidSyncHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            SyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to register record batch");
+        }
+        SyncOperations.Instance.TakeResult(id);
+    }
     
     /// <summary>
     /// Deregisters a table from this session.
@@ -105,6 +147,8 @@ public sealed partial class SessionContext : IDisposable
     /// <exception cref="DataFusionException">Thrown when table deregistration fails.</exception>
     public Task DeregisterTableAsync(string tableName)
     {
+        ArgumentNullException.ThrowIfNull(tableName);
+
         var (id, tcs) = AsyncOperations.Instance.Create();
         var result = NativeMethods.ContextDeregisterTable(_handle, tableName, GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)

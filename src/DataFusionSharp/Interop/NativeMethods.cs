@@ -57,6 +57,9 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_parquet")]
     public static partial DataFusionErrorCode ContextRegisterParquet(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, BytesData optionsData, IntPtr callback, ulong userData);
     
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_batch")]
+    public static partial DataFusionErrorCode ContextRegisterBatch(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, BytesData batchIpcData, IntPtr callback, ulong userData);
+    
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_deregister_table")]
     public static partial DataFusionErrorCode ContextDeregisterTable(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, IntPtr callback, ulong userData);
     

@@ -4,6 +4,7 @@
 macro_rules! ffi_ref {
     ($ptr:expr) => {{
         if $ptr.is_null() {
+            error!("Received null pointer argument");
             return $crate::ErrorCode::InvalidArgument;
         }
         unsafe { &*$ptr }
@@ -24,6 +25,7 @@ macro_rules! ffi_opt_ref {
 macro_rules! ffi_ref_mut {
     ($ptr:expr) => {{
         if $ptr.is_null() {
+            error!("Received null pointer argument");
             return $crate::ErrorCode::InvalidArgument;
         }
         unsafe { &mut *$ptr }
@@ -36,12 +38,14 @@ macro_rules! ffi_ref_mut {
 macro_rules! ffi_cstr_to_string {
     ($ptr:expr) => {{
         if $ptr.is_null() {
+            error!("Received null pointer argument for string");
             return $crate::ErrorCode::InvalidArgument;
         }
         let Ok(s) = unsafe { std::ffi::CStr::from_ptr($ptr) }
             .to_str()
             .map(|s| s.to_string())
         else {
+            error!("Received invalid UTF-8 string pointer");
             return $crate::ErrorCode::InvalidArgument;
         };
         s
