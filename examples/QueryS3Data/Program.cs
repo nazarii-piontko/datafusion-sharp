@@ -6,17 +6,16 @@ using DataFusionSharp.Formats.Parquet;
 using DataFusionSharp.ObjectStore;
 using Microsoft.Extensions.Logging;
 
+// Setup logging
 var loggerFactory = LoggerFactory.Create(builder =>
 {
     builder
         .SetMinimumLevel(LogLevel.Information)
-        .AddSimpleConsole(o =>
-        {
-            o.IncludeScopes = true;
-        });
+        .AddSimpleConsole(o => o.IncludeScopes = true);
 });
 DataFusionNativeLogger.ConfigureLogger(loggerFactory.CreateLogger("DataFusionSharp"), LogLevel.Information);
 
+// Init runtime and single session
 using var runtime = DataFusionRuntime.Create();
 using var context = runtime.CreateSessionContext();
 
