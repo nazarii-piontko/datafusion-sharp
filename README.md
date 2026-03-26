@@ -17,14 +17,15 @@
 |                  | Logger                                       | ✅      | Configurable with log levels                      |
 | **Session**      | Create session context                       | ✅      |                                                   |
 |                  | Execute SQL queries                          | ✅      | Returns DataFrame, supports parameters            |
-| **Data Sources** | CSV (read/write)                             | ✅      |                                                   |
-|                  | Parquet (read/write)                         | ✅      |                                                   |
-|                  | JSON (read/write)                            | ✅      |                                                   |
-|                  | In-memory tables                             | ✅      | `RegisterBatch`                                   |
+| **Data Sources** | CSV (read/write)                             | ✅      | `RegisterCsvAsync`                                |
+|                  | Parquet (read/write)                         | ✅      | `RegisterParquetAsync`                            |
+|                  | JSON (read/write)                            | ✅      | `RegisterJsonAsync`                               |
+|                  | RecordBatch tables                           | ✅      | `RegisterBatch`                                   |
 | **Object Store** | Local filesystem                             | ✅      |                                                   |
 |                  | Amazon S3                                    | ✅      |                                                   |
 |                  | Azure Blob Storage                           | ✅      |                                                   |
 |                  | Google Cloud Storage                         | ✅      |                                                   |
+|                  | InMemory                                     | ❌      |                                                   |
 | **DataFrame**    | Count rows                                   | ✅      | `CountAsync()`                                    |
 |                  | Get schema                                   | ✅      | `GetSchema()` → Arrow Schema                      |
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches                  |
@@ -36,6 +37,7 @@
 | **Advanced**     | UDF registration                             | ❌      |                                                   |
 |                  | Catalog management                           | ❌      |                                                   |
 |                  | Table providers                              | ❌      |                                                   |
+| **ADO.NET**      | ADO.NET interface                            | ❌      | ADO.NET interface to support libs like Dapper     |
 | **Platforms**    | Linux x64                                    | ✅      |                                                   |
 |                  | Linux arm64                                  | ✅      |                                                   |
 |                  | Windows x64                                  | ✅      |                                                   |
