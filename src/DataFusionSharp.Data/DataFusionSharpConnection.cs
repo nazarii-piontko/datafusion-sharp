@@ -85,6 +85,7 @@ public sealed class DataFusionSharpConnection : DbConnection
         return _sessionContext;
     }
 
+    /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
