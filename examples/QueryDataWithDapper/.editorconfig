@@ -1,0 +1,2 @@
+[*.cs]
+dotnet_diagnostic.s3903.severity = none # Types should be defined in named namespaces

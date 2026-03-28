@@ -100,8 +100,7 @@ public sealed class DataFusionSharpCommand : DbCommand
 
     /// <inheritdoc />
     /// <returns>Always <c>-1</c>; DataFusion does not track affected row counts.</returns>
-    public override int ExecuteNonQuery() =>
-        ExecuteNonQueryAsync(CancellationToken.None).GetAwaiter().GetResult();
+    public override int ExecuteNonQuery() => ExecuteNonQueryAsync(CancellationToken.None).GetAwaiter().GetResult();
 
     /// <inheritdoc />
     /// <returns>Always <c>-1</c>; DataFusion does not track affected row counts.</returns>

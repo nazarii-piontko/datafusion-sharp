@@ -44,17 +44,7 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
         _items.Add(parameter);
         return _items.Count - 1;
     }
-
-    /// <summary>
-    /// Creates a parameter with the given name and value, adds it to the collection, and returns it.
-    /// </summary>
-    public DataFusionSharpParameter AddWithValue(string parameterName, object? value)
-    {
-        var p = new DataFusionSharpParameter(parameterName, value);
-        _items.Add(p);
-        return p;
-    }
-
+    
     /// <inheritdoc />
     public override int Add(object value)
     {
@@ -68,6 +58,16 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
 
         foreach (var v in values)
             Add(v!);
+    }
+
+    /// <summary>
+    /// Creates a parameter with the given name and value, adds it to the collection, and returns it.
+    /// </summary>
+    public DataFusionSharpParameter AddWithValue(string parameterName, object? value)
+    {
+        var p = new DataFusionSharpParameter(parameterName, value);
+        _items.Add(p);
+        return p;
     }
 
     /// <inheritdoc />
