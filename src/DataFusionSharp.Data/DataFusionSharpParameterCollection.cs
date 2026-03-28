@@ -39,10 +39,10 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
     /// <summary>
     /// Adds the given parameter to the collection and returns it.
     /// </summary>
-    public DataFusionSharpParameter Add(DataFusionSharpParameter parameter)
+    public int Add(DataFusionSharpParameter parameter)
     {
         _items.Add(parameter);
-        return parameter;
+        return _items.Count - 1;
     }
 
     /// <summary>
@@ -58,8 +58,7 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
     /// <inheritdoc />
     public override int Add(object value)
     {
-        _items.Add(CastParameter(value));
-        return _items.Count - 1;
+        return Add(CastParameter(value));
     }
 
     /// <inheritdoc />
@@ -155,12 +154,8 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
     private int IndexOfChecked(string parameterName)
     {
         var i = IndexOf(parameterName);
-
-#pragma warning disable CA2201
         if (i < 0)
-            throw new IndexOutOfRangeException($"Parameter '{parameterName}' not found.");
-#pragma warning restore CA2201
-
+            throw new ArgumentException($"Parameter with name '{parameterName}' not found in the collection.", nameof(parameterName));
         return i;
     }
 

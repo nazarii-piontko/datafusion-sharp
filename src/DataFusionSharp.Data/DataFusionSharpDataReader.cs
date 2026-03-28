@@ -75,12 +75,9 @@ public sealed class DataFusionSharpDataReader : DbDataReader
     /// <inheritdoc />
     public override int GetOrdinal(string name)
     {
-        if (_fieldIndex.TryGetValue(name, out var ordinal))
-            return ordinal;
-        
-#pragma warning disable CA2201
-        throw new IndexOutOfRangeException($"No column named '{name}' exists in the result set.");
-#pragma warning restore CA2201
+        if (!_fieldIndex.TryGetValue(name, out var ordinal))
+            throw new ArgumentException($"Column name '{name}' does not exist in the result set.", nameof(name));
+        return ordinal;
     }
 
     /// <inheritdoc />
