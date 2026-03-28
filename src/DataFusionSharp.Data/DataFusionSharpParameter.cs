@@ -95,33 +95,8 @@ public sealed class DataFusionSharpParameter : DbParameter
     internal ScalarValue ToScalarValue()
     {
         if (Value is null or DBNull)
-        {
-            return DbType switch
-            {
-                DbType.Binary => ScalarValue.Binary.Null,
-                DbType.Byte => ScalarValue.UInt8.Null,
-                DbType.Boolean => ScalarValue.Boolean.Null,
-                DbType.Date => ScalarValue.Date64.Null,
-                DbType.DateTime => ScalarValue.Time64Microsecond.Null,
-                DbType.Decimal => ScalarValue.Decimal128.Null,
-                DbType.Double => ScalarValue.Float64.Null,
-                DbType.Int16 => ScalarValue.Int16.Null,
-                DbType.Int32 => ScalarValue.Int32.Null,
-                DbType.Int64 => ScalarValue.Int64.Null,
-                DbType.Object => throw new NotSupportedException("Cannot infer DataFusion type for DbType.Object parameters with null value."),
-                DbType.SByte => ScalarValue.Int8.Null,
-                DbType.Single => ScalarValue.Float32.Null,
-                DbType.Time => ScalarValue.Time64Microsecond.Null,
-                DbType.UInt16 => ScalarValue.UInt16.Null,
-                DbType.UInt32 => ScalarValue.UInt32.Null,
-                DbType.UInt64 => ScalarValue.UInt64.Null,
-                DbType.VarNumeric => throw new NotSupportedException("Cannot infer DataFusion type for DbType.VarNumeric parameters with null value."),
-                DbType.Xml => throw new NotSupportedException("Cannot infer DataFusion type for DbType.Xml parameters with null value."),
-                DbType.DateTime2 => throw new NotSupportedException("Cannot infer DataFusion type for DbType.DateTime2 parameters with null value."),
-                DbType.DateTimeOffset => ScalarValue.Time64Microsecond.Null,
-                _ => ScalarValue.Utf8.Null
-            };
-        }
+            return NullToScalarValue();
+
         return Value switch
         {
             bool b => new ScalarValue.Boolean(b),
@@ -143,8 +118,40 @@ public sealed class DataFusionSharpParameter : DbParameter
             TimeOnly time => new ScalarValue.Time64Microsecond(time),
             DateTime dt => new ScalarValue.TimestampMicrosecond(new DateTimeOffset(DateTime.SpecifyKind(dt, DateTimeKind.Utc))),
             DateTimeOffset dto => new ScalarValue.TimestampMicrosecond(dto),
-            TimeSpan ts => new ScalarValue.DurationMillisecond(ts),
+            TimeSpan ts => new ScalarValue.DurationMicrosecond(ts),
+            ScalarValue s => s,
             _ => new ScalarValue.Utf8(Value.ToString())
+        };
+    }
+
+    private ScalarValue NullToScalarValue()
+    {
+        return DbType switch
+        {
+            DbType.Binary => ScalarValue.Binary.Null,
+            DbType.Boolean => ScalarValue.Boolean.Null,
+            DbType.Byte => ScalarValue.UInt8.Null,
+            DbType.Currency => throw new NotSupportedException("Cannot infer DataFusion type for DbType.Currency parameters with null value."),
+            DbType.Date => ScalarValue.Date64.Null,
+            DbType.DateTime => ScalarValue.Time64Microsecond.Null,
+            DbType.DateTime2 => throw new NotSupportedException("Cannot infer DataFusion type for DbType.DateTime2 parameters with null value."),
+            DbType.DateTimeOffset => ScalarValue.Time64Microsecond.Null,
+            DbType.Decimal => ScalarValue.Decimal128.Null,
+            DbType.Double => ScalarValue.Float64.Null,
+            DbType.Guid => throw new NotSupportedException("Cannot infer DataFusion type for DbType.Guid parameters with null value."),
+            DbType.Int16 => ScalarValue.Int16.Null,
+            DbType.Int32 => ScalarValue.Int32.Null,
+            DbType.Int64 => ScalarValue.Int64.Null,
+            DbType.Object => throw new NotSupportedException("Cannot infer DataFusion type for DbType.Object parameters with null value."),
+            DbType.SByte => ScalarValue.Int8.Null,
+            DbType.Single => ScalarValue.Float32.Null,
+            DbType.Time => ScalarValue.Time64Microsecond.Null,
+            DbType.UInt16 => ScalarValue.UInt16.Null,
+            DbType.UInt32 => ScalarValue.UInt32.Null,
+            DbType.UInt64 => ScalarValue.UInt64.Null,
+            DbType.VarNumeric => throw new NotSupportedException("Cannot infer DataFusion type for DbType.VarNumeric parameters with null value."),
+            DbType.Xml => throw new NotSupportedException("Cannot infer DataFusion type for DbType.Xml parameters with null value."),
+            _ => ScalarValue.Utf8.Null
         };
     }
 }

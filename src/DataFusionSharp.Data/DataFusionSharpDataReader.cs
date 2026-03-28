@@ -1,12 +1,11 @@
 #pragma warning disable CA1010 // Collections should implement generic interface
-#pragma warning disable CA1305 // Specify IFormatProvider
 
 using System.Collections;
 using System.Data.Common;
-using System.Data.SqlTypes;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Apache.Arrow;
 using Apache.Arrow.Arrays;
-using Apache.Arrow.Types;
 
 namespace DataFusionSharp.Data;
 
@@ -34,6 +33,7 @@ public sealed class DataFusionSharpDataReader : DbDataReader
 
     private RecordBatch? _currentBatch;
     private int _rowIndex = -1;
+    private int _rowIndexComm = -1;
     private bool _isClosed;
 
     internal DataFusionSharpDataReader(DataFrame dataFrame, DataFrameStream stream)
@@ -87,7 +87,11 @@ public sealed class DataFusionSharpDataReader : DbDataReader
     public override string GetDataTypeName(int ordinal) => _schema.FieldsList[ordinal].DataType.Name;
 
     /// <inheritdoc />
-    public override Type GetFieldType(int ordinal) => ArrowTypeToNetType(_schema.FieldsList[ordinal].DataType);
+    public override Type GetFieldType(int ordinal)
+    {
+        return _schema.FieldsList[ordinal].DataType.ToNetType() ??
+               throw new InvalidOperationException($"Unsupported data type {_schema.FieldsList[ordinal].DataType} in column {ordinal}.");
+    }
 
     /// <inheritdoc />
     public override bool Read() => ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
@@ -95,7 +99,7 @@ public sealed class DataFusionSharpDataReader : DbDataReader
     /// <inheritdoc />
     public override async Task<bool> ReadAsync(CancellationToken cancellationToken)
     {
-        ThrowIfClosed();
+        EnsureOpen();
 
         while (true)
         {
@@ -103,7 +107,8 @@ public sealed class DataFusionSharpDataReader : DbDataReader
             
             if (_currentBatch is not null && _rowIndex + 1 < _currentBatch.Length)
             {
-                _rowIndex++;
+                ++_rowIndex;
+                ++_rowIndexComm;
                 return true;
             }
             
@@ -132,7 +137,7 @@ public sealed class DataFusionSharpDataReader : DbDataReader
     public override object GetValue(int ordinal)
     {
         EnsureRow();
-        return GetArrowValue(_currentBatch!.Column(ordinal), _rowIndex) ?? DBNull.Value;
+        return _currentBatch!.Column(ordinal).GetValue(_rowIndex) ?? DBNull.Value;
     }
 
     /// <inheritdoc />
@@ -150,102 +155,188 @@ public sealed class DataFusionSharpDataReader : DbDataReader
     }
 
     /// <inheritdoc />
-    public override bool GetBoolean(int ordinal) => (bool)GetNonNullValue(ordinal);
+    public override bool GetBoolean(int ordinal)
+    {
+        EnsureRow();
+        if (_currentBatch!.Column(ordinal) is BooleanArray boolArray)
+            return boolArray.GetValue(_rowIndex) ?? ThrowNullValue<bool>(ordinal);
+        throw new InvalidCastException($"Column {ordinal} is not a boolean array.");
+    }
 
     /// <inheritdoc />
-    public override byte GetByte(int ordinal) => Convert.ToByte(GetNonNullValue(ordinal));
+    public override byte GetByte(int ordinal)
+    {
+        EnsureRow();
+        if (_currentBatch!.Column(ordinal) is UInt8Array uint8Array)
+            return uint8Array.GetValue(_rowIndex) ?? ThrowNullValue<byte>(ordinal);
+        throw new InvalidCastException($"Column {ordinal} is not a byte array.");
+    }
 
     /// <inheritdoc />
     public override char GetChar(int ordinal)
     {
-        var v = GetNonNullValue(ordinal);
-        return v is string { Length: 1 } s ? s[0] : Convert.ToChar(v);
+        var str = GetString(ordinal);
+        if (str.Length != 1)
+            throw new InvalidCastException($"Column {ordinal} contains a string value '{str}' that cannot be cast to char because it has length {str.Length}.");
+        return str[0];
     }
 
     /// <inheritdoc />
-    public override short GetInt16(int ordinal) => Convert.ToInt16(GetNonNullValue(ordinal));
-
-    /// <inheritdoc />
-    public override int GetInt32(int ordinal) => Convert.ToInt32(GetNonNullValue(ordinal));
-
-    /// <inheritdoc />
-    public override long GetInt64(int ordinal) => Convert.ToInt64(GetNonNullValue(ordinal));
-
-    /// <inheritdoc />
-    public override float GetFloat(int ordinal) => Convert.ToSingle(GetNonNullValue(ordinal));
-
-    /// <inheritdoc />
-    public override double GetDouble(int ordinal) => Convert.ToDouble(GetNonNullValue(ordinal));
-
-    /// <inheritdoc />
-    public override decimal GetDecimal(int ordinal) => Convert.ToDecimal(GetNonNullValue(ordinal));
-    
-    /// <inheritdoc />
-    public override string GetString(int ordinal) => (string)GetNonNullValue(ordinal);
-
-    /// <inheritdoc />
-    public override DateTime GetDateTime(int ordinal)
+    public override short GetInt16(int ordinal)
     {
-        return GetNonNullValue(ordinal) switch
+        EnsureRow();
+        if (_currentBatch!.Column(ordinal) is Int16Array a)
+            return a.GetValue(_rowIndex) ?? ThrowNullValue<short>(ordinal);
+        throw new InvalidCastException($"Column {ordinal} is not a 16-bit integer array.");
+    }
+
+    /// <inheritdoc />
+    public override int GetInt32(int ordinal)
+    {
+        EnsureRow();
+        if (_currentBatch!.Column(ordinal) is Int32Array a)
+            return a.GetValue(_rowIndex) ?? ThrowNullValue<int>(ordinal);
+        throw new InvalidCastException($"Column {ordinal} is not a 32-bit integer array.");
+    }
+
+    /// <inheritdoc />
+    public override long GetInt64(int ordinal)
+    {
+        EnsureRow();
+        if (_currentBatch!.Column(ordinal) is Int64Array a)
+            return a.GetValue(_rowIndex) ?? ThrowNullValue<long>(ordinal);
+        throw new InvalidCastException($"Column {ordinal} is not a 64-bit integer array.");
+    }
+
+    /// <inheritdoc />
+    public override float GetFloat(int ordinal)
+    {
+        EnsureRow();
+        if (_currentBatch!.Column(ordinal) is FloatArray a)
+            return a.GetValue(_rowIndex) ?? ThrowNullValue<float>(ordinal);
+        throw new InvalidCastException($"Column {ordinal} is not a float array.");
+    }
+
+    /// <inheritdoc />
+    public override double GetDouble(int ordinal)
+    {
+        EnsureRow();
+        if (_currentBatch!.Column(ordinal) is DoubleArray a)
+            return a.GetValue(_rowIndex) ?? ThrowNullValue<double>(ordinal);
+        throw new InvalidCastException($"Column {ordinal} is not a double array.");
+    }
+
+    /// <inheritdoc />
+    public override decimal GetDecimal(int ordinal)
+    {
+        EnsureRow();
+        return _currentBatch!.Column(ordinal) switch
         {
-            DateTime dt        => dt,
-            DateTimeOffset dto => dto.UtcDateTime,
-            DateOnly d         => d.ToDateTime(TimeOnly.MinValue),
-            _                  => Convert.ToDateTime(GetNonNullValue(ordinal))
+            Decimal128Array a => a.GetValue(_rowIndex) ?? ThrowNullValue<decimal>(ordinal),
+            Decimal256Array a => a.GetValue(_rowIndex) ?? ThrowNullValue<decimal>(ordinal),
+            _ => throw new InvalidCastException($"Column {ordinal} is not a double array.")
         };
     }
 
     /// <inheritdoc />
-    public override Guid GetGuid(int ordinal) => Guid.Parse(GetString(ordinal));
+    public override string GetString(int ordinal)
+    {
+        EnsureRow();
+        return _currentBatch!.Column(ordinal) switch
+        {
+            StringArray a => a.GetString(_rowIndex) ?? ThrowNullValue<string>(ordinal),
+            StringViewArray a => a.GetString(_rowIndex) ?? ThrowNullValue<string>(ordinal),
+            LargeStringArray a => a.GetString(_rowIndex) ?? ThrowNullValue<string>(ordinal),
+            _ => throw new InvalidCastException($"Column {ordinal} is not a double array.")
+        };
+    }
+
+    /// <inheritdoc />
+    public override DateTime GetDateTime(int ordinal)
+    {
+        EnsureRow();
+        return _currentBatch!.Column(ordinal) switch
+        {
+            Date32Array a => a.GetDateTime(_rowIndex) ?? ThrowNullValue<DateTime>(ordinal),
+            Date64Array a => a.GetDateTime(_rowIndex) ?? ThrowNullValue<DateTime>(ordinal),
+            TimestampArray a => a.GetTimestamp(_rowIndex)?.UtcDateTime ?? ThrowNullValue<DateTime>(ordinal),
+            _ => throw new InvalidCastException($"Column {ordinal} does not represent a DateTime")
+        };
+    }
+
+    /// <inheritdoc />
+    public override Guid GetGuid(int ordinal)
+    {
+        if (!Guid.TryParse(GetString(ordinal), CultureInfo.InvariantCulture, out var g))
+            throw new InvalidCastException($"Column {ordinal} does not represent a GUID");
+        return g;
+    }
 
     /// <inheritdoc />
     public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
     {
-        throw new NotSupportedException("GetBytes is not supported. Use GetValue to retrieve binary data as a byte array.");
+        EnsureRow();
+        
+        var bytes = _currentBatch!.Column(ordinal) switch
+        {
+            BinaryArray a => a.GetBytes(_rowIndex),
+            LargeBinaryArray a => a.GetBytes(_rowIndex),
+            FixedSizeBinaryArray a => a.GetBytes(_rowIndex),
+            BinaryViewArray a => a.GetBytes(_rowIndex),
+            _ => throw new InvalidCastException($"Column {ordinal} is not a binary array.")
+        };
+        if (buffer is null)
+            return bytes.Length;
+        
+        var bytesToCopy = (int)Math.Min(length, bytes.Length - dataOffset);
+        var outputSpan = buffer.AsSpan(bufferOffset, bytesToCopy);
+        bytes.CopyTo(outputSpan);
+        
+        return bytesToCopy;
     }
 
     /// <inheritdoc />
-    public override long GetChars( int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
+    public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
     {
         var str = GetString(ordinal);
-        if (buffer is null) return str.Length;
-        var toCopy = Math.Min(length, str.Length - (int)dataOffset);
-        str.CopyTo((int)dataOffset, buffer, bufferOffset, toCopy);
-        return toCopy;
+        if (buffer is null)
+            return str.Length;
+        
+        var charsToCopy = Math.Min(length, str.Length - (int) dataOffset);
+        str.CopyTo((int)dataOffset, buffer, bufferOffset, charsToCopy);
+        
+        return charsToCopy;
     }
 
     /// <inheritdoc />
     public override IEnumerator GetEnumerator() => new DbEnumerator(this, closeReader: false);
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-
     /// <inheritdoc />
     public override void Close()
     {
-        if (_isClosed) return;
+        if (_isClosed)
+            return;
+        
         _isClosed = true;
         _currentBatch = null;
-
-        // Dispose the async enumerator. Arrow async iterators normally complete synchronously
-        // here because no async work remains once iteration has stopped.
+        
         var disposeTask = _enumerator.DisposeAsync();
         if (!disposeTask.IsCompleted)
             disposeTask.AsTask().GetAwaiter().GetResult();
 
-        _stream.Dispose();    // releases all tracked Arrow batches (native memory)
-        _dataFrame.Dispose(); // releases the DataFrame handle
+        _stream.Dispose();
+        _dataFrame.Dispose();
     }
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (disposing) Close();
+        if (disposing)
+            Close();
         base.Dispose(disposing);
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
-
-    private void ThrowIfClosed()
+    private void EnsureOpen()
     {
         if (_isClosed)
             throw new InvalidOperationException("The data reader is closed.");
@@ -253,88 +344,16 @@ public sealed class DataFusionSharpDataReader : DbDataReader
 
     private void EnsureRow()
     {
-        ThrowIfClosed();
+        EnsureOpen();
+
         if (_currentBatch is null || _rowIndex < 0)
-            throw new InvalidOperationException(
-                "No current row. Call Read() or ReadAsync() before accessing data.");
+            throw new InvalidOperationException("No current row. Call Read() or ReadAsync() before accessing data.");
     }
-
-    private object GetNonNullValue(int ordinal)
+    
+    [DoesNotReturn]
+    private T ThrowNullValue<T>(int ordinal)
     {
-        if (IsDBNull(ordinal))
-            throw new InvalidCastException(
-                $"Cannot get a non-null value from column {ordinal}: the value is NULL.");
-        return GetArrowValue(_currentBatch!.Column(ordinal), _rowIndex)!;
+        throw new InvalidCastException($"Column {ordinal} at row {_rowIndexComm} contains a NULL value");
     }
-
-    private static object? GetArrowValue(IArrowArray array, int rowIndex)
-    {
-        if (array.IsNull(rowIndex))
-            return null;
-
-        return array switch
-        {
-            BooleanArray         a => a.GetValue(rowIndex),
-            Int8Array            a => a.GetValue(rowIndex),
-            Int16Array           a => a.GetValue(rowIndex),
-            Int32Array           a => a.GetValue(rowIndex),
-            Int64Array           a => a.GetValue(rowIndex),
-            UInt8Array           a => a.GetValue(rowIndex),
-            UInt16Array          a => a.GetValue(rowIndex),
-            UInt32Array          a => a.GetValue(rowIndex),
-            UInt64Array          a => a.GetValue(rowIndex),
-            FloatArray           a => a.GetValue(rowIndex),
-            DoubleArray          a => a.GetValue(rowIndex),
-            Decimal128Array      a => ConvertSqlDecimal(a.GetSqlDecimal(rowIndex)),
-            StringArray          a => a.GetString(rowIndex),
-            StringViewArray      a => a.GetString(rowIndex),
-            LargeStringArray     a => a.GetString(rowIndex),
-            BinaryArray          a => a.GetBytes(rowIndex).ToArray(),
-            LargeBinaryArray     a => a.GetBytes(rowIndex).ToArray(),
-            FixedSizeBinaryArray a => a.GetBytes(rowIndex).ToArray(),
-            Date32Array          a => a.GetDateOnly(rowIndex),
-            Date64Array          a => a.GetDateOnly(rowIndex),
-            TimestampArray       a => a.GetTimestamp(rowIndex),
-            Time32Array          a => a.GetTime(rowIndex),
-            Time64Array          a => a.GetTime(rowIndex),
-            _                      => array.ToString()
-        };
-    }
-
-    private static decimal? ConvertSqlDecimal(SqlDecimal? value) =>
-        value.HasValue ? (decimal)value.Value : null;
-
-    // ── Arrow type → .NET CLR type mapping ───────────────────────────────────
-
-    private static Type ArrowTypeToNetType(IArrowType arrowType) => arrowType switch
-    {
-        BooleanType          => typeof(bool),
-        Int8Type             => typeof(sbyte),
-        Int16Type            => typeof(short),
-        Int32Type            => typeof(int),
-        Int64Type            => typeof(long),
-        UInt8Type            => typeof(byte),
-        UInt16Type           => typeof(ushort),
-        UInt32Type           => typeof(uint),
-        UInt64Type           => typeof(ulong),
-        FloatType            => typeof(float),
-        DoubleType           => typeof(double),
-        Decimal128Type       => typeof(decimal),
-        Decimal256Type       => typeof(decimal),
-        StringType           => typeof(string),
-        StringViewType       => typeof(string),
-        LargeStringType      => typeof(string),
-        BinaryType           => typeof(byte[]),
-        LargeBinaryType      => typeof(byte[]),
-        FixedSizeBinaryType  => typeof(byte[]),
-        BinaryViewType       => typeof(byte[]),
-        Date32Type           => typeof(DateOnly),
-        Date64Type           => typeof(DateOnly),
-        TimestampType        => typeof(DateTimeOffset),
-        Time32Type           => typeof(TimeOnly),
-        Time64Type           => typeof(TimeOnly),
-        DurationType         => typeof(TimeSpan),
-        _                    => typeof(object)
-    };
 }
 

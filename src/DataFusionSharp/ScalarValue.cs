@@ -627,20 +627,6 @@ public abstract record ScalarValue
         {
         }
     }
-    
-    /// <summary>
-    /// Implicit conversion from DateTimeOffset to TimestampMillisecond for convenience.
-    /// </summary>
-    /// <param name="value">The DateTimeOffset value to convert.</param>
-    /// <returns>A TimestampMillisecond scalar with the given value.</returns>
-    public static implicit operator ScalarValue(DateTimeOffset? value) => new TimestampMillisecond(value);
-    
-    /// <summary>
-    /// Implicit conversion from DateTimeOffset to TimestampMillisecond for convenience.
-    /// </summary>
-    /// <param name="value">The DateTimeOffset value to convert.</param>
-    /// <returns>A TimestampMillisecond scalar with the given value.</returns>
-    public static implicit operator ScalarValue(DateTimeOffset value) => new TimestampMillisecond(value);
 
     /// <summary>
     /// Timestamp with microsecond precision.
@@ -663,6 +649,20 @@ public abstract record ScalarValue
         {
         }
     }
+    
+    /// <summary>
+    /// Implicit conversion from DateTimeOffset to TimestampMicrosecond for convenience.
+    /// </summary>
+    /// <param name="value">The DateTimeOffset value to convert.</param>
+    /// <returns>A TimestampMicrosecond scalar with the given value.</returns>
+    public static implicit operator ScalarValue(DateTimeOffset? value) => new TimestampMicrosecond(value);
+    
+    /// <summary>
+    /// Implicit conversion from DateTimeOffset to TimestampMicrosecond for convenience.
+    /// </summary>
+    /// <param name="value">The DateTimeOffset value to convert.</param>
+    /// <returns>A TimestampMicrosecond scalar with the given value.</returns>
+    public static implicit operator ScalarValue(DateTimeOffset value) => new TimestampMicrosecond(value);
 
     /// <summary>
     /// Timestamp with nanosecond precision.
@@ -762,20 +762,6 @@ public abstract record ScalarValue
         {
         }
     }
-    
-    /// <summary>
-    /// Implicit conversion from TimeSpan to DurationMillisecond for convenience.
-    /// </summary>
-    /// <param name="value">The TimeSpan value to convert.</param>
-    /// <returns>A DurationMillisecond scalar with the given value.</returns>
-    public static implicit operator ScalarValue(TimeSpan? value) => new DurationMillisecond(value);
-    
-    /// <summary>
-    /// Implicit conversion from TimeSpan to DurationMillisecond for convenience.
-    /// </summary>
-    /// <param name="value">The TimeSpan value to convert.</param>
-    /// <returns>A DurationMillisecond scalar with the given value.</returns>
-    public static implicit operator ScalarValue(TimeSpan value) => new DurationMillisecond(value);
 
     /// <summary>
     /// Duration in microseconds.
@@ -793,6 +779,20 @@ public abstract record ScalarValue
         {
         }
     }
+    
+    /// <summary>
+    /// Implicit conversion from TimeSpan to DurationMicrosecond for convenience.
+    /// </summary>
+    /// <param name="value">The TimeSpan value to convert.</param>
+    /// <returns>A DurationMicrosecond scalar with the given value.</returns>
+    public static implicit operator ScalarValue(TimeSpan? value) => new DurationMicrosecond(value);
+    
+    /// <summary>
+    /// Implicit conversion from TimeSpan to DurationMicrosecond for convenience.
+    /// </summary>
+    /// <param name="value">The TimeSpan value to convert.</param>
+    /// <returns>A DurationMicrosecond scalar with the given value.</returns>
+    public static implicit operator ScalarValue(TimeSpan value) => new DurationMicrosecond(value);
 
     /// <summary>
     /// Duration in nanoseconds.

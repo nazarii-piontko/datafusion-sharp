@@ -134,15 +134,25 @@ public sealed class DataFusionSharpCommand : DbCommand
     }
 
     /// <inheritdoc />
-    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) =>
-        ExecuteDbDataReaderAsync(behavior, CancellationToken.None).GetAwaiter().GetResult();
+    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
+    {
+        return ExecuteDbDataReaderAsync(behavior, CancellationToken.None).GetAwaiter().GetResult();
+    }
 
     /// <inheritdoc />
     protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
     {
         var df = await ExecuteDataFrameAsync().ConfigureAwait(false);
-        var stream = await df.ExecuteStreamAsync().ConfigureAwait(false);
-        return new DataFusionSharpDataReader(df, stream);
+        try
+        {
+            var stream = await df.ExecuteStreamAsync().ConfigureAwait(false);
+            return new DataFusionSharpDataReader(df, stream);
+        }
+        catch
+        {
+            df.Dispose();
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -150,8 +160,6 @@ public sealed class DataFusionSharpCommand : DbCommand
 
     /// <inheritdoc />
     protected override DbParameter CreateDbParameter() => new DataFusionSharpParameter();
-
-    // ── Internal helpers ──────────────────────────────────────────────────────
 
     private SessionContext GetSession()
     {
