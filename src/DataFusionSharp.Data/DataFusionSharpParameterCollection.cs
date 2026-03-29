@@ -32,8 +32,8 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
     /// </summary>
     public new DataFusionSharpParameter this[string parameterName]
     {
-        get => _items[IndexOfChecked(parameterName)];
-        set => _items[IndexOfChecked(parameterName)] = value;
+        get => _items[GetIndexByName(parameterName)];
+        set => _items[GetIndexByName(parameterName)] = value;
     }
 
     /// <summary>
@@ -74,22 +74,19 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
     public override void Clear() => _items.Clear();
 
     /// <inheritdoc />
-    public override bool Contains(object value) =>
-        value is DataFusionSharpParameter p && _items.Contains(p);
+    public override bool Contains(object value) => value is DataFusionSharpParameter p && _items.Contains(p);
 
     /// <inheritdoc />
     public override bool Contains(string value) => IndexOf(value) >= 0;
 
     /// <inheritdoc />
-    public override void CopyTo(Array array, int index) =>
-        ((ICollection)_items).CopyTo(array, index);
+    public override void CopyTo(Array array, int index) => ((ICollection)_items).CopyTo(array, index);
 
     /// <inheritdoc />
     public override IEnumerator GetEnumerator() => _items.GetEnumerator();
 
     /// <inheritdoc />
-    public override int IndexOf(object value) =>
-        value is DataFusionSharpParameter p ? _items.IndexOf(p) : -1;
+    public override int IndexOf(object value) => value is DataFusionSharpParameter p ? _items.IndexOf(p) : -1;
 
     /// <summary>
     /// Returns the index of the parameter matching <paramref name="parameterName"/>.
@@ -109,8 +106,7 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
     }
 
     /// <inheritdoc />
-    public override void Insert(int index, object value) =>
-        _items.Insert(index, CastParameter(value));
+    public override void Insert(int index, object value) => _items.Insert(index, CastParameter(value));
 
     /// <inheritdoc />
     public override void Remove(object value)
@@ -137,21 +133,21 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
     protected override DbParameter GetParameter(string parameterName) => this[parameterName];
 
     /// <inheritdoc />
-    protected override void SetParameter(int index, DbParameter value) =>
-        this[index] = CastParameter(value);
+    protected override void SetParameter(int index, DbParameter value) => this[index] = CastParameter(value);
 
     /// <inheritdoc />
-    protected override void SetParameter(string parameterName, DbParameter value) =>
-        this[parameterName] = CastParameter(value);
+    protected override void SetParameter(string parameterName, DbParameter value) => this[parameterName] = CastParameter(value);
 
     /// <summary>
     /// Projects the collection into the <see cref="NamedScalarValueAndMetadata"/> sequence expected by
     /// <see cref="SessionContext.SqlAsync(string, System.Collections.Generic.IEnumerable{NamedScalarValueAndMetadata})"/>.
     /// </summary>
-    internal IEnumerable<NamedScalarValueAndMetadata> ToDataFusionParameters() =>
-        _items.Select(p => new NamedScalarValueAndMetadata(p.NormalizedName, p.ToScalarValue()));
+    internal IEnumerable<NamedScalarValueAndMetadata> ToDataFusionParameters()
+    {
+        return _items.Select(p => new NamedScalarValueAndMetadata(p.NormalizedName, p.ToScalarValue()));
+    }
 
-    private int IndexOfChecked(string parameterName)
+    private int GetIndexByName(string parameterName)
     {
         var i = IndexOf(parameterName);
         if (i < 0)

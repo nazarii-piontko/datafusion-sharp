@@ -86,6 +86,33 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
 
     [Fact]
+    public async Task IsClosed_ReturnsFalse()
+    {
+        // Arrange
+        await using var reader = await OpenReaderAsync("SELECT 1");
+
+        // Act
+        var isClosed = reader.IsClosed;
+        
+        // Verify
+        Assert.False(isClosed);
+    }
+    
+    [Fact]
+    public async Task IsClosed_ReturnsTrue()
+    {
+        // Arrange
+        await using var reader = await OpenReaderAsync("SELECT 1");
+        await reader.CloseAsync();
+        
+        // Act
+        var isClosed = reader.IsClosed;
+        
+        // Verify
+        Assert.True(isClosed);
+    }
+    
+    [Fact]
     public async Task RecordsAffected_ReturnsMinus1()
     {
         // Arrange
@@ -100,6 +127,21 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
 
     [Fact]
     public async Task NextResult_ReturnsFalse()
+    {
+        // Arrange
+        await using var reader = await OpenReaderAsync("SELECT 1");
+
+        // Act
+#pragma warning disable CA1849
+        var nextResult = reader.NextResult();
+#pragma warning restore CA1849
+        
+        // Verify
+        Assert.False(nextResult);
+    }
+    
+    [Fact]
+    public async Task NextResultAsync_ReturnsFalse()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 1");
@@ -178,7 +220,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetBoolean_ThrowsInvalidCastException()
+    public async Task GetBoolean_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
@@ -186,6 +228,31 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
 
         // Act & Verify
         Assert.Throws<InvalidCastException>(() => reader.GetBoolean(0));
+    }
+    
+    [Fact]
+    public async Task GetByte_ReturnsValue()
+    {
+        // Arrange
+        await using var reader = await OpenReaderAsync("SELECT CAST(13 AS TINYINT UNSIGNED) AS val");
+        await reader.ReadAsync();
+
+        // Act
+        var value = reader.GetByte(0);
+        
+        // Verify
+        Assert.Equal((byte)13, value);
+    }
+    
+    [Fact]
+    public async Task GetByte_WithWrongType_ThrowsInvalidCastException()
+    {
+        // Arrange
+        await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
+        await reader.ReadAsync();
+
+        // Act & Verify
+        Assert.Throws<InvalidCastException>(() => reader.GetByte(0));
     }
 
     [Fact]
@@ -203,7 +270,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetInt16_ThrowsInvalidCastException()
+    public async Task GetInt16_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
@@ -228,7 +295,18 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetInt32_ThrowsInvalidCastException()
+    public async Task GetInt32_WithNull_ThrowsInvalidCastException()
+    {
+        // Arrange
+        await using var reader = await OpenReaderAsync("SELECT CAST(NULL AS INT) AS val");
+        await reader.ReadAsync();
+        
+        // Act & Verify
+        Assert.Throws<InvalidCastException>(() => reader.GetInt32(0));
+    }
+    
+    [Fact]
+    public async Task GetInt32_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
@@ -253,7 +331,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetInt64_ThrowsInvalidCastException()
+    public async Task GetInt64_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
@@ -278,7 +356,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetFloat_ThrowsInvalidCastException()
+    public async Task GetFloat_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
@@ -303,7 +381,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetDouble_ThrowsInvalidCastException()
+    public async Task GetDouble_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
@@ -328,7 +406,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetDecimal_ThrowsInvalidCastException()
+    public async Task GetDecimal_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
@@ -353,7 +431,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetString_ThrowsInvalidCastException()
+    public async Task GetString_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 1 AS val");
@@ -361,6 +439,31 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
 
         // Act & Verify
         Assert.Throws<InvalidCastException>(() => reader.GetString(0));
+    }
+    
+    [Fact]
+    public async Task GetChar_ReturnsValue()
+    {
+        // Arrange
+        await using var reader = await OpenReaderAsync("SELECT 'h' AS val");
+        await reader.ReadAsync();
+
+        // Act
+        var value = reader.GetChar(0);
+        
+        // Verify
+        Assert.Equal('h', value);
+    }
+    
+    [Fact]
+    public async Task GetChar_WithMultipleChars_ThrowsInvalidCastException()
+    {
+        // Arrange
+        await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
+        await reader.ReadAsync();
+
+        // Act & Verify
+        Assert.Throws<InvalidCastException>(() => reader.GetChar(0));
     }
     
     [Fact]
@@ -378,7 +481,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetGuid_ThrowsInvalidCastException()
+    public async Task GetGuid_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");
@@ -403,7 +506,7 @@ public sealed class DataFusionSharpDataReaderTests : IDisposable
     }
     
     [Fact]
-    public async Task GetDateTime_ThrowsInvalidCastException()
+    public async Task GetDateTime_WithWrongType_ThrowsInvalidCastException()
     {
         // Arrange
         await using var reader = await OpenReaderAsync("SELECT 'hello' AS val");

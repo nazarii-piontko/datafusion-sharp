@@ -98,6 +98,24 @@ public sealed class DataFusionSharpParameterTests
     }
 
     [Fact]
+    public void Collection_AddRange_IncreasesCount()
+    {
+        // Arrange
+        var col = new DataFusionSharpParameterCollection();
+        var parameters = new[]
+        {
+            new DataFusionSharpParameter("@a", 1),
+            new DataFusionSharpParameter("@b", 2)
+        };
+
+        // Act
+        col.AddRange(parameters);
+
+        // Verify
+        Assert.Equal(2, col.Count);
+    }
+
+    [Fact]
     public void Collection_AddWithValue_AddsAndReturnsParameter()
     {
         // Arrange
@@ -162,6 +180,26 @@ public sealed class DataFusionSharpParameterTests
 
         // Verify
         Assert.Equal(-1, col.IndexOf("@ghost"));
+    }
+    
+    [Fact]
+    public void Collection_IndexerByName_ReturnsParameter()
+    {
+        // Arrange
+        var col = new DataFusionSharpParameterCollection();
+        col.AddWithValue("@first",  1);
+        col.AddWithValue("@second", 2);
+
+        // Act
+        var p1 = col["@first"];
+        var p2 = col["@SECOND"];
+        
+        // Verify
+        Assert.NotNull(p1);
+        Assert.Equal(1, p1.Value);
+        
+        Assert.NotNull(p2);
+        Assert.Equal(2, p2.Value);
     }
 
     [Fact]

@@ -54,8 +54,14 @@
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.201" PrivateAssets="All" />
     </ItemGroup>
 
+    <!-- Reference to the main DataFusionSharp project -->
     <ItemGroup>
       <ProjectReference Include="..\DataFusionSharp\DataFusionSharp.csproj" />
+    </ItemGroup>
+
+    <!-- InternalsVisibleTo for unit testing -->
+    <ItemGroup>
+        <InternalsVisibleTo Include="DataFusionSharp.Data.Tests" />
     </ItemGroup>
 
 </Project>

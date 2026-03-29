@@ -24,6 +24,21 @@ public sealed class DataFusionSharpCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Connection_ReturnsValidConnection()
+    {
+        // Arrange
+        await using var cmd = new DataFusionSharpCommand();
+        cmd.Connection = _connection;
+
+        // Act
+        var connection = cmd.Connection;
+        
+        // Verify
+        Assert.NotNull(connection);
+        Assert.Equal(_connection, connection);
+    }
+    
+    [Fact]
     public async Task ExecuteReaderAsync_ReturnsRows()
     {
         // Arrange
