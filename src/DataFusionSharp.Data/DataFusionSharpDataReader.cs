@@ -353,4 +353,3 @@ public sealed class DataFusionSharpDataReader : DbDataReader
         throw new InvalidCastException($"Column {ordinal} at row {_rowIndexComm} contains a NULL value");
     }
 }
-

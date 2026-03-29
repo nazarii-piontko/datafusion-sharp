@@ -114,8 +114,7 @@ public sealed class DataFusionSharpCommand : DbCommand
     }
 
     /// <inheritdoc />
-    public override object? ExecuteScalar() =>
-        ExecuteScalarAsync(CancellationToken.None).GetAwaiter().GetResult();
+    public override object? ExecuteScalar() => ExecuteScalarAsync(CancellationToken.None).GetAwaiter().GetResult();
 
     /// <inheritdoc />
     public override async Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken)
@@ -125,7 +124,7 @@ public sealed class DataFusionSharpCommand : DbCommand
         if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false) && reader.FieldCount > 0)
         {
             return await reader.IsDBNullAsync(0, cancellationToken).ConfigureAwait(false)
-                ? null
+                ? DBNull.Value
                 : reader.GetValue(0);
         }
 

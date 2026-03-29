@@ -1,0 +1,7 @@
+[*.cs]
+dotnet_diagnostic.ca1001.severity = none # Type owns disposable field(s) but is not disposable (IAsyncLifetime handles disposal)
+dotnet_diagnostic.ca1062.severity = none # Validate arguments of public methods
+dotnet_diagnostic.ca1707.severity = none # Identifiers should not contain underscores
+dotnet_diagnostic.ca1812.severity = none # Avoid uninstantiated internal classes
+dotnet_diagnostic.ca2007.severity = none # Do not directly await a Task without calling ConfigureAwait
+dotnet_diagnostic.ca2100.severity = none # Review SQL queries for security vulnerabilities

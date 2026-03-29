@@ -79,7 +79,7 @@ public sealed class DataFusionSharpConnection : DbConnection
     /// </summary>
     internal SessionContext GetSessionContext()
     {
-        if (_state == ConnectionState.Closed)
+        if (_state != ConnectionState.Open)
             throw new InvalidOperationException("Connection is not open. Call Open() before executing commands.");
 
         return _sessionContext;
@@ -89,6 +89,8 @@ public sealed class DataFusionSharpConnection : DbConnection
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
+
+        _state = ConnectionState.Closed;
         
         if (disposing && !_leaveOpen)
             _sessionContext.Dispose();
