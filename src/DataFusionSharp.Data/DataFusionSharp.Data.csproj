@@ -27,6 +27,7 @@
         <PackageProjectUrl>https://github.com/nazarii-piontko/datafusion-sharp</PackageProjectUrl>
         <RepositoryUrl>https://github.com/nazarii-piontko/datafusion-sharp.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageTags>datafusion;apache-arrow;arrow;query-engine;sql;analytics;data-processing;adonet;dbconnection</PackageTags>
         <Copyright>Copyright (c) Nazarii Piontko</Copyright>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -40,6 +41,7 @@
 
     <!-- Additional NuGet package files -->
     <ItemGroup>
+        <None Include="README.md" PackagePath="/" Pack="true" />
         <None Include="../../LICENSE.txt" PackagePath="/" Pack="true" Visible="false" />
     </ItemGroup>
 
