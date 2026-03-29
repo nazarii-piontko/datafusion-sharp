@@ -159,32 +159,32 @@ public sealed class DataFusionSharpCommandTests : IDisposable
         Assert.Equal("Completed", result);
     }
     
-    public static IEnumerable<object[]> MapTypesCorrectlyData() =>
-    [
-        [true, true], // bool
-        [(byte)1, (byte)1], // byte
-        [(sbyte)-2, (sbyte)-2], // sbyte
-        [(ushort)3, (ushort)3], // ushort
-        [(short)-3, (short)-3], // short
-        [(uint)4, (uint)4], // uint
-        [-5, -5], // int
-        [(ulong)6, (ulong)6], // ulong
-        [(long)-7, (long)-7], // long
-        [(float)8.1, (float)8.1], // float
-        [9.1, 9.1], // double
-        [9.1m, 9.1m], // decimal
-        ["hello world", "hello world"], // string
-        ['h', "h"], // char return string
-        [new DateOnly(2026, 3, 27), new DateOnly(2026, 3, 27)], // date
-        [new TimeOnly(7, 30, 45), new TimeOnly(7, 30, 45)], // time
-        [new DateTime(2026, 3, 27, 7, 30, 45, DateTimeKind.Utc), new DateTimeOffset(2026, 3, 27, 7, 30, 45, TimeSpan.Zero)], // datetime
-        [new byte[] {0x03, 0x04}, new byte[] {0x03, 0x04}], // binary
-        [new ScalarValue.Binary([0x01, 0x02]), new byte[] {0x01, 0x02}], // raw scalar value
-    ];
+    public static TheoryData<object, object> MapTypesCorrectlyData() => new()
+    {
+        {true, true}, // bool
+        {(byte)1, (byte)1}, // byte
+        {(sbyte)-2, (sbyte)-2}, // sbyte
+        {(ushort)3, (ushort)3}, // ushort
+        {(short)-3, (short)-3}, // short
+        {(uint)4, (uint)4}, // uint
+        {-5, -5}, // int
+        {(ulong)6, (ulong)6}, // ulong
+        {(long)-7, (long)-7}, // long
+        {(float)8.1, (float)8.1}, // float
+        {9.1, 9.1}, // double
+        {9.1m, 9.1m}, // decimal
+        {"hello world", "hello world"}, // string
+        {'h', "h"}, // char return string
+        {new DateOnly(2026, 3, 27), new DateOnly(2026, 3, 27)}, // date
+        {new TimeOnly(7, 30, 45), new TimeOnly(7, 30, 45)}, // time
+        {new DateTime(2026, 3, 27, 7, 30, 45, DateTimeKind.Utc), new DateTimeOffset(2026, 3, 27, 7, 30, 45, TimeSpan.Zero)}, // datetime
+        {new byte[] {0x03, 0x04}, new byte[] {0x03, 0x04}}, // binary
+        {new ScalarValue.Binary([0x01, 0x02]), new byte[] {0x01, 0x02}}, // raw scalar value
+    };
 
     [Theory]
     [MemberData(nameof(MapTypesCorrectlyData))]
-    public async Task ExecuteScalarAsync_WithParameter_MapTypesCorrectly(object? parameterValue, object expectedResult)
+    public async Task ExecuteScalarAsync_WithParameter_MapTypesCorrectly(object parameterValue, object expectedResult)
     {
         // Arrange
         await using var cmd = new DataFusionSharpCommand(_connection)
