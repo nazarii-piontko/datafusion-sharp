@@ -70,6 +70,7 @@
   </Folder>
   <Folder Name="/examples/">
     <Project Path="examples\QueryData\QueryData.csproj" />
+    <Project Path="examples\QueryDataWithDapper\QueryDataWithDapper.csproj" />
     <Project Path="examples\QueryS3Data\QueryS3Data.csproj" />
   </Folder>
   <Folder Name="/misc/">
@@ -92,10 +93,12 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/DataFusionSharp/DataFusionSharp.csproj" />
+    <Project Path="src/DataFusionSharp.Data/DataFusionSharp.Data.csproj" />
     <Project Path="src/DataFusionSharp.SourceGenerators/DataFusionSharp.SourceGenerators.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DataFusionSharp.Benchmark/DataFusionSharp.Benchmark.csproj" />
+    <Project Path="tests/DataFusionSharp.Data.Tests/DataFusionSharp.Data.Tests.csproj" />
     <Project Path="tests/DataFusionSharp.MemoryLeakTest/DataFusionSharp.MemoryLeakTest.csproj" />
     <Project Path="tests/DataFusionSharp.PackageSmokeTest/DataFusionSharp.PackageSmokeTest.csproj" />
     <Project Path="tests/DataFusionSharp.Tests/DataFusionSharp.Tests.csproj" />

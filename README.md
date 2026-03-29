@@ -50,6 +50,11 @@
 dotnet add package DataFusionSharp
 ```
 
+For ADO.NET integration, also install the companion package:
+```bash
+dotnet add package DataFusionSharp.Data
+```
+
 ## Quick Start
 
 ```csharp
@@ -136,6 +141,7 @@ Full documentation is available at **[nazarii-piontko.github.io/datafusion-sharp
 ## Project Structure
 
 - [**src/DataFusionSharp/**](src/DataFusionSharp) - Core .NET library with managed wrappers
+- [**src/DataFusionSharp.Data/**](src/DataFusionSharp.Data) - ADO.NET provider
 - [**native/**](native) - Rust FFI layer bridging .NET to Apache DataFusion
 - [**tests/DataFusionSharp.Tests/**](tests/DataFusionSharp.Tests) - Integration tests
 - [**tests/DataFusionSharp.Benchmark/**](tests/DataFusionSharp.Benchmark) - Performance benchmarks with native reference implementation

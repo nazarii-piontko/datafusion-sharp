@@ -1,0 +1,67 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks Condition="'$(Configuration)' != 'Debug'">net8.0;net10.0</TargetFrameworks>
+        <!-- Use .NET 10 for Debug configuration to speed up local development builds -->
+        <TargetFramework Condition="'$(Configuration)' == 'Debug'">net10.0</TargetFramework>
+        <LangVersion>14</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <IsPackable>true</IsPackable>
+        <Deterministic>true</Deterministic>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <AnalysisLevel>latest</AnalysisLevel>
+        <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    </PropertyGroup>
+
+    <!-- NuGet package metadata -->
+    <PropertyGroup>
+        <PackageId>DataFusionSharp.Data</PackageId>
+        <!--<Version>0.1.0</Version>--><!-- Version is set dynamically in CI pipeline -->
+        <MinVerTagPrefix>v</MinVerTagPrefix>
+        <Authors>Nazarii Piontko</Authors>
+        <Description>ADO.NET provider for DataFusionSharp - enables standard .NET data access patterns (DbConnection, DbCommand, DbDataReader) on top of the high-performance DataFusion query engine.</Description>
+        <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/nazarii-piontko/datafusion-sharp</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/nazarii-piontko/datafusion-sharp.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags>datafusion;apache-arrow;arrow;query-engine;sql;analytics;data-processing;adonet;dbconnection</PackageTags>
+        <Copyright>Copyright (c) Nazarii Piontko</Copyright>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <IncludeSymbols>true</IncludeSymbols>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    </PropertyGroup>
+
+    <!-- Additional NuGet package files -->
+    <ItemGroup>
+        <None Include="README.md" PackagePath="/" Pack="true" />
+        <None Include="../../LICENSE.txt" PackagePath="/" Pack="true" Visible="false" />
+    </ItemGroup>
+
+    <!-- MinVer for Git-based versioning -->
+    <ItemGroup>
+        <PackageReference Include="MinVer" Version="7.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.201" PrivateAssets="All" />
+    </ItemGroup>
+
+    <!-- Reference to the main DataFusionSharp project -->
+    <ItemGroup>
+      <ProjectReference Include="..\DataFusionSharp\DataFusionSharp.csproj" />
+    </ItemGroup>
+
+    <!-- InternalsVisibleTo for unit testing -->
+    <ItemGroup>
+        <InternalsVisibleTo Include="DataFusionSharp.Data.Tests" />
+    </ItemGroup>
+
+</Project>
