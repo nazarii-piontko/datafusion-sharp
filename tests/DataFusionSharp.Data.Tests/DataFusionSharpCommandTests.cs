@@ -140,7 +140,7 @@ public sealed class DataFusionSharpCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Execute_WithAtPrefixedParam_FiltersResults()
+    public async Task ExecuteScalarAsync_WithAtPrefixedParam_FiltersResults()
     {
         // Arrange
         // @status in SQL is translated to $status; parameter named @status has NormalizedName = status
@@ -158,9 +158,71 @@ public sealed class DataFusionSharpCommandTests : IDisposable
         Assert.IsType<string>(result);
         Assert.Equal("Completed", result);
     }
+    
+    public static IEnumerable<object[]> MapTypesCorrectlyData() =>
+    [
+        [true, true], // bool
+        [(byte)1, (byte)1], // byte
+        [(sbyte)-2, (sbyte)-2], // sbyte
+        [(ushort)3, (ushort)3], // ushort
+        [(short)-3, (short)-3], // short
+        [(uint)4, (uint)4], // uint
+        [-5, -5], // int
+        [(ulong)6, (ulong)6], // ulong
+        [(long)-7, (long)-7], // long
+        [(float)8.1, (float)8.1], // float
+        [9.1, 9.1], // double
+        [9.1m, 9.1m], // decimal
+        ["hello world", "hello world"], // string
+        ['h', "h"], // char return string
+        [new DateOnly(2026, 3, 27), new DateOnly(2026, 3, 27)], // date
+        [new TimeOnly(7, 30, 45), new TimeOnly(7, 30, 45)], // time
+        [new DateTime(2026, 3, 27, 7, 30, 45, DateTimeKind.Utc), new DateTimeOffset(2026, 3, 27, 7, 30, 45, TimeSpan.Zero)], // datetime
+        [new byte[] {0x03, 0x04}, new byte[] {0x03, 0x04}], // binary
+        [new ScalarValue.Binary([0x01, 0x02]), new byte[] {0x01, 0x02}], // raw scalar value
+    ];
+
+    [Theory]
+    [MemberData(nameof(MapTypesCorrectlyData))]
+    public async Task ExecuteScalarAsync_WithParameter_MapTypesCorrectly(object? parameterValue, object expectedResult)
+    {
+        // Arrange
+        await using var cmd = new DataFusionSharpCommand(_connection)
+        {
+            CommandText = "SELECT @value"
+        };
+        cmd.Parameters.Add(new DataFusionSharpParameter("@value", parameterValue));
+
+        // Act
+        var result = await cmd.ExecuteScalarAsync();
+
+        // Verify
+        Assert.NotNull(result);
+        Assert.IsType(expectedResult.GetType(), result);
+        Assert.Equal(expectedResult, result);
+    }
+    
+    [Fact]
+    public async Task ExecuteScalarAsync_MapNullCorrectly()
+    {
+        // Arrange
+        await using var cmd = new DataFusionSharpCommand(_connection)
+        {
+            CommandText = "SELECT @value"
+        };
+        cmd.Parameters.Add(new DataFusionSharpParameter("@value", null));
+
+        // Act
+        var result = await cmd.ExecuteScalarAsync();
+
+        // Verify
+        Assert.NotNull(result);
+        Assert.IsType<DBNull>(result);
+        Assert.Equal(DBNull.Value, result);
+    }
 
     [Fact]
-    public async Task Execute_WithMultipleParams_FiltersResults()
+    public async Task ExecuteScalarAsync_WithMultipleParams_FiltersResults()
     {
         // Arrange
         await using var cmd = new DataFusionSharpCommand(_connection)
@@ -180,7 +242,7 @@ public sealed class DataFusionSharpCommandTests : IDisposable
     }
     
     [Fact]
-    public async Task Execute_WithClosedConnection_ThrowsInvalidOperationException()
+    public async Task ExecuteReaderAsync_WithClosedConnection_ThrowsInvalidOperationException()
     {
         // Arrange
         await using var connection = new DataFusionSharpConnection(_session, leaveOpen: true);
