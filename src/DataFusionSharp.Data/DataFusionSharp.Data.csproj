@@ -56,7 +56,7 @@
 
     <!-- Reference to the main DataFusionSharp project -->
     <ItemGroup>
-      <ProjectReference Include="..\DataFusionSharp\DataFusionSharp.csproj" />
+        <ProjectReference Include="..\DataFusionSharp\DataFusionSharp.csproj" />
     </ItemGroup>
 
     <!-- InternalsVisibleTo for unit testing -->

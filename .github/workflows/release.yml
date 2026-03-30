@@ -101,19 +101,19 @@ jobs:
         with:
           path: ./
           merge-multiple: true
-
-      - name: Print Repository Structure
-        run: ls -lR
         
-      - name: Pack NuGet Package
+      - name: Pack DataFusionSharp NuGet Package
         run: dotnet pack src/DataFusionSharp/DataFusionSharp.csproj -c Release -p:BuildNativeLib=false -o ./packages
+
+      - name: Pack DataFusionSharp.Data NuGet Package
+        run: dotnet pack src/DataFusionSharp.Data/DataFusionSharp.Data.csproj -c Release -p:BuildNativeLib=false -o ./packages
 
       - name: Upload NuGet Package
         uses: actions/upload-artifact@v6
         with:
           name: nuget-package
           path: packages/*
-          retention-days: 1
+          retention-days: 7
 
   pack-smoke-test:
     name: Pack Test
