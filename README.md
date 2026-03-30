@@ -37,7 +37,7 @@
 | **Advanced**     | UDF registration                             | ❌      |                                                   |
 |                  | Catalog management                           | ❌      |                                                   |
 |                  | Table providers                              | ❌      |                                                   |
-| **ADO.NET**      | ADO.NET interface                            | ❌      | ADO.NET interface to support libs like Dapper     |
+| **ADO.NET**      | ADO.NET interface                            | ✅      | ADO.NET interface to support libs like Dapper     |
 | **Platforms**    | Linux x64                                    | ✅      |                                                   |
 |                  | Linux arm64                                  | ✅      |                                                   |
 |                  | Windows x64                                  | ✅      |                                                   |
