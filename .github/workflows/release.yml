@@ -169,29 +169,45 @@ jobs:
         shell: bash
         run: |
           # Find the package files
-          NUPKG=$(ls packages/DataFusionSharp.*.nupkg | head -n 1)
-          SNUPKG=$(ls packages/DataFusionSharp.*.snupkg | head -n 1)
+          DFS_NUPKG=$(ls packages/DataFusionSharp.*.nupkg | head -n 1)
+          DFS_SNUPKG=$(ls packages/DataFusionSharp.*.snupkg | head -n 1)
+          DFSD_NUPKG=$(ls packages/DataFusionSharp.Data.*.nupkg | head -n 1)
+          DFSD_SNUPKG=$(ls packages/DataFusionSharp.Data.*.snupkg | head -n 1)
 
-          if [ -z "$NUPKG" ]; then
-            echo "❌ No nupkg found"
+          if [ -z "$DFS_NUPKG" ]; then
+            echo "❌ No DataFusionSharp nupkg found"
             exit 1
           fi
 
-          if [ -z "$SNUPKG" ]; then
-            echo "❌ No snupkg found"
+          if [ -z "$DFS_SNUPKG" ]; then
+            echo "❌ No DataFusionSharp snupkg found"
+            exit 1
+          fi
+
+          if [ -z "$DFSD_NUPKG" ]; then
+            echo "❌ No DataFusionSharp.Data nupkg found"
+            exit 1
+          fi
+
+          if [ -z "$DFSD_SNUPKG" ]; then
+            echo "❌ No DataFusionSharp.Data snupkg found"
             exit 1
           fi
 
           # Extract version from filename
           # DataFusionSharp.0.1.0.nupkg -> 0.1.0
-          VERSION=$(basename "$NUPKG" | sed -E 's/DataFusionSharp\.(.*)\.nupkg/\1/')
+          VERSION=$(basename "$DFS_NUPKG" | sed -E 's/DataFusionSharp\.(.*)\.nupkg/\1/')
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "nupkg=$NUPKG" >> $GITHUB_OUTPUT
-          echo "snupkg=$SNUPKG" >> $GITHUB_OUTPUT
+          echo "dfs_nupkg=$DFS_NUPKG" >> $GITHUB_OUTPUT
+          echo "dfs_snupkg=$DFS_SNUPKG" >> $GITHUB_OUTPUT
+          echo "dfsd_nupkg=$DFSD_NUPKG" >> $GITHUB_OUTPUT
+          echo "dfsd_snupkg=$DFSD_SNUPKG" >> $GITHUB_OUTPUT
 
-          echo "📦 Package: $NUPKG"
-          echo "📦 Symbol Package: $SNUPKG"
+          echo "📦 DataFusionSharp Package: $DFS_NUPKG"
+          echo "📦 DataFusionSharp Symbol Package: $DFS_SNUPKG"
+          echo "📦 DataFusionSharp.Data Package: $DFSD_NUPKG"
+          echo "📦 DataFusionSharp.Data Symbol Package: $DFSD_SNUPKG"
           echo "📌 Version: $VERSION"
 
       - name: Publish to GitHub Packages
@@ -199,15 +215,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           dotnet nuget push \
-            ${{ steps.version.outputs.nupkg }} \
+            ${{ steps.version.outputs.dfs_nupkg }} \
             --api-key "$GITHUB_TOKEN" \
             --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
 
-      - name: Publish Symbols to GitHub Packages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
           dotnet nuget push \
-            ${{ steps.version.outputs.snupkg }} \
+            ${{ steps.version.outputs.dfs_snupkg }} \
+            --api-key "$GITHUB_TOKEN" \
+            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+
+          dotnet nuget push \
+            ${{ steps.version.outputs.dfsd_nupkg }} \
+            --api-key "$GITHUB_TOKEN" \
+            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+
+          dotnet nuget push \
+            ${{ steps.version.outputs.dfsd_snupkg }} \
             --api-key "$GITHUB_TOKEN" \
             --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
