@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package>
+    <metadata>
+        <id>DataFusionSharp.Data</id>
+        <version>$version$</version>
+
+        <dependencies>
+            <group targetFramework="net8.0">
+                <dependency id="DataFusionSharp" version="[$version$]" />
+            </group>
+            <group targetFramework="net10.0">
+                <dependency id="DataFusionSharp" version="[$version$]" />
+            </group>
+        </dependencies>
+
+    </metadata>
+</package>

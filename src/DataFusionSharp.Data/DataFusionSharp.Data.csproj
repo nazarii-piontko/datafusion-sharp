@@ -38,6 +38,10 @@
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(IsPacking)' == 'true'">
+        <NuspecFile>DataFusionSharp.Data.nuspec</NuspecFile>
+        <NuspecProperties>version=$(MinVerVersion)</NuspecProperties>
+    </PropertyGroup>
 
     <!-- Additional NuGet package files -->
     <ItemGroup>
@@ -54,9 +58,9 @@
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.201" PrivateAssets="All" />
     </ItemGroup>
 
-    <!-- Reference to the main DataFusionSharp project -->
+    <!-- Reference to the main DataFusionSharp project, project reference in regular compilation, NuGet package reference in Pack -->
     <ItemGroup>
-      <ProjectReference Include="..\DataFusionSharp\DataFusionSharp.csproj" />
+        <ProjectReference Include="..\DataFusionSharp\DataFusionSharp.csproj" />
     </ItemGroup>
 
     <!-- InternalsVisibleTo for unit testing -->
