@@ -15,7 +15,7 @@ panic = "unwind"
 
 [dependencies]
 anyhow = "1.0.102"
-arrow-array = { version = "57.3.0", features = ["ffi"] }
+arrow-array = { version = "58.1.0", features = ["ffi"] }
 datafusion = "52.4.0"
 datafusion-proto = "52.4.0"
 futures = "0.3.32"
