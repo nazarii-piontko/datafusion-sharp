@@ -95,6 +95,28 @@ await foreach (var batch in stream)
 
 See [**examples/**](examples) for more details.
 
+### ADO.NET / Dapper
+
+```csharp
+using DataFusionSharp.Data;
+using Dapper;
+
+// Wrap any SessionContext as a standard DbConnection
+await using var connection = session.AsConnection();
+
+// Use Dapper (or any ADO.NET library) as usual
+var results = await connection.QueryAsync<OrderSummary>(
+    """
+    SELECT customer_name AS CustomerName, COUNT(*) AS OrderCount
+    FROM orders
+    WHERE status = @status
+    GROUP BY customer_name
+    """,
+    new { status = "Completed" });
+
+record OrderSummary(string CustomerName, long OrderCount);
+```
+
 ## Requirements
 
 - .NET 8.0 or later
