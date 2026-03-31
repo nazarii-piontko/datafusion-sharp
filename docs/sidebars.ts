@@ -22,6 +22,7 @@ const sidebars: SidebarsConfig = {
         'guides/writing-data',
         'guides/object-stores',
         'guides/hive-partitioning',
+        'guides/ado-net',
       ],
     },
   ],
