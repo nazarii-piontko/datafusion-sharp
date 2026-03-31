@@ -86,6 +86,38 @@ await context.RegisterJsonAsync("logs", "data/logs.json", new JsonReadOptions
 | `FileCompressionType`   | `CompressionType?`                | Compression type                              |
 | `TablePartitionCols`    | `IReadOnlyList<PartitionColumn>?` | [Hive partition columns](./hive-partitioning) |
 
+## RecordBatch
+
+Register an in-memory Arrow `RecordBatch` as a queryable table:
+
+```csharp
+using Apache.Arrow;
+
+var idArray = new Int64Array.Builder().Append(1).Append(2).Build();
+var nameArray = new StringArray.Builder().Append("Alice").Append("Bob").Build();
+
+var schema = new Schema.Builder()
+    .Field(new Field("id", Int64Type.Default, false))
+    .Field(new Field("name", StringType.Default, true))
+    .Build();
+
+using var batch = new RecordBatch(schema, [idArray, nameArray], 2);
+
+context.RegisterBatch("users", batch);
+```
+
+This is useful when you have data already in Arrow format or need to inject programmatically created data into SQL queries -- for example, to join in-memory lookup tables with file-based data:
+
+```csharp
+await context.RegisterCsvAsync("orders", "data/orders.csv");
+context.RegisterBatch("statuses", statusBatch);
+
+using var df = await context.SqlAsync(
+    "SELECT o.order_id, s.description FROM orders o JOIN statuses s ON o.status = s.name");
+```
+
+> **Note:** `RegisterBatch` is synchronous, unlike the async file-based registration methods.
+
 ## CompressionType
 
 Applies to `CsvReadOptions.FileCompressionType` and `JsonReadOptions.FileCompressionType`:
