@@ -9,6 +9,7 @@ use crate::{
     ErrorCode,
     ErrorInfo
 };
+use crate::memory_store::InMemoryStoreWrapper;
 
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
@@ -617,6 +618,39 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_http(
     };
 
     context.inner.register_object_store(&url, Arc::new(store));
+
+    crate::invoke_callback_null_result(callback, user_data);
+
+    ErrorCode::Ok
+}
+
+/// Registers an in-memory store.
+///
+/// This is a synchronous operation. The callback is invoked with the result.
+///
+/// # Safety
+/// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`
+/// - `base_url_ptr` must be a valid null-terminated UTF-8 string (e.g. "memory://")
+/// - `store_ptr` must be a valid pointer returned by `datafusion_in_memory_store_new`
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_context_register_object_store_in_memory(
+    context_ptr: *mut SessionContextWrapper,
+    base_url_ptr: *const std::ffi::c_char,
+    store_ptr: *const InMemoryStoreWrapper,
+    callback: crate::Callback,
+    user_data: u64,
+) -> ErrorCode {
+    let context = ffi_ref!(context_ptr);
+
+    let base_url = ffi_cstr_to_string!(base_url_ptr);
+    let Ok(url) = url::Url::parse(&base_url) else { return ErrorCode::InvalidArgument };
+
+    let store = ffi_ref!(store_ptr);
+
+    debug!("Registering in-memory object store {store_ptr:p} for '{url}' on session {context_ptr:p}");
+
+    context.inner.register_object_store(&url, store.inner());
 
     crate::invoke_callback_null_result(callback, user_data);
 

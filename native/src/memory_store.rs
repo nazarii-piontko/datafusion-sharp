@@ -15,11 +15,15 @@ pub struct InMemoryStoreWrapper {
 }
 
 impl InMemoryStoreWrapper {
-    fn new(runtime: &crate::RuntimeHandle) -> Self {
+    pub(crate) fn new(runtime: &crate::RuntimeHandle) -> Self {
         Self {
             runtime: Arc::clone(runtime),
             inner: Arc::new(InMemory::new())
         }
+    }
+
+    pub(crate) fn inner(&self) -> Arc<InMemory> {
+        Arc::clone(&self.inner)
     }
 }
 
@@ -66,7 +70,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_destroy(store_ptr: *mut InMe
         warn!("Received null output pointer for store");
     } else {
         unsafe {
-            drop(Box::from_raw(store_ptr))
+            drop(Box::from_raw(store_ptr));
         };
     }
 
