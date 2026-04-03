@@ -67,7 +67,7 @@ var topUtilities = await connection.QueryAsync<UtilityCapacity>("""
         JOIN utilities u
             ON p.utility_id_eia = u.utility_id_eia
             AND p.report_date = u.report_date
-    WHERE g.report_date = '2023-01-01'
+    WHERE g.report_date = '2026-01-01'
         AND g.operational_status = 'existing'
     GROUP BY u.utility_name_eia, u.state
     ORDER BY TotalCapacityMw DESC
@@ -92,7 +92,7 @@ var energyMix = await connection.QueryAsync<StateEnergyMix>("""
         JOIN plants p
             ON g.plant_id_eia = p.plant_id_eia
             AND g.report_date = p.report_date
-    WHERE g.report_date = '2023-01-01'
+    WHERE g.report_date = '2026-01-01'
         AND g.operational_status = 'existing'
         AND p.state IS NOT NULL
     GROUP BY p.state, g.fuel_type_code_pudl
@@ -124,7 +124,7 @@ var largestGenerators = await connection.QueryAsync<TopGenerator>("""
         JOIN utilities u
             ON p.utility_id_eia = u.utility_id_eia
             AND p.report_date = u.report_date
-    WHERE g.report_date = '2023-01-01'
+    WHERE g.report_date = '2026-01-01'
         AND g.operational_status = 'existing'
         AND g.capacity_mw IS NOT NULL
     ORDER BY g.capacity_mw DESC
@@ -158,7 +158,7 @@ var texasPlants = await connection.QueryAsync<TopGenerator>("""
         JOIN utilities u
             ON p.utility_id_eia = u.utility_id_eia
             AND p.report_date = u.report_date
-    WHERE g.report_date = '2023-01-01'
+    WHERE g.report_date = '2026-01-01'
         AND g.operational_status = 'existing'
         AND p.state = @state
         AND g.capacity_mw >= @minCapacityMw
@@ -180,7 +180,7 @@ var totalCapacity = await connection.ExecuteScalarAsync<double>("""
         JOIN plants p
             ON g.plant_id_eia = p.plant_id_eia
             AND g.report_date = p.report_date
-    WHERE g.report_date = '2023-01-01'
+    WHERE g.report_date = '2026-01-01'
         AND g.operational_status = 'existing'
         AND p.state = @state
     """,
