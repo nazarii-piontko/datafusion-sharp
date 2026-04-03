@@ -44,7 +44,7 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(tableName);
         ArgumentNullException.ThrowIfNull(filePath);
         
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
         
         var (id, tcs) = AsyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
@@ -70,7 +70,7 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(tableName);
         ArgumentNullException.ThrowIfNull(filePath);
         
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
@@ -95,7 +95,7 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(tableName);
         ArgumentNullException.ThrowIfNull(filePath);
         
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
@@ -204,7 +204,7 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(parameters);
         
         Task<DataFrameSafeHandle> task;
-        using (var paramValuesData = PinnedProtobufData.FromMessage(parameters.ToProto()))
+        using (var paramValuesData = PinnedBytesData.FromMessage(parameters.ToProto()))
         {
             var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
             var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), CallbackForSqlAsyncHandle, id);
@@ -253,7 +253,7 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreS3(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
@@ -275,7 +275,7 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreAzure(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
@@ -297,7 +297,7 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreGcs(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
@@ -319,13 +319,37 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
-        using var optionsData = PinnedProtobufData.FromMessage(options?.ToProto());
+        using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreHttp(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             SyncOperations.Instance.Abort(id);
             throw new DataFusionException(result, "Failed to register HTTP object store");
+        }
+        SyncOperations.Instance.TakeResult(id);
+    }
+    
+    /// <summary>
+    /// Registers an in-memory object store for the given URL.
+    /// </summary>
+    /// <param name="url">The URL scheme to register (e.g., "memory://").</param>
+    /// <param name="store">The in-memory object store instance to register.</param>
+    /// <exception cref="ArgumentNullException">Null data</exception>
+    /// <exception cref="DataFusionException">Thrown when registration fails.</exception>
+#pragma warning disable CA1054 // URL is passed as-is to DataFusion's native, System.Uri would add redundant conversion.
+    public void RegisterInMemoryObjectStore(string url, InMemoryObjectStore store)
+#pragma warning restore CA1054
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        ArgumentNullException.ThrowIfNull(store);
+        
+        var id = SyncOperations.Instance.Create();
+        var result = NativeMethods.ContextRegisterObjectStoreInMemory(_handle, url, store.Handle, GenericCallbacks.CallbackForVoidSyncHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            SyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to register in-memory object store");
         }
         SyncOperations.Instance.TakeResult(id);
     }
