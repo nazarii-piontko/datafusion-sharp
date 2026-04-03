@@ -4,20 +4,21 @@ use log::{debug, error, warn};
 
 use object_store::path::Path;
 use object_store::{ObjectStore, PutPayload};
+use object_store::memory::InMemory;
 
 use crate::{BytesData, Callback, ErrorCode};
 use crate::error::ErrorInfo;
 
 pub struct InMemoryStoreWrapper {
     runtime: crate::RuntimeHandle,
-    inner: Arc<dyn ObjectStore>
+    inner: Arc<InMemory>
 }
 
 impl InMemoryStoreWrapper {
     fn new(runtime: &crate::RuntimeHandle) -> Self {
         Self {
             runtime: Arc::clone(runtime),
-            inner: Arc::new(object_store::memory::InMemory::new())
+            inner: Arc::new(InMemory::new())
         }
     }
 }
@@ -42,7 +43,10 @@ pub unsafe extern "C" fn datafusion_in_memory_store_new(
 
     let store = Box::new(InMemoryStoreWrapper::new(runtime_handle));
     let store_raw_ptr = Box::into_raw(store);
-    unsafe { *store_ptr = store_raw_ptr; }
+
+    unsafe {
+        *store_ptr = store_raw_ptr;
+    }
 
     debug!("Created in-memory store {store_raw_ptr:p}");
 
@@ -61,7 +65,9 @@ pub unsafe extern "C" fn datafusion_in_memory_store_destroy(store_ptr: *mut InMe
     if store_ptr.is_null() {
         warn!("Received null output pointer for store");
     } else {
-        unsafe { drop(Box::from_raw(store_ptr)) };
+        unsafe {
+            drop(Box::from_raw(store_ptr))
+        };
     }
 
     ErrorCode::Ok
