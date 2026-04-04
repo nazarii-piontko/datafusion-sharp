@@ -8,7 +8,8 @@ pub enum ErrorCode {
     RuntimeShutdownFailed = 4,
     TableRegistrationFailed = 5,
     SqlError = 6,
-    DataFrameError = 7
+    DataFrameError = 7,
+    ObjectStoreError = 8
 }
 
 #[derive(Debug, Clone)]

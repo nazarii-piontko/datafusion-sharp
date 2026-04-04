@@ -12,6 +12,7 @@ pub mod logger;
 pub mod runtime;
 pub mod context;
 pub mod dataframe;
+pub mod memory_store;
 
 pub use proto::*;
 pub use error::*;

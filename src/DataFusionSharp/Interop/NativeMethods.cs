@@ -83,6 +83,9 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_http")]
     public static partial DataFusionErrorCode ContextRegisterObjectStoreHttp(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, IntPtr callback, ulong userData);
 
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_in_memory")]
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreInMemory(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, InMemoryStoreSafeHandle inMemoryStoreHandle, IntPtr callback, ulong userData);
+    
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_deregister_object_store")]
     public static partial DataFusionErrorCode ContextDeregisterObjectStore(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, IntPtr callback, ulong userData);
 
@@ -131,4 +134,18 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_stream_next")]
     public static partial DataFusionErrorCode DataFrameStreamNext(DataFrameStreamSafeHandle streamHandle, IntPtr callback, ulong userData);
+    
+    // InMemory Store
+    
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_new")]
+    public static partial DataFusionErrorCode InMemoryStoreNew(RuntimeSafeHandle runtimeHandle, out IntPtr inMemoryHandle);
+    
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_destroy")]
+    public static partial DataFusionErrorCode InMemoryStoreDestroy(IntPtr inMemoryHandle);
+    
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_put")]
+    public static partial DataFusionErrorCode InMemoryStorePut(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData data, [MarshalAs(UnmanagedType.I1)] bool copy, IntPtr callback, ulong userData);
+    
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_delete")]
+    public static partial DataFusionErrorCode InMemoryStoreDelete(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr callback, ulong userData);
 }

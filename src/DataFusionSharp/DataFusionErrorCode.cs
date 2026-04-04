@@ -20,5 +20,7 @@ public enum DataFusionErrorCode
     /// <summary>An error occurred while executing SQL.</summary>
     SqlError = 6,
     /// <summary>An error occurred during DataFrame operations.</summary>
-    DataFrameError = 7
+    DataFrameError = 7,
+    /// <summary>An error occurred in the object store.</summary>
+    ObjectStoreError = 8
 }

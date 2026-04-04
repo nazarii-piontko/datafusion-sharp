@@ -47,7 +47,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     {
         ArgumentNullException.ThrowIfNull(parameters);
 
-        using var paramValuesData = PinnedProtobufData.FromMessage(parameters.ToProto());
+        using var paramValuesData = PinnedBytesData.FromMessage(parameters.ToProto());
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
@@ -186,8 +186,8 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
-        using var dataFrameOptionsData = PinnedProtobufData.FromMessage(dataFrameWriteOptions?.ToProto());
-        using var csvOptionsData = PinnedProtobufData.FromMessage(csvWriteOptions?.ToProto());
+        using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
+        using var csvOptionsData = PinnedBytesData.FromMessage(csvWriteOptions?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
         var result = NativeMethods.DataFrameWriteCsv(_handle, path,
@@ -214,8 +214,8 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
-        using var dataFrameOptionsData = PinnedProtobufData.FromMessage(dataFrameWriteOptions?.ToProto());
-        using var optionsData = PinnedProtobufData.FromMessage(jsonWriteOptions?.ToProto());
+        using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
+        using var optionsData = PinnedBytesData.FromMessage(jsonWriteOptions?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
         var result = NativeMethods.DataFrameWriteJson(_handle, path,
@@ -242,8 +242,8 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
-        using var dataFrameOptionsData = PinnedProtobufData.FromMessage(dataFrameWriteOptions?.ToProto());
-        using var parquetOptionsData = PinnedProtobufData.FromMessage(parquetWriteOptions?.ToProto());
+        using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
+        using var parquetOptionsData = PinnedBytesData.FromMessage(parquetWriteOptions?.ToProto());
 
         var (id, tcs) = AsyncOperations.Instance.Create();
         var result = NativeMethods.DataFrameWriteParquet(_handle, path,

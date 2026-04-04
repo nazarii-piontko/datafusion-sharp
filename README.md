@@ -11,8 +11,8 @@
 
 ## Features
 
-| Component        | Feature                                      | Status  | Notes                                             |
-|------------------|----------------------------------------------|---------|---------------------------------------------------|
+| Component        | Feature                                      | Status | Notes                                             |
+|------------------|----------------------------------------------|--------|---------------------------------------------------|
 | **Runtime**      | Tokio runtime                                | ✅      | Configurable threads, supports multiple instances |
 |                  | Logger                                       | ✅      | Configurable with log levels                      |
 | **Session**      | Create session context                       | ✅      |                                                   |
@@ -25,13 +25,13 @@
 |                  | Amazon S3                                    | ✅      |                                                   |
 |                  | Azure Blob Storage                           | ✅      |                                                   |
 |                  | Google Cloud Storage                         | ✅      |                                                   |
-|                  | InMemory                                     | ❌      |                                                   |
+|                  | InMemory                                     | ✅      |                                                   |
 | **DataFrame**    | Count rows                                   | ✅      | `CountAsync()`                                    |
 |                  | Get schema                                   | ✅      | `GetSchema()` → Arrow Schema                      |
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches                  |
 |                  | Stream results                               | ✅      | `ExecuteStreamAsync()` → IAsyncEnumerable         |
 |                  | Show/print                                   | ✅      | `ShowAsync()`, `ToStringAsync()`                  |
-|                  | Select, Aggregate, Join, Filter, Limit, Sort | 🟡      | Use SQL instead                                   |
+|                  | Select, Aggregate, Join, Filter, Limit, Sort | 🟡     | Use SQL instead                                   |
 | **Arrow**        | Apache Arrow support                         | ✅      | Via Apache.Arrow nuget package                    |
 |                  | Zero copy support                            | ✅      |                                                   |
 | **Advanced**     | UDF registration                             | ❌      |                                                   |

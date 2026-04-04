@@ -1,4 +1,5 @@
 using DataFusionSharp.Interop;
+using DataFusionSharp.ObjectStore;
 
 namespace DataFusionSharp;
 
@@ -52,6 +53,19 @@ public sealed class DataFusionRuntime : IDisposable
         DataFusionException.ThrowIfError(errorCode, "Failed to create DataFusion context");
         
         return new SessionContext(this, new SessionContextSafeHandle(contextHandle));
+    }
+
+    /// <summary>
+    /// Creates a new in-memory object store.
+    /// </summary>
+    /// <returns>A new <see cref="InMemoryObjectStore"/> instance.</returns>
+    /// <exception cref="DataFusionException">Thrown when object store creation fails.</exception>
+    public InMemoryObjectStore CreateInMemoryStore()
+    {
+        var errorCode = NativeMethods.InMemoryStoreNew(_handle, out var storeHandle);
+        DataFusionException.ThrowIfError(errorCode, "Failed to create in-memory object store");
+        
+        return new InMemoryObjectStore(this, new InMemoryStoreSafeHandle(storeHandle));
     }
     
     /// <summary>

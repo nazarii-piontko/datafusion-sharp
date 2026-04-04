@@ -86,3 +86,16 @@ internal sealed class DataFrameStreamSafeHandle : DataFusionSafeHandle
         return NativeMethods.DataFrameStreamDestroy(handle) == DataFusionErrorCode.Ok;
     }
 }
+
+internal sealed class InMemoryStoreSafeHandle : DataFusionSafeHandle
+{
+    internal InMemoryStoreSafeHandle(IntPtr handle)
+        : base(handle)
+    {
+    }
+
+    protected override bool ReleaseHandle()
+    {
+        return NativeMethods.InMemoryStoreDestroy(handle) == DataFusionErrorCode.Ok;
+    }
+}

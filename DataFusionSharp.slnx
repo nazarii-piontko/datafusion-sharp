@@ -70,6 +70,7 @@
   </Folder>
   <Folder Name="/examples/">
     <Project Path="examples\QueryData\QueryData.csproj" />
+    <Project Path="examples\QueryInMemoryData\QueryInMemoryData.csproj" />
     <Project Path="examples/QueryS3DataWithDapper/QueryS3DataWithDapper.csproj" />
     <Project Path="examples\QueryDataWithDapper\QueryDataWithDapper.csproj" />
     <Project Path="examples\QueryS3Data\QueryS3Data.csproj" />
