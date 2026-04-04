@@ -154,7 +154,7 @@ jobs:
             /o:"npiontko" \
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml \
-            /d:sonar.coverage.exclusions="docs/**,examples/**,native/**""
+            /d:sonar.coverage.exclusions="docs/**,examples/**,native/**"
           
           # Build the project without building the native library, it should be already built in the check job and cached
           dotnet build -c Release -p:BuildNativeLib=false
