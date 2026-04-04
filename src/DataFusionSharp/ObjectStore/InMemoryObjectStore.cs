@@ -1,3 +1,4 @@
+using System.Buffers;
 using DataFusionSharp.Interop;
 
 namespace DataFusionSharp.ObjectStore;
@@ -24,10 +25,11 @@ public sealed class InMemoryObjectStore : IDisposable
     }
 
     /// <summary>
-    /// Puts data into the in-memory store at the specified path. The data is provided as a byte array.
+    /// Puts data into the in-memory store at the specified path.
+    /// The data is provided as a byte array.
     /// </summary>
     /// <remarks>
-    /// The native code will copy the data from the provided byte array, so the caller can safely modify or dispose of the byte array after this method returns.
+    /// The native code copies the data from the provided byte array, so the caller can safely modify or dispose of the byte array after this method returns.
     /// </remarks>
     /// <param name="path">Path to data</param>
     /// <param name="data">Bytes data to put</param>
@@ -42,9 +44,41 @@ public sealed class InMemoryObjectStore : IDisposable
             throw new ArgumentException($"{nameof(data)} must not be empty.", nameof(data));
         
         using var pinnedData = PinnedBytesData.FromMemory(data);
+        var bytesData = pinnedData.ToBytesData();
         
         var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.InMemoryStorePut(Handle, path, pinnedData.ToBytesData(), true, GenericCallbacks.CallbackForVoidHandle, id);
+        var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, true, GenericCallbacks.CallbackForVoidHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to put object into in-memory store.");
+        }
+        
+        return tcs.Task;
+    }
+    
+    /// <summary>
+    /// Puts data into the in-memory store at the specified path.
+    /// The data is provided as a pinned byte array.
+    /// </summary>
+    /// <remarks>
+    /// The native code takes provided array as is without copying.
+    /// IMPORTANT: the caller must ensure that the memory is not modified or disposed for whole life of <see cref="InMemoryObjectStore" /> instance.
+    /// </remarks>
+    /// <param name="path">Path to data</param>
+    /// <param name="memoryHandle">Pinned memory handle to byte data to put</param>
+    /// <param name="length">Length of the data in bytes</param>
+    /// <returns>A task that completes when the put operation is finished.</returns>
+    /// <exception cref="ArgumentException">Invalid path</exception>
+    /// <exception cref="ArgumentNullException">Null data</exception>
+    /// <exception cref="DataFusionException">Failed to put object into in-memory store</exception>
+    public Task PutAsStaticAsync(string path, MemoryHandle memoryHandle, int length)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        
+        var (id, tcs) = AsyncOperations.Instance.Create();
+        var bytesData = BytesData.FromPinned(memoryHandle, length);
+        var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, false, GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);

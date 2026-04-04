@@ -163,6 +163,27 @@ public sealed class InMemoryObjectStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task PutAsStaticAsync_AndRegister_ThenQueryCsv_ReturnsData()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+        using var store = _runtime.CreateInMemoryStore();
+
+        var csvBytes = await File.ReadAllBytesAsync(DataSet.CustomersCsvPath);
+        using var memoryHandle = csvBytes.AsMemory().Pin();
+        
+        // Act
+        await store.PutAsStaticAsync("customers.csv", memoryHandle, csvBytes.Length);
+        context.RegisterInMemoryObjectStore("memory://", store);
+        await context.RegisterCsvAsync("customers", "memory:///customers.csv");
+
+        // Assert
+        using var df = await context.SqlAsync("SELECT * FROM customers");
+        var count = await df.CountAsync();
+        Assert.Equal(10UL, count);
+    }
+
+    [Fact]
     public async Task TwoStores_RegisterBoth_ThenJoinQuery_ReturnsData()
     {
         // Arrange
@@ -211,6 +232,4 @@ public sealed class InMemoryObjectStoreTests : IDisposable
         _runtime.Dispose();
     }
 }
-
-
 
