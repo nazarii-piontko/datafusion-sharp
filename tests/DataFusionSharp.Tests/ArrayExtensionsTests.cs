@@ -1,4 +1,5 @@
 using Apache.Arrow;
+using Apache.Arrow.Scalars;
 using Apache.Arrow.Types;
 
 namespace DataFusionSharp.Tests;
@@ -212,6 +213,48 @@ public sealed class ArrayExtensionsTests
         // Act and Assert
         Assert.Throws<ArgumentException>(() => array.AsDecimal().ToList());
     }
+    
+    [Fact]
+    public void AsDecimal_Decimal256Array_ReturnsValues()
+    {
+        // Arrange
+        using var array = new Decimal256Array.Builder(new Decimal256Type(10, 2))
+            .Append(12.34m).Append(56.78m).Build();
+
+        // Act
+        var result = array.AsDecimal().ToList();
+
+        // Assert
+        Assert.Equal([12.34m, 56.78m], result);
+    }
+
+    [Fact]
+    public void AsDecimal_Decimal256Array_WithNulls_ReturnsValues()
+    {
+        // Arrange
+        using var array = new Decimal256Array.Builder(new Decimal256Type(10, 2))
+            .Append(99.99m).AppendNull().Build();
+
+        // Act
+        var result = array.AsDecimal().ToList();
+
+        // Assert
+        Assert.Equal([99.99m, null], result);
+    }
+
+    [Fact]
+    public void AsDecimal_IArrowArray_Decimal256_ReturnsValues()
+    {
+        // Arrange
+        using IArrowArray array = new Decimal256Array.Builder(new Decimal256Type(10, 2))
+            .Append(42.42m).AppendNull().Build();
+
+        // Act
+        var result = array.AsDecimal().ToList();
+
+        // Assert
+        Assert.Equal([42.42m, null], result);
+    }
 
     [Fact]
     public void AsDateOnly_Date32Array_ReturnsValues()
@@ -376,5 +419,70 @@ public sealed class ArrayExtensionsTests
 
         // Act and Assert
         Assert.Throws<ArgumentException>(() => array.AsString().ToList());
+    }
+
+    [Theory]
+    [MemberData(nameof(ToNetTypeTestData))]
+    public void ToNetType_ReturnsExpectedType(IArrowType arrowType, Type? expectedType)
+    {
+        // Act
+        var result = arrowType.ToNetType();
+
+        // Assert
+        Assert.Equal(expectedType, result);
+    }
+
+    public static TheoryData<IArrowType, Type?> ToNetTypeTestData => new()
+    {
+        { NullType.Default, typeof(DBNull) },
+        { BooleanType.Default, typeof(bool) },
+        { new Int8Type(), typeof(sbyte) },
+        { new Int16Type(), typeof(short) },
+        { new Int32Type(), typeof(int) },
+        { new Int64Type(), typeof(long) },
+        { new UInt8Type(), typeof(byte) },
+        { new UInt16Type(), typeof(ushort) },
+        { new UInt32Type(), typeof(uint) },
+        { new UInt64Type(), typeof(ulong) },
+        { HalfFloatType.Default, typeof(Half) },
+        { FloatType.Default, typeof(float) },
+        { DoubleType.Default, typeof(double) },
+        { new Decimal128Type(10, 2), typeof(decimal) },
+        { new Decimal256Type(10, 2), typeof(decimal) },
+        { StringType.Default, typeof(string) },
+        { StringViewType.Default, typeof(string) },
+        { LargeStringType.Default, typeof(string) },
+        { BinaryType.Default, typeof(byte[]) },
+        { BinaryViewType.Default, typeof(byte[]) },
+        { new FixedSizeBinaryType(4), typeof(byte[]) },
+        { LargeBinaryType.Default, typeof(byte[]) },
+        { Date32Type.Default, typeof(DateOnly) },
+        { Date64Type.Default, typeof(DateOnly) },
+        { new TimestampType(TimeUnit.Microsecond, TimeZoneInfo.Utc), typeof(DateTimeOffset) },
+        { new Time32Type(TimeUnit.Second), typeof(TimeOnly) },
+        { new Time64Type(TimeUnit.Microsecond), typeof(TimeOnly) },
+        { DurationType.Microsecond, typeof(TimeSpan) },
+        { new IntervalType(IntervalUnit.YearMonth), typeof(YearMonthInterval) },
+        { new IntervalType(IntervalUnit.DayTime), typeof(DayTimeInterval) },
+        { new IntervalType(IntervalUnit.MonthDayNanosecond), typeof(MonthDayNanosecondInterval) },
+        { new MapType(new Field("key", new StringType(), false), new Field("value", new Int32Type(), true)), typeof(IEnumerable<IArrowArray>) },
+        { new ListType(new Field("item", new Int32Type(), false)), typeof(IEnumerable<IArrowArray>) },
+        { new LargeListType(new Field("item", new Int32Type(), false)), typeof(IEnumerable<IArrowArray>) },
+        { new FixedSizeListType(new Field("item", new Int32Type(), false), 3), typeof(IEnumerable<IArrowArray>) },
+        { new StructType([new Field("f", new Int32Type(), false)]), typeof(object?[]) },
+    };
+
+    [Fact]
+    public void ToNetType_UnsupportedType_ReturnsNull()
+    {
+        // Arrange
+        // DictionaryType is not mapped
+        var arrowType = new DictionaryType(new Int32Type(), new StringType(), false);
+
+        // Act
+        var result = arrowType.ToNetType();
+
+        // Assert
+        Assert.Null(result);
     }
 }
