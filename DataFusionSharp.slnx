@@ -50,6 +50,7 @@
     <File Path="docs\content\getting-started\quick-start.md" />
   </Folder>
   <Folder Name="/docs/content/guides/">
+    <File Path="docs\content\guides\ado-net.md" />
     <File Path="docs\content\guides\core-concepts.md" />
     <File Path="docs\content\guides\hive-partitioning.md" />
     <File Path="docs\content\guides\object-stores.md" />
