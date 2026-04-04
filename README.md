@@ -59,10 +59,10 @@ dotnet add package DataFusionSharp.Data
 ```csharp
 using DataFusionSharp;
 
-// Create runtime, which manages Tokio runtime and native resources, per application lifetime
+// Create runtime, which manages Tokio runtime and native resources
 using var runtime = DataFusionRuntime.Create();
 
-// Create session context, which manages query execution and state, per logical session lifetime
+// Create session context, which manages query execution and state
 using var context = runtime.CreateSessionContext();
 
 // Register a CSV file as a table (supports CSV, Parquet, JSONL)
@@ -185,8 +185,6 @@ Full documentation is available at **[nazarii-piontko.github.io/datafusion-sharp
 [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
 
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=coverage)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
-
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
 
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=nazarii-piontko_datafusion-sharp&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=nazarii-piontko_datafusion-sharp)
 
