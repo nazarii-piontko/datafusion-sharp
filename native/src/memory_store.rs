@@ -27,7 +27,7 @@ impl InMemoryStoreWrapper {
     }
 }
 
-/// Creates a new in memory store.
+/// Creates a new in-memory store.
 ///
 /// # Safety
 /// - `runtime_ptr` must be a valid pointer returned by `datafusion_runtime_new`

@@ -9,7 +9,6 @@ use crate::{
     ErrorCode,
     ErrorInfo
 };
-use crate::memory_store::InMemoryStoreWrapper;
 
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
@@ -637,7 +636,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_http(
 pub unsafe extern "C" fn datafusion_context_register_object_store_in_memory(
     context_ptr: *mut SessionContextWrapper,
     base_url_ptr: *const std::ffi::c_char,
-    store_ptr: *const InMemoryStoreWrapper,
+    store_ptr: *const crate::memory_store::InMemoryStoreWrapper,
     callback: crate::Callback,
     user_data: u64,
 ) -> ErrorCode {
