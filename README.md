@@ -31,13 +31,12 @@
 |                  | Collect all data                             | ✅      | `CollectAsync()` → RecordBatches                  |
 |                  | Stream results                               | ✅      | `ExecuteStreamAsync()` → IAsyncEnumerable         |
 |                  | Show/print                                   | ✅      | `ShowAsync()`, `ToStringAsync()`                  |
-|                  | Select, Aggregate, Join, Filter, Limit, Sort | 🟡     | Use SQL instead                                   |
 | **Arrow**        | Apache Arrow support                         | ✅      | Via Apache.Arrow nuget package                    |
 |                  | Zero copy support                            | ✅      |                                                   |
+| **ADO.NET**      | ADO.NET interface                            | ✅      | ADO.NET interface to support libs like Dapper     |
 | **Advanced**     | UDF registration                             | ❌      |                                                   |
 |                  | Catalog management                           | ❌      |                                                   |
 |                  | Table providers                              | ❌      |                                                   |
-| **ADO.NET**      | ADO.NET interface                            | ✅      | ADO.NET interface to support libs like Dapper     |
 | **Platforms**    | Linux x64                                    | ✅      |                                                   |
 |                  | Linux arm64                                  | ✅      |                                                   |
 |                  | Windows x64                                  | ✅      |                                                   |
@@ -72,7 +71,12 @@ await context.RegisterCsvAsync("orders", "path/to/orders.csv");
 // await context.RegisterJsonAsync("orders", "path/to/orders.json");
 
 // Execute SQL query
-using var df = await context.SqlAsync( "SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id");
+using var df = await context.SqlAsync(
+    """
+    SELECT customer_id, sum(amount) AS total
+    FROM orders
+    GROUP BY customer_id
+    """);
 
 // Display results to console
 await df.ShowAsync();
