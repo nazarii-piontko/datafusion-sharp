@@ -236,3 +236,27 @@ jobs:
             ${{ steps.version.outputs.dfsd_nupkg }} \
             --api-key "$NUGET_TOKEN" \
             --source https://api.nuget.org/v3/index.json
+
+  github-release:
+    name: Create GitHub Release
+    needs: pack-publish-github
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download NuGet Package Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: nuget-package
+          path: packages
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            packages/*.nupkg
+            packages/*.snupkg
+
