@@ -213,14 +213,11 @@ jobs:
       - name: Publish to GitHub Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
         run: |
+          # Publish to GitHub Packages
           dotnet nuget push \
             ${{ steps.version.outputs.dfs_nupkg }} \
-            --api-key "$GITHUB_TOKEN" \
-            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-
-          dotnet nuget push \
-            ${{ steps.version.outputs.dfs_snupkg }} \
             --api-key "$GITHUB_TOKEN" \
             --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
 
@@ -228,8 +225,14 @@ jobs:
             ${{ steps.version.outputs.dfsd_nupkg }} \
             --api-key "$GITHUB_TOKEN" \
             --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          
+          # Publish to NuGet.org
+          dotnet nuget push \
+            ${{ steps.version.outputs.dfs_nupkg }} \
+            --api-key "$NUGET_TOKEN" \
+            --source https://api.nuget.org/v3/index.json
 
           dotnet nuget push \
-            ${{ steps.version.outputs.dfsd_snupkg }} \
-            --api-key "$GITHUB_TOKEN" \
-            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+            ${{ steps.version.outputs.dfsd_nupkg }} \
+            --api-key "$NUGET_TOKEN" \
+            --source https://api.nuget.org/v3/index.json
