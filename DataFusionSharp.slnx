@@ -64,6 +64,7 @@
     <File Path="docs\src\css\custom.css" />
   </Folder>
   <Folder Name="/docs/static/">
+    <File Path="docs\googleef60fa63ee8fbe49.html" />
     <File Path="docs\static\.nojekyll" />
   </Folder>
   <Folder Name="/docs/static/img/">
