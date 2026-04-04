@@ -218,9 +218,11 @@ public sealed class InMemoryObjectStoreTests : IDisposable
         }
         
         using (var dfJoin = await context.SqlAsync(
-            "SELECT c.customer_name, o.order_id " +
-            "FROM customers c " +
-            "JOIN orders o ON c.customer_id = o.customer_id"))
+            """
+            SELECT c.customer_name, o.order_id
+            FROM customers c
+            JOIN orders o ON c.customer_id = o.customer_id
+            """))
         {
             var count = await dfJoin.CountAsync();
             Assert.Equal(50UL, count);
