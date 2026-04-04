@@ -97,6 +97,183 @@ public static class ArrayExtensions
     }
     
     /// <summary>
+    /// Enumerates the values of an Arrow array as nullable integers.
+    /// </summary>
+    /// <param name="array">The Arrow array to enumerate.</param>
+    /// <returns>An enumerator of nullable integers representing the values in the array.</returns>
+    /// <exception cref="ArgumentException">Thrown if the provided array is not an Int32 array.</exception>
+    public static IEnumerable<int?> AsInt32(this IArrowArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        if (array is Int32Array typedArray)
+            return typedArray.AsInt32();
+        
+        throw new ArgumentException($"Column is not Int32 Array, actual type: {array.GetType().Name}");
+    }
+    
+    /// <summary>
+    /// Enumerates the values of an Int32Array as nullable integers.
+    /// </summary>
+    /// <param name="array">The Int32Array to enumerate.</param>
+    /// <returns>An enumerator of nullable integers representing the values in the array.</returns>
+    public static IEnumerable<int?> AsInt32(this Int32Array array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        for (int i = 0; i < array.Length; i++)
+            yield return array.GetValue(i);
+    }
+    
+    /// <summary>
+    /// Enumerates the values of an Arrow array as nullable single-precision floating-point numbers.
+    /// </summary>
+    /// <param name="array">The Arrow array to enumerate.</param>
+    /// <returns>An enumerator of nullable floats representing the values in the array.</returns>
+    /// <exception cref="ArgumentException">Thrown if the provided array is not a Float array.</exception>
+    public static IEnumerable<float?> AsFloat(this IArrowArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        if (array is FloatArray typedArray)
+            return typedArray.AsFloat();
+        
+        throw new ArgumentException($"Column is not Float Array, actual type: {array.GetType().Name}");
+    }
+    
+    /// <summary>
+    /// Enumerates the values of a FloatArray as nullable single-precision floating-point numbers.
+    /// </summary>
+    /// <param name="array">The FloatArray to enumerate.</param>
+    /// <returns>An enumerator of nullable floats representing the values in the array.</returns>
+    public static IEnumerable<float?> AsFloat(this FloatArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        for (int i = 0; i < array.Length; i++)
+            yield return array.GetValue(i);
+    }
+    
+    /// <summary>
+    /// Enumerates the values of an Arrow array as nullable decimals.
+    /// </summary>
+    /// <param name="array">The Arrow array to enumerate.</param>
+    /// <returns>An enumerator of nullable decimals representing the values in the array.</returns>
+    /// <exception cref="ArgumentException">Thrown if the provided array is not a Decimal128 or Decimal256 array.</exception>
+    public static IEnumerable<decimal?> AsDecimal(this IArrowArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        if (array is Decimal128Array decimal128Array)
+            return decimal128Array.AsDecimal();
+        
+        if (array is Decimal256Array decimal256Array)
+            return decimal256Array.AsDecimal();
+        
+        throw new ArgumentException($"Column is not Decimal Array, actual type: {array.GetType().Name}");
+    }
+    
+    /// <summary>
+    /// Enumerates the values of a Decimal128Array as nullable decimals.
+    /// </summary>
+    /// <param name="array">The Decimal128Array to enumerate.</param>
+    /// <returns>An enumerator of nullable decimals representing the values in the array.</returns>
+    public static IEnumerable<decimal?> AsDecimal(this Decimal128Array array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        for (int i = 0; i < array.Length; i++)
+            yield return array.GetValue(i);
+    }
+    
+    /// <summary>
+    /// Enumerates the values of a Decimal256Array as nullable decimals.
+    /// </summary>
+    /// <param name="array">The Decimal256Array to enumerate.</param>
+    /// <returns>An enumerator of nullable decimals representing the values in the array.</returns>
+    public static IEnumerable<decimal?> AsDecimal(this Decimal256Array array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        for (int i = 0; i < array.Length; i++)
+            yield return array.GetValue(i);
+    }
+    
+    /// <summary>
+    /// Enumerates the values of an Arrow array as nullable <see cref="DateOnly"/> values.
+    /// </summary>
+    /// <param name="array">The Arrow array to enumerate.</param>
+    /// <returns>An enumerator of nullable <see cref="DateOnly"/> values representing the values in the array.</returns>
+    /// <exception cref="ArgumentException">Thrown if the provided array is not a Date32 or Date64 array.</exception>
+    public static IEnumerable<DateOnly?> AsDateOnly(this IArrowArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        if (array is Date32Array date32Array)
+            return date32Array.AsDateOnly();
+        
+        if (array is Date64Array date64Array)
+            return date64Array.AsDateOnly();
+        
+        throw new ArgumentException($"Column is not Date Array, actual type: {array.GetType().Name}");
+    }
+    
+    /// <summary>
+    /// Enumerates the values of a Date32Array as nullable <see cref="DateOnly"/> values.
+    /// </summary>
+    /// <param name="array">The Date32Array to enumerate.</param>
+    /// <returns>An enumerator of nullable <see cref="DateOnly"/> values representing the values in the array.</returns>
+    public static IEnumerable<DateOnly?> AsDateOnly(this Date32Array array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        for (int i = 0; i < array.Length; i++)
+            yield return array.GetDateOnly(i);
+    }
+    
+    /// <summary>
+    /// Enumerates the values of a Date64Array as nullable <see cref="DateOnly"/> values.
+    /// </summary>
+    /// <param name="array">The Date64Array to enumerate.</param>
+    /// <returns>An enumerator of nullable <see cref="DateOnly"/> values representing the values in the array.</returns>
+    public static IEnumerable<DateOnly?> AsDateOnly(this Date64Array array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        for (int i = 0; i < array.Length; i++)
+            yield return array.GetDateOnly(i);
+    }
+    
+    /// <summary>
+    /// Enumerates the values of an Arrow array as nullable <see cref="DateTimeOffset"/> values.
+    /// </summary>
+    /// <param name="array">The Arrow array to enumerate.</param>
+    /// <returns>An enumerator of nullable <see cref="DateTimeOffset"/> values representing the values in the array.</returns>
+    /// <exception cref="ArgumentException">Thrown if the provided array is not a Timestamp array.</exception>
+    public static IEnumerable<DateTimeOffset?> AsTimestamp(this IArrowArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        if (array is TimestampArray typedArray)
+            return typedArray.AsTimestamp();
+        
+        throw new ArgumentException($"Column is not Timestamp Array, actual type: {array.GetType().Name}");
+    }
+    
+    /// <summary>
+    /// Enumerates the values of a TimestampArray as nullable <see cref="DateTimeOffset"/> values.
+    /// </summary>
+    /// <param name="array">The TimestampArray to enumerate.</param>
+    /// <returns>An enumerator of nullable <see cref="DateTimeOffset"/> values representing the values in the array.</returns>
+    public static IEnumerable<DateTimeOffset?> AsTimestamp(this TimestampArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        
+        for (int i = 0; i < array.Length; i++)
+            yield return array.GetTimestamp(i);
+    }
+    
+    /// <summary>
     /// Enumerates the values of an Arrow array as nullable strings.
     /// </summary>
     /// <param name="column">The Arrow array to enumerate.</param>
