@@ -28,9 +28,28 @@ await session.RegisterCsvAsync("customers", "memory:///customers.csv");
 // Register orders from a regular file on disk
 await session.RegisterCsvAsync("orders", Path.Combine("Data", "orders", "csv", "orders.csv"));
 
+// Query customers count by country
+using var df = await session.SqlAsync(
+    """
+    SELECT
+        COUNT(*) AS CustomerCount,
+        country AS Country,
+    FROM customers
+    GROUP BY country
+    ORDER BY CustomerCount DESC
+    """);
+
+// Write the result to a CSV file in the in-memory store
+await df.WriteCsvAsync("memory:///customers-by-country.csv");
+// Read the CSV file back from the in-memory store
+var bytes = await store.GetAsync("customers-by-country.csv");
+// Print the CSV content
+Console.WriteLine("=== Customer count by country (written to in-memory store) ===");
+Console.WriteLine(System.Text.Encoding.UTF8.GetString(bytes));
+
+
 // Create a connection wrapper around the SessionContext for ADO.NET operations.
 await using var connection = session.AsConnection();
-
 
 // QueryAsync<T> – map rows to a strongly-typed record
 Console.WriteLine("=== Completed orders per customer (in-memory JOIN file) ===");
@@ -46,7 +65,7 @@ var summaries = await connection.QueryAsync<OrderSummary>(
         JOIN orders AS o ON c.customer_id = o.customer_id
     WHERE o.order_status = @status
     GROUP BY c.customer_name, c.country
-    ORDER BY TotalAmount DESC
+    ORDER BY TotalAmount DESC, Country ASC
     """,
     new { status = "Completed" });
 

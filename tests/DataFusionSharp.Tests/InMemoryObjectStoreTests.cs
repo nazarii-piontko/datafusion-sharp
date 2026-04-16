@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace DataFusionSharp.Tests;
 
 public sealed class InMemoryObjectStoreTests : IDisposable
@@ -227,6 +229,59 @@ public sealed class InMemoryObjectStoreTests : IDisposable
             var count = await dfJoin.CountAsync();
             Assert.Equal(50UL, count);
         }
+    }
+    
+    [Fact]
+    public async Task GetAsync_ReturnsData()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+        using var store = _runtime.CreateInMemoryStore();
+        
+        var csvBytes = await File.ReadAllBytesAsync(DataSet.CustomersCsvPath);
+        await store.PutAsync("customers.csv", csvBytes);
+        
+        // Act
+        var storedCsvBytes = await store.GetAsync("customers.csv");
+
+        // Assert
+        Assert.NotNull(storedCsvBytes);
+        Assert.Equal(Encoding.UTF8.GetString(csvBytes), Encoding.UTF8.GetString(storedCsvBytes));
+    }
+    
+    [Fact]
+    public async Task GetAsync_MultipleSets_ReturnsData()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+        using var store = _runtime.CreateInMemoryStore();
+        
+        var customersBytes = await File.ReadAllBytesAsync(DataSet.CustomersCsvPath);
+        var ordersBytes = await File.ReadAllBytesAsync(DataSet.OrdersCsvPath);
+        await store.PutAsync("customers.csv", customersBytes);
+        await store.PutAsync("orders.csv", ordersBytes);
+        
+        // Act
+        var storedCustomersBytes = await store.GetAsync("customers.csv");
+        var storedOrdersBytes = await store.GetAsync("orders.csv");
+
+        // Assert
+        Assert.NotNull(storedCustomersBytes);
+        Assert.NotNull(storedOrdersBytes);
+        
+        Assert.Equal(Encoding.UTF8.GetString(customersBytes), Encoding.UTF8.GetString(storedCustomersBytes));
+        Assert.Equal(Encoding.UTF8.GetString(ordersBytes), Encoding.UTF8.GetString(storedOrdersBytes));
+    }
+    
+    [Fact]
+    public async Task GetAsync_WrongPath_Throws()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+        using var store = _runtime.CreateInMemoryStore();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<DataFusionException>(async () => _ = await store.GetAsync("customers.csv"));
     }
 
     public void Dispose()

@@ -146,6 +146,9 @@ internal static partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_put")]
     public static partial DataFusionErrorCode InMemoryStorePut(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData data, [MarshalAs(UnmanagedType.I1)] bool copy, IntPtr callback, ulong userData);
     
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_get")]
+    public static partial DataFusionErrorCode InMemoryStoreGet(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr callback, ulong userData);
+    
     [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_delete")]
     public static partial DataFusionErrorCode InMemoryStoreDelete(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr callback, ulong userData);
 }
