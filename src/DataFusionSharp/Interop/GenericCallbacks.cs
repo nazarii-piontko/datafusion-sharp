@@ -30,4 +30,19 @@ internal static partial class GenericCallbacks
         var dataStr = data.ToUtf8String();
         AsyncOperations.Instance.CompleteWithResult(handle, dataStr);
     }
+    
+    [DataFusionSharpNativeCallback]
+    internal static void CallbackForBytes(IntPtr result, IntPtr error, ulong handle)
+    {
+        if (error != IntPtr.Zero)
+        {
+            var ex = ErrorInfoData.FromIntPtr(error).ToException();
+            AsyncOperations.Instance.CompleteWithError<byte[]>(handle, ex);
+            return;
+        }
+
+        var data = BytesData.FromIntPtr(result);
+        var dataBytes = data.ToArray();
+        AsyncOperations.Instance.CompleteWithResult(handle, dataBytes);
+    }
 }

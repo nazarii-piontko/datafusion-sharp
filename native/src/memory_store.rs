@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use log::{debug, error, warn};
 
 use object_store::path::Path;
@@ -119,6 +118,46 @@ pub unsafe extern "C" fn datafusion_in_memory_store_put(
             .map_err(|e| ErrorInfo::new(ErrorCode::ObjectStoreError, e));
 
         crate::invoke_callback(result, callback, user_data);
+    });
+
+    ErrorCode::Ok
+}
+
+/// Gets data from the in-memory store at the specified path.
+///
+/// # Safety
+/// - `store_ptr` must be a valid pointer returned by `datafusion_in_memory_store_new`
+/// - `path_ptr` must be a valid null-terminated C string representing the object path
+/// - `callback` will be invoked exactly once when the operation completes
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_in_memory_store_get(
+    store_ptr: *mut InMemoryStoreWrapper,
+    path_ptr: *const std::ffi::c_char,
+    callback: Callback,
+    user_data: u64
+) -> ErrorCode {
+    let store_wrapper = ffi_ref!(store_ptr);
+    let path_str = ffi_cstr_to_string!(path_ptr);
+
+    debug!("Getting data from in-memory store {store_ptr:p} at path '{path_str}'");
+
+    let store = Arc::clone(&store_wrapper.inner);
+
+    store_wrapper.runtime.spawn(async move {
+        let Some(path) = parse_path(&path_str, callback, user_data) else { return };
+
+        let get_result = match store.get(&path).await {
+            Ok(r) => r,
+            Err(e) => return crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::ObjectStoreError, e), callback, user_data)
+        };
+
+        let bytes = match get_result.bytes().await {
+            Ok(r) => r,
+            Err(e) => return crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::ObjectStoreError, e), callback, user_data)
+        };
+
+        let bytes_data = BytesData::new(bytes.as_ref());
+        crate::invoke_callback_success(bytes_data, callback, user_data);
     });
 
     ErrorCode::Ok

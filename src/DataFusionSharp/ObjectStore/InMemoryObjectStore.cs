@@ -89,6 +89,28 @@ public sealed class InMemoryObjectStore : IDisposable
     }
 
     /// <summary>
+    /// Gets data from the in-memory store at the specified path.
+    /// </summary>
+    /// <param name="path">Path to data</param>
+    /// <returns>A task that completes with the retrieved data as a byte array.</returns>
+    /// <exception cref="ArgumentException">Invalid path</exception>
+    /// <exception cref="DataFusionException">Failed to get object from in-memory store</exception>
+    public Task<byte[]> GetAsync(string path)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        
+        var (id, tcs) = AsyncOperations.Instance.Create<byte[]>();
+        var result = NativeMethods.InMemoryStoreGet(Handle, path, GenericCallbacks.CallbackForBytesHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to get object from in-memory store.");
+        }
+        
+        return tcs.Task;
+    }
+
+    /// <summary>
     /// Deletes data at the specified path from the in-memory store.
     /// </summary>
     /// <param name="path">Path to data to delete</param>
