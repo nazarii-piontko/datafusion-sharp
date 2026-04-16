@@ -272,6 +272,17 @@ public sealed class InMemoryObjectStoreTests : IDisposable
         Assert.Equal(Encoding.UTF8.GetString(customersBytes), Encoding.UTF8.GetString(storedCustomersBytes));
         Assert.Equal(Encoding.UTF8.GetString(ordersBytes), Encoding.UTF8.GetString(storedOrdersBytes));
     }
+    
+    [Fact]
+    public async Task GetAsync_WrongPath_Throws()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+        using var store = _runtime.CreateInMemoryStore();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<DataFusionException>(async () => _ = await store.GetAsync("customers.csv"));
+    }
 
     public void Dispose()
     {
