@@ -64,8 +64,8 @@ pub(crate) fn from_proto_csv_options<'a>(
 pub(crate) fn from_proto_json_read_options<'a>(
     pbo: Option<&'a proto::JsonReadOptions>,
     schema: Option<&'a Schema>
-) -> Result<datafusion::prelude::NdJsonReadOptions<'a>> {
-    let mut dfo = datafusion::prelude::NdJsonReadOptions::default();
+) -> Result<datafusion::prelude::JsonReadOptions<'a>> {
+    let mut dfo = datafusion::prelude::JsonReadOptions::default();
     let Some(pbo) = pbo else { return Ok(dfo) };
 
     dfo.schema = schema;
