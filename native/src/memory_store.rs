@@ -2,7 +2,7 @@ use std::sync::Arc;
 use log::{debug, error, warn};
 
 use object_store::path::Path;
-use object_store::{ObjectStore, PutPayload};
+use object_store::{ObjectStoreExt, PutPayload};
 use object_store::memory::InMemory;
 
 use crate::{BytesData, Callback, ErrorCode};
