@@ -140,7 +140,7 @@ public sealed class DataFusionSharpParameterCollection : DbParameterCollection
 
     /// <summary>
     /// Projects the collection into the <see cref="NamedScalarValueAndMetadata"/> sequence expected by
-    /// <see cref="SessionContext.SqlAsync(string, System.Collections.Generic.IEnumerable{NamedScalarValueAndMetadata})"/>.
+    /// <see cref="SessionContext.SqlAsync(string, System.Collections.Generic.IEnumerable{NamedScalarValueAndMetadata}, CancellationToken)"/>.
     /// </summary>
     internal IEnumerable<NamedScalarValueAndMetadata> ToDataFusionParameters()
     {

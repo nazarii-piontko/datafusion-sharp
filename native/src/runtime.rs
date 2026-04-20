@@ -89,3 +89,40 @@ pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHan
         }
     }
 }
+
+/// Example async function to test runtime functionality.
+/// Sleeps for `timeout_ms` milliseconds, then invokes the callback with the result.
+///
+/// # Safety
+/// - `runtime_ptr` must be a valid pointer to a runtime created by `datafusion_runtime_new`
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_ping(
+    runtime_ptr: *mut RuntimeHandle,
+    timeout_ms: u64,
+    callback: crate::Callback,
+    user_data: u64,
+) -> crate::ErrorCode {
+    let runtime = ffi_ref!(runtime_ptr);
+
+    debug!("Received ping with timeout_ms={timeout_ms}, user_data={user_data}");
+
+    let cancellation_guard = crate::cancellation::create_token(user_data);
+
+    runtime.spawn(async move {
+        let result = tokio::select! {
+            _ = tokio::time::sleep(std::time::Duration::from_millis(timeout_ms)) => {
+                debug!("Ping completed for user_data={user_data}");
+                Ok(())
+            },
+            _  = cancellation_guard.cancelled() => {
+                debug!("Ping cancelled for user_data={user_data}");
+                Err(crate::cancellation::error())
+            }
+        };
+
+        crate::invoke_callback(result, callback, user_data);
+    });
+
+    crate::ErrorCode::Ok
+}

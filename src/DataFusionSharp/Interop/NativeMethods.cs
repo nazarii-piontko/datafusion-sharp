@@ -31,6 +31,11 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_set_log_level")]
     public static partial DataFusionErrorCode SetLogLevel(NativeLogLevel maxLevel);
+    
+    // Cancellation
+
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_cancel_operation")]
+    public static partial DataFusionErrorCode CancelOperation(ulong userData);
 
     // Runtime
 
@@ -39,6 +44,9 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_runtime_destroy")]
     public static partial DataFusionErrorCode RuntimeDestroy(IntPtr runtimeHandle);
+    
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_ping")]
+    public static partial DataFusionErrorCode Ping(RuntimeSafeHandle runtimeHandle, ulong timeoutMilliseconds, IntPtr callback, ulong userData);
     
     // Context
     

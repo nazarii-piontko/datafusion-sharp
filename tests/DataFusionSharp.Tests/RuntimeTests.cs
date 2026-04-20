@@ -41,7 +41,7 @@ public sealed class RuntimeTests
         runtime.Dispose();
 
         // Act & Assert
-        Assert.Throws<ObjectDisposedException>(() => runtime.CreateSessionContext());
+        Assert.Throws<ObjectDisposedException>(runtime.CreateSessionContext);
     }
     
     [Fact]
@@ -54,6 +54,6 @@ public sealed class RuntimeTests
         runtime.Shutdown();
 
         // Assert
-        Assert.Throws<ObjectDisposedException>(() => runtime.CreateSessionContext());
+        Assert.Throws<ObjectDisposedException>(runtime.CreateSessionContext);
     }
 }

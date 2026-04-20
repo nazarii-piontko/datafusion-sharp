@@ -41,6 +41,26 @@ public sealed class DataFusionRuntime : IDisposable
 
         return new DataFusionRuntime(new RuntimeSafeHandle(handle));
     }
+
+    /// <summary>
+    /// Pings the runtime to check if it is responsive.
+    /// This is used for testing purposes.
+    /// </summary>
+    /// <param name="timeout">Operation timeout.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <exception cref="DataFusionException">Thrown when the ping operation fails.</exception>
+    internal Task PingAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+        var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMicroseconds, GenericCallbacks.CallbackForVoidHandle, id);
+        if (result != DataFusionErrorCode.Ok)
+        {
+            AsyncOperations.Instance.Abort(id);
+            throw new DataFusionException(result, "Failed to send ping to DataFusion runtime");
+        }
+        return tcs.Task;
+    }
     
     /// <summary>
     /// Creates a new session context for executing queries.

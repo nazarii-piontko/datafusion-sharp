@@ -163,6 +163,7 @@ public sealed partial class SessionContext : IDisposable
     /// Executes a SQL query and returns the result as a DataFrame.
     /// </summary>
     /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="cancellationToken">An optional cancellation token to cancel the query execution.</param>
     /// <returns>A task containing the resulting <see cref="DataFrame"/>.</returns>
     /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
     /// <example>
@@ -170,11 +171,11 @@ public sealed partial class SessionContext : IDisposable
     /// var df = await session.SqlAsync("SELECT * FROM my_table");
     /// </code>
     /// </example>
-    public async Task<DataFrame> SqlAsync(string sql)
+    public async Task<DataFrame> SqlAsync(string sql, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sql);
         
-        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
+        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
         var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, CallbackForSqlAsyncHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
@@ -191,6 +192,7 @@ public sealed partial class SessionContext : IDisposable
     /// </summary>
     /// <param name="sql">The SQL query to execute, which can contain named parameter placeholders (e.g., $paramName).</param>
     /// <param name="parameters">A named parameters to bind to the query.</param>
+    /// <param name="cancellationToken">An optional cancellation token to cancel the query execution.</param>
     /// <returns>A task containing the resulting <see cref="DataFrame"/>.</returns>
     /// <exception cref="DataFusionException">Thrown when query execution fails.</exception>
     /// <example>
@@ -198,7 +200,7 @@ public sealed partial class SessionContext : IDisposable
     /// var df = await session.SqlAsync("SELECT * FROM my_table WHERE id = $id", [("id", 123)]);
     /// </code>
     /// </example>
-    public async Task<DataFrame> SqlAsync(string sql, IEnumerable<NamedScalarValueAndMetadata> parameters)
+    public async Task<DataFrame> SqlAsync(string sql, IEnumerable<NamedScalarValueAndMetadata> parameters, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sql);
         ArgumentNullException.ThrowIfNull(parameters);
@@ -206,7 +208,7 @@ public sealed partial class SessionContext : IDisposable
         Task<DataFrameSafeHandle> task;
         using (var paramValuesData = PinnedBytesData.FromMessage(parameters.ToProto()))
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>();
+            var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
             var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), CallbackForSqlAsyncHandle, id);
             if (result != DataFusionErrorCode.Ok)
             {
