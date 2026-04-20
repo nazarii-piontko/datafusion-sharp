@@ -53,7 +53,7 @@ public sealed class DataFusionRuntime : IDisposable
     internal Task PingAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMicroseconds, GenericCallbacks.CallbackForVoidHandle, id);
+        var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMilliseconds, GenericCallbacks.CallbackForVoidHandle, id);
         if (result != DataFusionErrorCode.Ok)
         {
             AsyncOperations.Instance.Abort(id);

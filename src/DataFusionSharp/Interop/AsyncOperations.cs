@@ -12,9 +12,14 @@ internal sealed class AsyncOperations
         
         public object? UserData { get; init; }
         
-        public CancellationTokenRegistration CancellationTokenRegistration { get; set; }
+        public CancellationTokenRegistration CancellationTokenCallbackRegistration { get; set; }
 
         public abstract void Cancel();
+
+        public void UnregisterCancellationCallback()
+        {
+            CancellationTokenCallbackRegistration.Unregister();
+        }
     }
     
     private sealed class Operation<TResult> : Operation
@@ -59,9 +64,9 @@ internal sealed class AsyncOperations
         while (!_operations.TryAdd(id, op))
             id = Interlocked.Increment(ref _nextId);
         
-        // Create registration after adding to dictionary to avoid race condition where cancellation could occur before the operation is added
         op.Id = id;
-        op.CancellationTokenRegistration = cancellationToken.Register(OnOperationCancelled, op);
+        // Create registration after adding to dictionary to avoid race condition where cancellation could occur before the operation is added
+        op.CancellationTokenCallbackRegistration = cancellationToken.Register(OnOperationCancelled, op);
         
         return (id, tcs);
     }
@@ -85,9 +90,9 @@ internal sealed class AsyncOperations
         while (!_operations.TryAdd(id, op))
             id = Interlocked.Increment(ref _nextId);
 
-        // Create registration after adding to dictionary to avoid race condition where cancellation could occur before the operation is added
         op.Id = id;
-        op.CancellationTokenRegistration = cancellationToken.Register(OnOperationCancelled, op);
+        // Create registration after adding to dictionary to avoid race condition where cancellation could occur before the operation is added
+        op.CancellationTokenCallbackRegistration = cancellationToken.Register(OnOperationCancelled, op);
         
         return (id, tcs);
     }
@@ -102,13 +107,15 @@ internal sealed class AsyncOperations
     public void Abort(ulong id)
     {
         if (_operations.TryRemove(id, out var op))
-            op.CancellationTokenRegistration.Dispose();
+            op.UnregisterCancellationCallback();
     }
     
     public void CompleteVoid(ulong id, Exception? exception = null)
     {
         if (!_operations.TryRemove(id, out var t) || t is not OperationVoid op)
             return;
+        
+        op.UnregisterCancellationCallback();
 
         switch (exception)
         {
@@ -129,6 +136,8 @@ internal sealed class AsyncOperations
         if (!_operations.TryRemove(id, out var t) || t is not Operation<TResult> op)
             return;
         
+        op.UnregisterCancellationCallback();
+        
         if (exception is DataFusionException { ErrorCode: DataFusionErrorCode.Canceled })
             op.TaskCompletionSource.TrySetCanceled();
         else
@@ -139,6 +148,8 @@ internal sealed class AsyncOperations
     {
         if (!_operations.TryRemove(id, out var t) || t is not Operation<TResult> op)
             return;
+        
+        op.UnregisterCancellationCallback();
         
         op.TaskCompletionSource.TrySetResult(result);
     }
@@ -152,11 +163,11 @@ internal sealed class AsyncOperations
             
         // If result is OK the native code will inform us when the operation is cancelled, so we don't need to do anything here.
         // If it's not OK, it means the operation has already completed or is in the process of completing, so we can just remove it.
-        if (result != DataFusionErrorCode.Ok &&
-            Instance._operations.TryRemove(op.Id, out _))
-        { 
-            op.Cancel();
-            op.CancellationTokenRegistration.Dispose();
-        }
+        if (result == DataFusionErrorCode.Ok ||
+            !Instance._operations.TryRemove(op.Id, out _))
+            return;
+        
+        op.UnregisterCancellationCallback();
+        op.Cancel();
     }
 }
