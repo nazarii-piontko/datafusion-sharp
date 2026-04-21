@@ -14,9 +14,7 @@ macro_rules! ffi_ref {
 /// Converts a raw optional pointer to a reference.
 #[macro_export]
 macro_rules! ffi_opt_ref {
-    ($ptr:expr) => {{
-        unsafe { $ptr.as_ref() }
-    }};
+    ($ptr:expr) => {{ unsafe { $ptr.as_ref() } }};
 }
 
 /// Converts a raw pointer to a mutable reference.

@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use log::{debug, error, warn};
+use std::sync::Arc;
 
 pub type RuntimeHandle = Arc<tokio::runtime::Runtime>;
 
@@ -17,13 +17,16 @@ pub type RuntimeHandle = Arc<tokio::runtime::Runtime>;
 pub unsafe extern "C" fn datafusion_runtime_new(
     worker_threads: u32,
     max_blocking_threads: u32,
-    runtime_ptr: *mut *mut RuntimeHandle) -> crate::ErrorCode {
+    runtime_ptr: *mut *mut RuntimeHandle,
+) -> crate::ErrorCode {
     if runtime_ptr.is_null() {
         error!("Failed to create runtime: invalid output pointer");
         return crate::ErrorCode::InvalidArgument;
     }
 
-    debug!("Creating Tokio runtime with worker_threads={worker_threads}, max_blocking_threads={max_blocking_threads}");
+    debug!(
+        "Creating Tokio runtime with worker_threads={worker_threads}, max_blocking_threads={max_blocking_threads}"
+    );
 
     let mut builder = tokio::runtime::Builder::new_multi_thread();
 
@@ -40,16 +43,20 @@ pub unsafe extern "C" fn datafusion_runtime_new(
     match builder.build() {
         Ok(runtime) => {
             let runtime_handle: RuntimeHandle = Arc::new(runtime);
-            unsafe { *runtime_ptr = Box::into_raw(Box::new(runtime_handle)); }
+            unsafe {
+                *runtime_ptr = Box::into_raw(Box::new(runtime_handle));
+            }
 
-            debug!("Created Tokio runtime with worker_threads={worker_threads}, max_blocking_threads={max_blocking_threads}, runtime_ptr={runtime_ptr:p}");
+            debug!(
+                "Created Tokio runtime with worker_threads={worker_threads}, max_blocking_threads={max_blocking_threads}, runtime_ptr={runtime_ptr:p}"
+            );
 
             crate::ErrorCode::Ok
         }
         Err(err) => {
             error!("Failed to create runtime: {err}");
             crate::ErrorCode::RuntimeInitializationFailed
-        },
+        }
     }
 }
 
@@ -64,7 +71,9 @@ pub unsafe extern "C" fn datafusion_runtime_new(
 /// # Parameters
 /// - `runtime`: Pointer to the runtime to destroy
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHandle) -> crate::ErrorCode {
+pub unsafe extern "C" fn datafusion_runtime_destroy(
+    runtime_ptr: *mut RuntimeHandle,
+) -> crate::ErrorCode {
     if runtime_ptr.is_null() {
         warn!("Destroying runtime: null pointer, ignoring");
         return crate::ErrorCode::Ok;
@@ -83,7 +92,10 @@ pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHan
             crate::ErrorCode::Ok
         }
         Err(arc) => {
-            error!("Failed to destroy runtime: {} strong references remain", Arc::strong_count(&arc));
+            error!(
+                "Failed to destroy runtime: {} strong references remain",
+                Arc::strong_count(&arc)
+            );
 
             crate::ErrorCode::RuntimeInitializationFailed
         }

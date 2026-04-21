@@ -5,20 +5,20 @@ pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/datafusion_sharp_proto.rs"));
 }
 
-mod mappers;
-pub mod error;
-pub mod common;
-pub mod logger;
 pub mod cancellation;
-pub mod runtime;
+pub mod common;
 pub mod context;
 pub mod dataframe;
+pub mod error;
+pub mod logger;
+mod mappers;
 pub mod memory_store;
+pub mod runtime;
 
-pub use proto::*;
-pub use error::*;
 pub use common::*;
+pub use error::*;
+pub use proto::*;
 
-pub use runtime::*;
 pub use context::*;
 pub use dataframe::*;
+pub use runtime::*;

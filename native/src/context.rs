@@ -102,6 +102,8 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
         None => None,
     };
 
+    let cancellation_guard = crate::cancellation::create_token(user_data);
+
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
             csv_options_proto.as_ref().and_then(|o| o.schema.as_ref()),
@@ -119,11 +121,12 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
 
         match mappers::from_proto_csv_options(csv_options_proto.as_ref(), schema_opt.as_ref()) {
             Ok(opts) => {
-                let result = context
-                    .inner
-                    .register_csv(&table_ref, &table_path, opts)
-                    .await
-                    .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e));
+                let result = select! {
+                    r = context.inner.register_csv(&table_ref, &table_path, opts) => {
+                        r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
+                    }
+                    _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                };
 
                 crate::invoke_callback(result, callback, user_data);
             }
@@ -176,6 +179,8 @@ pub unsafe extern "C" fn datafusion_context_register_json(
         None => None,
     };
 
+    let cancellation_guard = crate::cancellation::create_token(user_data);
+
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
             json_options_proto.as_ref().and_then(|o| o.schema.as_ref()),
@@ -196,11 +201,12 @@ pub unsafe extern "C" fn datafusion_context_register_json(
             schema_opt.as_ref(),
         ) {
             Ok(opts) => {
-                let result = context
-                    .inner
-                    .register_json(&table_ref, &table_path, opts)
-                    .await
-                    .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e));
+                let result = select! {
+                    r = context.inner.register_json(&table_ref, &table_path, opts) => {
+                        r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
+                    }
+                    _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                };
 
                 crate::invoke_callback(result, callback, user_data);
             }
@@ -255,6 +261,8 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
         None => None,
     };
 
+    let cancellation_guard = crate::cancellation::create_token(user_data);
+
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
             parquet_options_proto
@@ -277,11 +285,12 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
             schema_opt.as_ref(),
         ) {
             Ok(opts) => {
-                let result = context
-                    .inner
-                    .register_parquet(&table_ref, &table_path, opts)
-                    .await
-                    .map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e));
+                let result = select! {
+                    r = context.inner.register_parquet(&table_ref, &table_path, opts) => {
+                        r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
+                    }
+                    _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                };
 
                 crate::invoke_callback(result, callback, user_data);
             }
@@ -442,7 +451,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
                     })
                 .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e))
             }
-            _  = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+            _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
         };
 
         trace!("Executed SQL query: {sql} on session 0x{context_ptr_addr:x}");

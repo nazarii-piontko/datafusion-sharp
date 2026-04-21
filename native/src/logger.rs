@@ -2,11 +2,7 @@ use log::{LevelFilter, Log, Metadata, Record};
 
 use crate::{BytesData, ErrorCode};
 
-pub type LogCallback = unsafe extern "C" fn(
-    level: u32,
-    target: BytesData,
-    message: BytesData,
-);
+pub type LogCallback = unsafe extern "C" fn(level: u32, target: BytesData, message: BytesData);
 
 struct DataFusionLogger {
     callback: LogCallback,
@@ -22,7 +18,9 @@ impl Log for DataFusionLogger {
         let message = record.args().to_string();
         let message_bytes = BytesData::new(message.as_bytes());
 
-        unsafe { (self.callback)(record.level() as u32, target_bytes, message_bytes); }
+        unsafe {
+            (self.callback)(record.level() as u32, target_bytes, message_bytes);
+        }
     }
 
     fn flush(&self) {}

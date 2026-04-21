@@ -1,23 +1,23 @@
-use std::sync::Arc;
 use log::{debug, error, warn};
+use std::sync::Arc;
 
+use object_store::memory::InMemory;
 use object_store::path::Path;
 use object_store::{ObjectStoreExt, PutPayload};
-use object_store::memory::InMemory;
 
-use crate::{BytesData, Callback, ErrorCode};
 use crate::error::ErrorInfo;
+use crate::{BytesData, Callback, ErrorCode};
 
 pub struct InMemoryStoreWrapper {
     runtime: crate::RuntimeHandle,
-    inner: Arc<InMemory>
+    inner: Arc<InMemory>,
 }
 
 impl InMemoryStoreWrapper {
     pub(crate) fn new(runtime: &crate::RuntimeHandle) -> Self {
         Self {
             runtime: Arc::clone(runtime),
-            inner: Arc::new(InMemory::new())
+            inner: Arc::new(InMemory::new()),
         }
     }
 
@@ -35,7 +35,7 @@ impl InMemoryStoreWrapper {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_in_memory_store_new(
     runtime_ptr: *mut crate::RuntimeHandle,
-    store_ptr: *mut *mut InMemoryStoreWrapper
+    store_ptr: *mut *mut InMemoryStoreWrapper,
 ) -> ErrorCode {
     if store_ptr.is_null() {
         error!("Received null output pointer for store");
@@ -62,7 +62,9 @@ pub unsafe extern "C" fn datafusion_in_memory_store_new(
 /// - `store_ptr` must be a valid pointer returned by `datafusion_in_memory_store_new`, or null
 /// - Caller must not use `store_ptr` after this call
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn datafusion_in_memory_store_destroy(store_ptr: *mut InMemoryStoreWrapper) -> ErrorCode {
+pub unsafe extern "C" fn datafusion_in_memory_store_destroy(
+    store_ptr: *mut InMemoryStoreWrapper,
+) -> ErrorCode {
     debug!("Destroying in-memory store {store_ptr:p}");
 
     if store_ptr.is_null() {
@@ -91,12 +93,15 @@ pub unsafe extern "C" fn datafusion_in_memory_store_put(
     data_bytes: BytesData,
     copy: bool,
     callback: Callback,
-    user_data: u64
+    user_data: u64,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
 
-    debug!("Putting data to in-memory store {store_ptr:p} at path '{path_str}' with data length {}, copy={copy}", data_bytes.len());
+    debug!(
+        "Putting data to in-memory store {store_ptr:p} at path '{path_str}' with data length {}, copy={copy}",
+        data_bytes.len()
+    );
 
     let store = Arc::clone(&store_wrapper.inner);
 
@@ -107,7 +112,9 @@ pub unsafe extern "C" fn datafusion_in_memory_store_put(
     };
 
     store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else { return };
+        let Some(path) = parse_path(&path_str, callback, user_data) else {
+            return;
+        };
 
         let payload = PutPayload::from_bytes(bytes);
 
@@ -134,7 +141,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_get(
     store_ptr: *mut InMemoryStoreWrapper,
     path_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64
+    user_data: u64,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
@@ -144,16 +151,30 @@ pub unsafe extern "C" fn datafusion_in_memory_store_get(
     let store = Arc::clone(&store_wrapper.inner);
 
     store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else { return };
+        let Some(path) = parse_path(&path_str, callback, user_data) else {
+            return;
+        };
 
         let get_result = match store.get(&path).await {
             Ok(r) => r,
-            Err(e) => return crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::ObjectStoreError, e), callback, user_data)
+            Err(e) => {
+                return crate::invoke_callback_error(
+                    &ErrorInfo::new(ErrorCode::ObjectStoreError, e),
+                    callback,
+                    user_data,
+                );
+            }
         };
 
         let bytes = match get_result.bytes().await {
             Ok(r) => r,
-            Err(e) => return crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::ObjectStoreError, e), callback, user_data)
+            Err(e) => {
+                return crate::invoke_callback_error(
+                    &ErrorInfo::new(ErrorCode::ObjectStoreError, e),
+                    callback,
+                    user_data,
+                );
+            }
         };
 
         let bytes_data = BytesData::new(bytes.as_ref());
@@ -174,7 +195,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_delete(
     store_ptr: *mut InMemoryStoreWrapper,
     path_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64
+    user_data: u64,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
@@ -184,7 +205,9 @@ pub unsafe extern "C" fn datafusion_in_memory_store_delete(
     let store = Arc::clone(&store_wrapper.inner);
 
     store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else { return };
+        let Some(path) = parse_path(&path_str, callback, user_data) else {
+            return;
+        };
 
         let result = store
             .delete(&path)
