@@ -52,11 +52,14 @@ public sealed class DataFusionRuntime : IDisposable
     /// <exception cref="DataFusionException">Thrown when the ping operation fails.</exception>
     internal Task PingAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMilliseconds, GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to send ping to DataFusion runtime.", cancellationToken);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMilliseconds, &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to send ping to DataFusion runtime.", cancellationToken);
 
-        return tcs.Task;
+            return tcs.Task;
+        }
     }
     
     /// <summary>

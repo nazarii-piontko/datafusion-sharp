@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Apache.Arrow;
 using DataFusionSharp.Formats;
@@ -16,7 +17,7 @@ namespace DataFusionSharp;
 /// is called (e.g., <see cref="CollectAsync"/>, <see cref="ExecuteStreamAsync"/>, or one of the Write methods).
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
-public sealed partial class DataFrame : IDisposable, ICloneable
+public sealed class DataFrame : IDisposable, ICloneable
 {
     private readonly DataFrameSafeHandle _handle;
 
@@ -48,11 +49,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         ArgumentNullException.ThrowIfNull(parameters);
 
         using var paramValuesData = PinnedBytesData.FromMessage(parameters.ToProto());
-        
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start DataFrame with SQL parameters parameterization.");
-        
+
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start DataFrame with SQL parameters parameterization.");
+        }
+
         return this;
     }
 
@@ -64,11 +68,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<ulong> CountAsync(CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<ulong>(cancellationToken);
-        var result = NativeMethods.DataFrameCount(_handle, CallbackForCountAsyncHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start counting rows in DataFrame.", cancellationToken);
-        
-        return tcs.Task;
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create<ulong>(cancellationToken);
+            var result = NativeMethods.DataFrameCount(_handle, &CallbackForCountAsync, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start counting rows in DataFrame.", cancellationToken);
+
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -82,12 +89,15 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     {
         if (limit.HasValue)
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit.Value);
-        
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start showing DataFrame.", cancellationToken);
-        
-        return tcs.Task;
+
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start showing DataFrame.", cancellationToken);
+
+            return tcs.Task;
+        }
     }
     
     /// <summary>
@@ -98,11 +108,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<string> ToStringAsync(CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<string>(cancellationToken);
-        var result = NativeMethods.DataFrameToString(_handle, GenericCallbacks.CallbackForStringHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start converting DataFrame to string.", cancellationToken);
-        
-        return tcs.Task;
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create<string>(cancellationToken);
+            var result = NativeMethods.DataFrameToString(_handle, &GenericCallbacks.CallbackForString, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start converting DataFrame to string.", cancellationToken);
+
+            return tcs.Task;
+        }
     }
     
     /// <summary>
@@ -112,10 +125,13 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Schema GetSchema()
     {
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameSchema(_handle, CallbackForGetSchemaHandle, id);
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.DataFrameSchema(_handle, &CallbackForGetSchema, id);
 
-        return SyncOperations.Instance.TakeResult<Schema>(id, result, "Failed to start getting DataFrame schema.");
+            return SyncOperations.Instance.TakeResult<Schema>(id, result, "Failed to start getting DataFrame schema.");
+        }
     }
     
     /// <summary>
@@ -126,11 +142,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public Task<DataFrameCollectedResult> CollectAsync(CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>(cancellationToken);
-        var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start collecting DataFrame.", cancellationToken);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>(cancellationToken);
+            var result = NativeMethods.DataFrameCollect(_handle, &CallbackForCollect, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start collecting DataFrame.", cancellationToken);
 
-        return tcs.Task;
+            return tcs.Task;
+        }
     }
     
     /// <summary>
@@ -141,11 +160,17 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
     public async Task<DataFrameStream> ExecuteStreamAsync(CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>(cancellationToken);
-        var result = NativeMethods.DataFrameExecuteStream(_handle, CallbackForExecutedStreamHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing stream on DataFrame.", cancellationToken);
-
-        var (schema, streamHandle) = await tcs.Task.ConfigureAwait(false);
+        Task<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)> executeStreamTask;
+        
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>(cancellationToken);
+            var result = NativeMethods.DataFrameExecuteStream(_handle, &CallbackForExecutedStream, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing stream on DataFrame.", cancellationToken);
+            executeStreamTask = tcs.Task;
+        }
+        
+        var (schema, streamHandle) = await executeStreamTask.ConfigureAwait(false);
 
         return new DataFrameStream(this, schema, streamHandle);
     }
@@ -166,11 +191,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
         using var csvOptionsData = PinnedBytesData.FromMessage(csvWriteOptions?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.DataFrameWriteCsv(_handle, path, dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to CSV.", cancellationToken);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.DataFrameWriteCsv(_handle, path, dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to CSV.", cancellationToken);
 
-        return tcs.Task;
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -189,11 +217,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
         using var optionsData = PinnedBytesData.FromMessage(jsonWriteOptions?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.DataFrameWriteJson(_handle, path, dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to JSON.", cancellationToken);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.DataFrameWriteJson(_handle, path, dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to JSON.", cancellationToken);
 
-        return tcs.Task;
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -212,11 +243,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
         using var parquetOptionsData = PinnedBytesData.FromMessage(parquetWriteOptions?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.DataFrameWriteParquet(_handle, path, dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to Parquet.", cancellationToken);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.DataFrameWriteParquet(_handle, path, dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to Parquet.", cancellationToken);
 
-        return tcs.Task;
+            return tcs.Task;
+        }
     }
     
     /// <summary>
@@ -239,7 +273,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         _handle.Dispose();
     }
     
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void CallbackForClone(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)
@@ -256,7 +290,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         AsyncOperations.Instance.CompleteWithResult(handle, clonedDataFrameSafeHandle);
     }
     
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void CallbackForCountAsync(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)
@@ -269,7 +303,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         AsyncOperations.Instance.CompleteWithResult(handle, (ulong)Marshal.ReadInt64(result));
     }
     
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe void CallbackForGetSchema(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)
@@ -293,7 +327,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         SyncOperations.Instance.CompleteWithResult(handle, schema);
     }
     
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe void CallbackForCollect(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)
@@ -356,7 +390,7 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         }
     }
     
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe void CallbackForExecutedStream(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)

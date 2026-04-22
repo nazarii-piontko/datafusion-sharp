@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Apache.Arrow;
 using DataFusionSharp.Interop;
 
@@ -21,7 +23,7 @@ namespace DataFusionSharp;
 /// </code>
 /// </example>
 #pragma warning disable CA1711 // Identifiers should not have incorrect suffix
-public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
+public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 #pragma warning restore CA1711
 {
     private readonly DataFrameStreamSafeHandle _handle;
@@ -71,11 +73,17 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
     
     private async Task<RecordBatch?> NextAsync(CancellationToken cancellationToken)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema, cancellationToken);
-        var result = NativeMethods.DataFrameStreamNext(_handle, CallbackForNextResultHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start getting next batch from stream.", cancellationToken);
-        
-        var batch = await tcs.Task.ConfigureAwait(false);
+        Task<RecordBatch?> dfStreamNextTask;
+
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema, cancellationToken);
+            var result = NativeMethods.DataFrameStreamNext(_handle, &CallbackForNextResult, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start getting next batch from stream.", cancellationToken);
+            dfStreamNextTask = tcs.Task;
+        }
+
+        var batch = await dfStreamNextTask.ConfigureAwait(false);
 
         if (batch is not null)
             _batches.Add(batch); // Keep track of batches to dispose them when the stream is disposed.
@@ -83,7 +91,7 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
         return batch;
     }
 
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe void CallbackForNextResult(IntPtr result, IntPtr error, ulong userData)
     {
         if (error != IntPtr.Zero)

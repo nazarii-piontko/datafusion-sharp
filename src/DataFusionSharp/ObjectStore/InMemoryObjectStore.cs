@@ -47,11 +47,14 @@ public sealed class InMemoryObjectStore : IDisposable
         using var pinnedData = PinnedBytesData.FromMemory(data);
         var bytesData = pinnedData.ToBytesData();
         
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, true, GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to put object into in-memory store.", cancellationToken);
-        
-        return tcs.Task;
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, true, &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to put object into in-memory store.", cancellationToken);
+            
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -75,12 +78,15 @@ public sealed class InMemoryObjectStore : IDisposable
         ArgumentException.ThrowIfNullOrEmpty(path);
         
         var bytesData = BytesData.FromPinned(memoryHandle, length);
-        
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, false, GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to put object into in-memory store.", cancellationToken);
-        
-        return tcs.Task;
+
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, false, &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to put object into in-memory store.", cancellationToken);
+            
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -94,12 +100,15 @@ public sealed class InMemoryObjectStore : IDisposable
     public Task<byte[]> GetAsync(string path, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        
-        var (id, tcs) = AsyncOperations.Instance.Create<byte[]>(cancellationToken);
-        var result = NativeMethods.InMemoryStoreGet(Handle, path, GenericCallbacks.CallbackForBytesHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to get object from in-memory store.", cancellationToken);
-        
-        return tcs.Task;
+
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create<byte[]>(cancellationToken);
+            var result = NativeMethods.InMemoryStoreGet(Handle, path, &GenericCallbacks.CallbackForBytes, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to get object from in-memory store.", cancellationToken);
+            
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -114,12 +123,15 @@ public sealed class InMemoryObjectStore : IDisposable
     public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.InMemoryStoreDelete(Handle, path, GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to delete object from in-memory store.", cancellationToken);
-        
-        return tcs.Task;
+
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.InMemoryStoreDelete(Handle, path, &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to delete object from in-memory store.", cancellationToken);
+            
+            return tcs.Task;
+        }
     }
 
     /// <inheritdoc />

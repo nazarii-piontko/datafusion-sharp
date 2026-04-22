@@ -169,13 +169,6 @@
         <Protobuf Include="../../proto/vendor/*.proto" ProtoRoot="../../proto" GrpcServices="None"  Visible="false" />
     </ItemGroup>
 
-    <!-- Source generator reference -->
-    <ItemGroup>
-        <ProjectReference Include="../DataFusionSharp.SourceGenerators/DataFusionSharp.SourceGenerators.csproj"
-                          OutputItemType="Analyzer"
-                          ReferenceOutputAssembly="false" />
-    </ItemGroup>
-
     <!-- InternalsVisibleTo for unit testing -->
     <ItemGroup>
         <InternalsVisibleTo Include="DataFusionSharp.Tests" />

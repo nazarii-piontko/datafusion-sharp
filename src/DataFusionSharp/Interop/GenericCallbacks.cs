@@ -1,22 +1,25 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
 namespace DataFusionSharp.Interop;
 
-internal static partial class GenericCallbacks
+internal static class GenericCallbacks
 {
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     internal static void CallbackForVoid(IntPtr _, IntPtr error, ulong handle)
     {
         var ex = error != IntPtr.Zero ? ErrorInfoData.FromIntPtr(error).ToException() : null;
         AsyncOperations.Instance.CompleteVoid(handle, ex);
     }
     
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     internal static void CallbackForVoidSync(IntPtr _, IntPtr error, ulong handle)
     {
         var ex = error != IntPtr.Zero ? ErrorInfoData.FromIntPtr(error).ToException() : null;
         SyncOperations.Instance.CompleteVoid(handle, ex);
     }
 
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     internal static void CallbackForString(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)
@@ -31,7 +34,7 @@ internal static partial class GenericCallbacks
         AsyncOperations.Instance.CompleteWithResult(handle, dataStr);
     }
     
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     internal static void CallbackForBytes(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)

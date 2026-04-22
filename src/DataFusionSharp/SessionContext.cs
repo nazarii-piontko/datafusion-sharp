@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Apache.Arrow;
 using DataFusionSharp.Formats.Csv;
@@ -16,7 +17,7 @@ namespace DataFusionSharp;
 /// Multiple session contexts can be created from a single <see cref="DataFusionRuntime"/> for isolated query environments.
 /// This class is not thread-safe. Do not call methods on the same instance concurrently from multiple threads.
 /// </remarks>
-public sealed partial class SessionContext : IDisposable
+public sealed class SessionContext : IDisposable
 {
     private readonly SessionContextSafeHandle _handle;
 
@@ -46,12 +47,15 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(filePath);
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
-        
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start CSV file registration.", cancellationToken);
 
-        return tcs.Task;
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start CSV file registration.", cancellationToken);
+
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -70,11 +74,14 @@ public sealed partial class SessionContext : IDisposable
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start JSON file registration.", cancellationToken);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start JSON file registration.", cancellationToken);
 
-        return tcs.Task;
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -93,11 +100,14 @@ public sealed partial class SessionContext : IDisposable
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start Parquet file registration.", cancellationToken);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start Parquet file registration.", cancellationToken);
 
-        return tcs.Task;
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -122,9 +132,12 @@ public sealed partial class SessionContext : IDisposable
         }
         using var memoryHandle = memoryStream.GetBuffer().AsMemory().Pin();
 
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterBatch(_handle, tableName, BytesData.FromPinned(memoryHandle, (int)memoryStream.Length), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start record batch registration.");
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.ContextRegisterBatch(_handle, tableName, BytesData.FromPinned(memoryHandle, (int)memoryStream.Length), &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start record batch registration.");
+        }
     }
 
     /// <summary>
@@ -138,11 +151,14 @@ public sealed partial class SessionContext : IDisposable
     {
         ArgumentNullException.ThrowIfNull(tableName);
 
-        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-        var result = NativeMethods.ContextDeregisterTable(_handle, tableName, GenericCallbacks.CallbackForVoidHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start table deregistration.", cancellationToken);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+            var result = NativeMethods.ContextDeregisterTable(_handle, tableName, &GenericCallbacks.CallbackForVoid, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start table deregistration.", cancellationToken);
 
-        return tcs.Task;
+            return tcs.Task;
+        }
     }
 
     /// <summary>
@@ -161,11 +177,17 @@ public sealed partial class SessionContext : IDisposable
     {
         ArgumentNullException.ThrowIfNull(sql);
         
-        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
-        var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, CallbackForSqlAsyncHandle, id);
-        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing SQL query.", cancellationToken);
+        Task<DataFrameSafeHandle> sqlTask;
 
-        var dataFrameSafeHandle = await tcs.Task.ConfigureAwait(false);
+        unsafe
+        {
+            var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
+            var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, &CallbackForSqlAsync, id);
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing SQL query.", cancellationToken);
+            sqlTask = tcs.Task;
+        }
+        
+        var dataFrameSafeHandle = await sqlTask.ConfigureAwait(false);
 
         return new DataFrame(this, dataFrameSafeHandle);
     }
@@ -191,11 +213,13 @@ public sealed partial class SessionContext : IDisposable
         Task<DataFrameSafeHandle> task;
         using (var paramValuesData = PinnedBytesData.FromMessage(parameters.ToProto()))
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
-            var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), CallbackForSqlAsyncHandle, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing SQL query.", cancellationToken);
-            
-            task = tcs.Task;
+            unsafe
+            {
+                var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
+                var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), &CallbackForSqlAsync, id);
+                AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing SQL query.", cancellationToken);
+                task = tcs.Task;
+            }
         }
         
         var dataFrameSafeHandle = await task.ConfigureAwait(false);
@@ -213,10 +237,13 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
-        
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterObjectStoreLocal(_handle, url, GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start local file system object store registration.");
+
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.ContextRegisterObjectStoreLocal(_handle, url, &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start local file system object store registration.");
+        }
     }
 
     /// <summary>
@@ -232,10 +259,13 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(url);
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
-        
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterObjectStoreS3(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start S3 object store registration.");
+
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.ContextRegisterObjectStoreS3(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start S3 object store registration.");
+        }
     }
 
     /// <summary>
@@ -251,10 +281,13 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(url);
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
-        
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterObjectStoreAzure(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start Azure Blob Storage object store registration.");
+
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.ContextRegisterObjectStoreAzure(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start Azure Blob Storage object store registration.");
+        }
     }
 
     /// <summary>
@@ -270,10 +303,13 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(url);
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
-        
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterObjectStoreGcs(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start Google Cloud Storage object store registration.");
+
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.ContextRegisterObjectStoreGcs(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start Google Cloud Storage object store registration.");
+        }
     }
 
     /// <summary>
@@ -289,10 +325,13 @@ public sealed partial class SessionContext : IDisposable
         ArgumentNullException.ThrowIfNull(url);
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
-        
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterObjectStoreHttp(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start HTTP object store registration.");
+
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.ContextRegisterObjectStoreHttp(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start HTTP object store registration.");
+        }
     }
     
     /// <summary>
@@ -308,10 +347,13 @@ public sealed partial class SessionContext : IDisposable
     {
         ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(store);
-        
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.ContextRegisterObjectStoreInMemory(_handle, url, store.Handle, GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start in-memory object store registration.");
+
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.ContextRegisterObjectStoreInMemory(_handle, url, store.Handle, &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start in-memory object store registration.");
+        }
     }
 
     /// <summary>
@@ -324,10 +366,13 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
-        
-        var id = SyncOperations.Instance.Create();
-        var result = NativeMethods.ContextDeregisterObjectStore(_handle, url, GenericCallbacks.CallbackForVoidSyncHandle, id);
-        SyncOperations.Instance.TakeResult(id, result, "Failed to start object store deregistration.");
+
+        unsafe
+        {
+            var id = SyncOperations.Instance.Create();
+            var result = NativeMethods.ContextDeregisterObjectStore(_handle, url, &GenericCallbacks.CallbackForVoidSync, id);
+            SyncOperations.Instance.TakeResult(id, result, "Failed to start object store deregistration.");
+        }
     }
 
     /// <inheritdoc />
@@ -336,7 +381,7 @@ public sealed partial class SessionContext : IDisposable
         _handle.Dispose();
     }
     
-    [DataFusionSharpNativeCallback]
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void CallbackForSqlAsync(IntPtr result, IntPtr error, ulong handle)
     {
         if (error != IntPtr.Zero)
