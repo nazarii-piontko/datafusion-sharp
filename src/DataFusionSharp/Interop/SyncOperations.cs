@@ -14,11 +14,6 @@ internal sealed class SyncOperations
         return Interlocked.Increment(ref _nextId);
     }
     
-    public void Abort(ulong id)
-    {
-        _operations.TryRemove(id, out _);
-    }
-    
     public void CompleteVoid(ulong id, Exception? exception)
     {
         _operations.TryAdd(id, new SyncOperationResult { Exception = exception });
@@ -34,19 +29,25 @@ internal sealed class SyncOperations
         _operations.TryAdd(id, new SyncOperationResult<TResult> { Exception = exception });
     }
     
-    public void TakeResult(ulong id)
+    public void TakeResult(ulong id, DataFusionErrorCode result, string errorMessage)
     {
-        if (!_operations.TryRemove(id, out var result) || result is not { } r)
+        if (!_operations.TryRemove(id, out var op) || op is not { } r)
             throw new DataFusionException(DataFusionErrorCode.Panic, "No result available for the given operation");
+        
+        if (result != DataFusionErrorCode.Ok)
+            throw new DataFusionException(result, errorMessage);
         
         if (r.Exception is not null)
             throw r.Exception;
     }
     
-    public TResult TakeResult<TResult>(ulong id)
+    public TResult TakeResult<TResult>(ulong id,DataFusionErrorCode result, string errorMessage)
     {
-        if (!_operations.TryRemove(id, out var result) || result is not SyncOperationResult<TResult> r)
+        if (!_operations.TryRemove(id, out var op) || op is not SyncOperationResult<TResult> r)
             throw new DataFusionException(DataFusionErrorCode.Panic, "No result available for the given operation");
+        
+        if (result != DataFusionErrorCode.Ok)
+            throw new DataFusionException(result, errorMessage);
         
         if (r.Exception is not null)
             throw r.Exception;

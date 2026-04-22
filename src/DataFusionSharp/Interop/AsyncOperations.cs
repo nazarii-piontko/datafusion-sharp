@@ -103,11 +103,21 @@ internal sealed class AsyncOperations
             return data;
         return default;
     }
-
-    public void Abort(ulong id)
+    
+    public void EnsureNativeCall(ulong id, DataFusionErrorCode result, string errorMessage, CancellationToken cancellationToken)
     {
-        if (_operations.TryRemove(id, out var op))
-            op.UnregisterCancellationCallback();
+        if (result != DataFusionErrorCode.Ok)
+        {
+            Abort(id);
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new DataFusionException(result, errorMessage);
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            Cancel(id);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
     }
     
     public void CompleteVoid(ulong id, Exception? exception = null)
@@ -152,6 +162,21 @@ internal sealed class AsyncOperations
         op.UnregisterCancellationCallback();
         
         op.TaskCompletionSource.TrySetResult(result);
+    }
+    
+    private void Abort(ulong id)
+    {
+        if (_operations.TryRemove(id, out var op))
+            op.UnregisterCancellationCallback();
+    }
+
+    private void Cancel(ulong id)
+    {
+        if (!_operations.TryRemove(id, out var op))
+            return;
+
+        NativeMethods.CancelOperation(op.Id);
+        op.UnregisterCancellationCallback();
     }
 
     private static void OnOperationCancelled(object? obj)

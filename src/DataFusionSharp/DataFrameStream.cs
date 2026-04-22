@@ -51,7 +51,7 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
     /// <returns>An async enumerator of <see cref="RecordBatch"/>.</returns>
     public async IAsyncEnumerator<RecordBatch> GetAsyncEnumerator(CancellationToken cancellationToken = default)
     {
-        while (await NextAsync().ConfigureAwait(false) is { } batch)
+        while (await NextAsync(cancellationToken).ConfigureAwait(false) is { } batch)
         {
             cancellationToken.ThrowIfCancellationRequested();
             yield return batch;
@@ -69,16 +69,11 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
         _handle.Dispose();
     }
     
-    private async Task<RecordBatch?> NextAsync()
+    private async Task<RecordBatch?> NextAsync(CancellationToken cancellationToken)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema);
-        
+        var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema, cancellationToken);
         var result = NativeMethods.DataFrameStreamNext(_handle, CallbackForNextResultHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start getting next batch from stream");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start getting next batch from stream.", cancellationToken);
         
         var batch = await tcs.Task.ConfigureAwait(false);
 

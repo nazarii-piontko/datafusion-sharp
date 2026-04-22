@@ -37,73 +37,66 @@ public sealed partial class SessionContext : IDisposable
     /// <param name="tableName">The name to use for the table.</param>
     /// <param name="filePath">The path to the CSV file.</param>
     /// <param name="options">Optional CSV read options to customize parsing behavior.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
-    public Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null)
+    public Task RegisterCsvAsync(string tableName, string filePath, CsvReadOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tableName);
         ArgumentNullException.ThrowIfNull(filePath);
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
         
-        var (id, tcs) = AsyncOperations.Instance.Create();
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
         var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start registering CSV file");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start CSV file registration.", cancellationToken);
 
         return tcs.Task;
     }
-    
+
     /// <summary>
     /// Registers a JSON file as a table in this session.
     /// </summary>
     /// <param name="tableName">The name to use for the table.</param>
     /// <param name="filePath">The path to the JSON file.</param>
     /// <param name="options">Optional JSON read options to customize parsing behavior.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
-    public Task RegisterJsonAsync(string tableName, string filePath, JsonReadOptions? options = null)
+    public Task RegisterJsonAsync(string tableName, string filePath, JsonReadOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tableName);
         ArgumentNullException.ThrowIfNull(filePath);
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create();
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
         var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start registering JSON file");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start JSON file registration.", cancellationToken);
+
         return tcs.Task;
     }
-    
+
     /// <summary>
     /// Registers a Parquet file as a table in this session.
     /// </summary>
     /// <param name="tableName">The name to use for the table.</param>
     /// <param name="filePath">The path to the Parquet file.</param>
     /// <param name="options">Optional Parquet read options to customize reading behavior.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when table registration fails.</exception>
-    public Task RegisterParquetAsync(string tableName, string filePath, ParquetReadOptions? options = null)
+    public Task RegisterParquetAsync(string tableName, string filePath, ParquetReadOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tableName);
         ArgumentNullException.ThrowIfNull(filePath);
         
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create();
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
         var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start registering Parquet file");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start Parquet file registration.", cancellationToken);
+
         return tcs.Task;
     }
 
@@ -131,31 +124,24 @@ public sealed partial class SessionContext : IDisposable
 
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterBatch(_handle, tableName, BytesData.FromPinned(memoryHandle, (int)memoryStream.Length), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to register record batch");
-        }
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start record batch registration.");
     }
-    
+
     /// <summary>
     /// Deregisters a table from this session.
     /// </summary>
     /// <param name="tableName">The name of the table to deregister.</param>
+    /// <param name="cancellationToken">An optional cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when table deregistration fails.</exception>
-    public Task DeregisterTableAsync(string tableName)
+    public Task DeregisterTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tableName);
 
-        var (id, tcs) = AsyncOperations.Instance.Create();
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
         var result = NativeMethods.ContextDeregisterTable(_handle, tableName, GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start deregistering table");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start table deregistration.", cancellationToken);
+
         return tcs.Task;
     }
 
@@ -177,13 +163,10 @@ public sealed partial class SessionContext : IDisposable
         
         var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
         var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, CallbackForSqlAsyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start executing SQL query");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing SQL query.", cancellationToken);
 
         var dataFrameSafeHandle = await tcs.Task.ConfigureAwait(false);
+
         return new DataFrame(this, dataFrameSafeHandle);
     }
     
@@ -210,16 +193,13 @@ public sealed partial class SessionContext : IDisposable
         {
             var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
             var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), CallbackForSqlAsyncHandle, id);
-            if (result != DataFusionErrorCode.Ok)
-            {
-                AsyncOperations.Instance.Abort(id);
-                throw new DataFusionException(result, "Failed to start executing SQL query");
-            }
+            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing SQL query.", cancellationToken);
             
             task = tcs.Task;
         }
         
         var dataFrameSafeHandle = await task.ConfigureAwait(false);
+
         return new DataFrame(this, dataFrameSafeHandle);
     }
     
@@ -236,12 +216,7 @@ public sealed partial class SessionContext : IDisposable
         
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreLocal(_handle, url, GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to register local file system object store");
-        }
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start local file system object store registration.");
     }
 
     /// <summary>
@@ -255,15 +230,12 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
+        
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
+        
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreS3(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to register S3 object store");
-        }
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start S3 object store registration.");
     }
 
     /// <summary>
@@ -277,15 +249,12 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
+        
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
+        
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreAzure(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to register Azure Blob Storage object store");
-        }
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start Azure Blob Storage object store registration.");
     }
 
     /// <summary>
@@ -299,15 +268,12 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
+        
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
+        
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreGcs(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to register Google Cloud Storage object store");
-        }
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start Google Cloud Storage object store registration.");
     }
 
     /// <summary>
@@ -321,15 +287,12 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
+        
         using var optionsData = PinnedBytesData.FromMessage(options?.ToProto());
+        
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreHttp(_handle, url, optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to register HTTP object store");
-        }
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start HTTP object store registration.");
     }
     
     /// <summary>
@@ -348,12 +311,7 @@ public sealed partial class SessionContext : IDisposable
         
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextRegisterObjectStoreInMemory(_handle, url, store.Handle, GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to register in-memory object store");
-        }
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start in-memory object store registration.");
     }
 
     /// <summary>
@@ -366,14 +324,10 @@ public sealed partial class SessionContext : IDisposable
 #pragma warning restore CA1054
     {
         ArgumentNullException.ThrowIfNull(url);
+        
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.ContextDeregisterObjectStore(_handle, url, GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to deregister object store");
-        }
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start object store deregistration.");
     }
 
     /// <inheritdoc />

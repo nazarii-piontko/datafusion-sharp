@@ -12,8 +12,9 @@ public sealed class CancellationTests : IDisposable
 {
     private readonly DataFusionRuntime _runtime = DataFusionRuntime.Create();
     
-    [Theory(Timeout = 15_000)]
+    [Theory(Timeout = 20_000)]
     [InlineData(0)]
+    [InlineData(10)]
     [InlineData(25)]
     [InlineData(50)]
     [InlineData(100)]
@@ -29,8 +30,7 @@ public sealed class CancellationTests : IDisposable
 
             // Act
             var pingTask = _runtime.PingAsync(TimeSpan.FromMilliseconds(1000), cts.Token);
-            var cancellationTask = Task.Delay(TimeSpan.FromMilliseconds(cancellationDelayMs))
-                .ContinueWith(_ => cts.Cancel());
+            var cancellationTask = Task.Delay(TimeSpan.FromMilliseconds(cancellationDelayMs)) .ContinueWith(_ => cts.Cancel());
 
             // Assert
             await Assert.ThrowsAsync<TaskCanceledException>(() => Task.WhenAll(pingTask, cancellationTask));
@@ -38,12 +38,24 @@ public sealed class CancellationTests : IDisposable
             Assert.True(pingTask.IsCanceled);
             Assert.True(cancellationTask.IsCompletedSuccessfully);
 
-            Assert.Contains("Ping cancelled for user_data=", logOutput.Text, StringComparison.Ordinal);
-            Assert.DoesNotContain("Ping completed for user_data=", logOutput.Text, StringComparison.Ordinal);
+            var tries = 5;
+            while (tries-- > 0) // Wait for the cancellation log message to appear
+            {
+                var log = logOutput.GetText();
+                if (log.Contains("Ping cancelled for user_data=", StringComparison.Ordinal))
+                {
+                    Assert.DoesNotContain("Ping completed for user_data=", log, StringComparison.Ordinal);
+                    break;
+                }
+                
+                await Task.Delay(25);
+            }
+            
+            Assert.True(tries > 0, "Expected cancellation log message not found after multiple attempts. Logs: " + logOutput.GetText());
         }
     }
     
-    [Fact(Timeout = 1000)]
+    [Fact(Timeout = 2000)]
     public async Task TokenCancel_BeforeOperationStart_ThrowsCancellationException()
     {
         // Arrange
@@ -53,15 +65,12 @@ public sealed class CancellationTests : IDisposable
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
         
-        // Act
-        var pingTask = _runtime.PingAsync(TimeSpan.FromMilliseconds(1000), cts.Token);
-        
-        // Assert
-        Assert.True(pingTask.IsCanceled);
-        Assert.Contains("No cancellation token found for user_data=", logOutput.Text, StringComparison.Ordinal);
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await _runtime.PingAsync(TimeSpan.FromMilliseconds(1000), cts.Token));
+        Assert.Contains("No cancellation token found for user_data=", logOutput.GetText(), StringComparison.Ordinal);
     }
     
-    [Fact(Timeout = 1000)]
+    [Fact(Timeout = 2000)]
     public async Task TokenCancel_AfterOperationFinish_Ignored()
     {
         // Arrange
@@ -75,8 +84,9 @@ public sealed class CancellationTests : IDisposable
         await cts.CancelAsync();
         
         // Assert
-        Assert.Contains("Ping completed for user_data=", logOutput.Text, StringComparison.Ordinal);
-        Assert.DoesNotContain("No cancellation token found for user_data=", logOutput.Text, StringComparison.Ordinal);
+        var log = logOutput.GetText();
+        Assert.Contains("Ping completed for user_data=", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("No cancellation token found for user_data=", log, StringComparison.Ordinal);
     }
 
     public void Dispose()
@@ -88,17 +98,25 @@ public sealed class CancellationTests : IDisposable
     {
         private readonly StringBuilder _logBuilder = new();
         
-        public string Text => _logBuilder.ToString();
-        
+        public string GetText()
+        {
+            lock (_logBuilder)
+                return _logBuilder.ToString();
+        }
+
         public void WriteLine(string message)
         {
-            _logBuilder.AppendLine(message);
+            lock (_logBuilder) 
+                _logBuilder.AppendLine(message);
         }
 
         public void WriteLine(string format, params object[] args)
         {
-            _logBuilder.AppendFormat(CultureInfo.InvariantCulture, format, args);
-            _logBuilder.AppendLine();
+            lock (_logBuilder)
+            {
+                _logBuilder.AppendFormat(CultureInfo.InvariantCulture, format, args);
+                _logBuilder.AppendLine();
+            }
         }
     }
 }

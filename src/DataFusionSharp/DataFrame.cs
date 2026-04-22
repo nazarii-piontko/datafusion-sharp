@@ -48,15 +48,10 @@ public sealed partial class DataFrame : IDisposable, ICloneable
         ArgumentNullException.ThrowIfNull(parameters);
 
         using var paramValuesData = PinnedBytesData.FromMessage(parameters.ToProto());
+        
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), GenericCallbacks.CallbackForVoidSyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            SyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to parameterize DataFrame with SQL parameters");
-        }
-        
-        SyncOperations.Instance.TakeResult(id);
+        SyncOperations.Instance.TakeResult(id, result, "Failed to start DataFrame with SQL parameters parameterization.");
         
         return this;
     }
@@ -64,17 +59,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <summary>
     /// Returns the number of rows in this DataFrame.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task containing the row count.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task<ulong> CountAsync()
+    public Task<ulong> CountAsync(CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<ulong>();
+        var (id, tcs) = AsyncOperations.Instance.Create<ulong>(cancellationToken);
         var result = NativeMethods.DataFrameCount(_handle, CallbackForCountAsyncHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start counting rows in DataFrame");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start counting rows in DataFrame.", cancellationToken);
         
         return tcs.Task;
     }
@@ -83,20 +75,17 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// Prints the DataFrame contents to stdout.
     /// </summary>
     /// <param name="limit">Maximum number of rows to display. If null, displays all rows.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task ShowAsync(ulong? limit = null)
+    public Task ShowAsync(ulong? limit = null, CancellationToken cancellationToken = default)
     {
         if (limit.HasValue)
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit.Value);
         
-        var (id, tcs) = AsyncOperations.Instance.Create();
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
         var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start showing DataFrame");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start showing DataFrame.", cancellationToken);
         
         return tcs.Task;
     }
@@ -104,17 +93,14 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <summary>
     /// Returns a string representation of the DataFrame contents.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task containing the string representation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task<string> ToStringAsync()
+    public Task<string> ToStringAsync(CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<string>();
+        var (id, tcs) = AsyncOperations.Instance.Create<string>(cancellationToken);
         var result = NativeMethods.DataFrameToString(_handle, GenericCallbacks.CallbackForStringHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start converting DataFrame to string");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start converting DataFrame to string.", cancellationToken);
         
         return tcs.Task;
     }
@@ -128,29 +114,21 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     {
         var id = SyncOperations.Instance.Create();
         var result = NativeMethods.DataFrameSchema(_handle, CallbackForGetSchemaHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start getting DataFrame schema");
-        }
 
-        return SyncOperations.Instance.TakeResult<Schema>(id);
+        return SyncOperations.Instance.TakeResult<Schema>(id, result, "Failed to start getting DataFrame schema.");
     }
     
     /// <summary>
     /// Collects all data from this DataFrame into memory.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task containing the <see cref="DataFrameCollectedResult"/> with all record batches and schema.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task<DataFrameCollectedResult> CollectAsync()
+    public Task<DataFrameCollectedResult> CollectAsync(CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>();
+        var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>(cancellationToken);
         var result = NativeMethods.DataFrameCollect(_handle, CallbackForCollectHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start collecting DataFrame");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start collecting DataFrame.", cancellationToken);
 
         return tcs.Task;
     }
@@ -158,19 +136,17 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <summary>
     /// Executes the query and returns a stream of record batches.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task containing a <see cref="DataFrameStream"/> for async enumeration.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public async Task<DataFrameStream> ExecuteStreamAsync()
+    public async Task<DataFrameStream> ExecuteStreamAsync(CancellationToken cancellationToken = default)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>();
+        var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>(cancellationToken);
         var result = NativeMethods.DataFrameExecuteStream(_handle, CallbackForExecutedStreamHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start executing stream on DataFrame");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing stream on DataFrame.", cancellationToken);
 
         var (schema, streamHandle) = await tcs.Task.ConfigureAwait(false);
+
         return new DataFrameStream(this, schema, streamHandle);
     }
 
@@ -180,24 +156,19 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <param name="path">The output file path.</param>
     /// <param name="dataFrameWriteOptions">Optional DataFrame writing options.</param>
     /// <param name="csvWriteOptions">Optional CSV writing options.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteCsvAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, CsvWriteOptions? csvWriteOptions = null)
+    public Task WriteCsvAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, CsvWriteOptions? csvWriteOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
         using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
         using var csvOptionsData = PinnedBytesData.FromMessage(csvWriteOptions?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteCsv(_handle, path,
-            dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(),
-            GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start writing DataFrame to CSV");
-        }
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+        var result = NativeMethods.DataFrameWriteCsv(_handle, path, dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to CSV.", cancellationToken);
 
         return tcs.Task;
     }
@@ -208,24 +179,19 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <param name="path">The output file path.</param>
     /// <param name="dataFrameWriteOptions">Optional DataFrame writing options.</param>
     /// <param name="jsonWriteOptions">Optional JSON writing jsonWriteOptions.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteJsonAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, JsonWriteOptions? jsonWriteOptions = null)
+    public Task WriteJsonAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, JsonWriteOptions? jsonWriteOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
         using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
         using var optionsData = PinnedBytesData.FromMessage(jsonWriteOptions?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteJson(_handle, path,
-            dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), 
-            GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start writing DataFrame to JSON");
-        }
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+        var result = NativeMethods.DataFrameWriteJson(_handle, path, dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to JSON.", cancellationToken);
 
         return tcs.Task;
     }
@@ -236,24 +202,19 @@ public sealed partial class DataFrame : IDisposable, ICloneable
     /// <param name="path">The output file path.</param>
     /// <param name="dataFrameWriteOptions">Optional DataFrame writing options.</param>
     /// <param name="parquetWriteOptions">Optional Parquet writing options.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteParquetAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, ParquetWriteOptions? parquetWriteOptions = null)
+    public Task WriteParquetAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, ParquetWriteOptions? parquetWriteOptions = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
         using var dataFrameOptionsData = PinnedBytesData.FromMessage(dataFrameWriteOptions?.ToProto());
         using var parquetOptionsData = PinnedBytesData.FromMessage(parquetWriteOptions?.ToProto());
 
-        var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.DataFrameWriteParquet(_handle, path,
-            dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(),
-            GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start writing DataFrame to Parquet");
-        }
+        var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
+        var result = NativeMethods.DataFrameWriteParquet(_handle, path, dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(), GenericCallbacks.CallbackForVoidHandle, id);
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to Parquet.", cancellationToken);
 
         return tcs.Task;
     }

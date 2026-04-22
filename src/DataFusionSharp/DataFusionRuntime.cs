@@ -54,11 +54,8 @@ public sealed class DataFusionRuntime : IDisposable
     {
         var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
         var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMilliseconds, GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
-        {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to send ping to DataFusion runtime");
-        }
+        AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to send ping to DataFusion runtime.", cancellationToken);
+
         return tcs.Task;
     }
     
