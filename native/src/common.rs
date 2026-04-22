@@ -1,7 +1,7 @@
 pub type Callback = unsafe extern "C" fn(
     result: *const std::ffi::c_void,
     error: *const ErrorInfoData,
-    user_data: u64,
+    user_data: isize,
 );
 
 #[repr(C)]
@@ -58,7 +58,7 @@ impl ErrorInfoData {
 pub(crate) fn invoke_callback<T>(
     result: Result<T, crate::ErrorInfo>,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) {
     match result {
         Ok(value) => invoke_callback_success(value, callback, user_data),
@@ -67,14 +67,18 @@ pub(crate) fn invoke_callback<T>(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub(crate) fn invoke_callback_success<T>(result: T, callback: Callback, user_data: u64) {
+pub(crate) fn invoke_callback_success<T>(result: T, callback: Callback, user_data: isize) {
     let value_ptr = (&raw const result).cast::<std::ffi::c_void>();
     unsafe {
         callback(value_ptr, std::ptr::null(), user_data);
     }
 }
 
-pub(crate) fn invoke_callback_error(error: &crate::ErrorInfo, callback: Callback, user_data: u64) {
+pub(crate) fn invoke_callback_error(
+    error: &crate::ErrorInfo,
+    callback: Callback,
+    user_data: isize,
+) {
     let err_info = ErrorInfoData::new(error);
     let err_into_ptr = &raw const err_info;
     unsafe {
@@ -82,7 +86,7 @@ pub(crate) fn invoke_callback_error(error: &crate::ErrorInfo, callback: Callback
     }
 }
 
-pub(crate) fn invoke_callback_null_result(callback: Callback, user_data: u64) {
+pub(crate) fn invoke_callback_null_result(callback: Callback, user_data: isize) {
     unsafe {
         callback(std::ptr::null(), std::ptr::null(), user_data);
     }

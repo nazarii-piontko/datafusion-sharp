@@ -113,7 +113,7 @@ pub unsafe extern "C" fn datafusion_ping(
     runtime_ptr: *mut RuntimeHandle,
     timeout_ms: u64,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> crate::ErrorCode {
     let runtime = ffi_ref!(runtime_ptr);
 
@@ -123,11 +123,11 @@ pub unsafe extern "C" fn datafusion_ping(
 
     runtime.spawn(async move {
         let result = tokio::select! {
-            _ = tokio::time::sleep(std::time::Duration::from_millis(timeout_ms)) => {
+            () = tokio::time::sleep(std::time::Duration::from_millis(timeout_ms)) => {
                 debug!("Ping completed for user_data={user_data}");
                 Ok(())
             },
-            _  = cancellation_guard.cancelled() => {
+            () = cancellation_guard.cancelled() => {
                 debug!("Ping cancelled for user_data={user_data}");
                 Err(crate::cancellation::error())
             }

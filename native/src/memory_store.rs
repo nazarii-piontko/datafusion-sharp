@@ -93,7 +93,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_put(
     data_bytes: BytesData,
     copy: bool,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
@@ -112,7 +112,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_put(
     };
 
     store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else {
+        let Some(path) = ensure_path_parameter(&path_str, callback, user_data) else {
             return;
         };
 
@@ -141,7 +141,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_get(
     store_ptr: *mut InMemoryStoreWrapper,
     path_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
@@ -151,7 +151,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_get(
     let store = Arc::clone(&store_wrapper.inner);
 
     store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else {
+        let Some(path) = ensure_path_parameter(&path_str, callback, user_data) else {
             return;
         };
 
@@ -195,7 +195,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_delete(
     store_ptr: *mut InMemoryStoreWrapper,
     path_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
@@ -205,7 +205,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_delete(
     let store = Arc::clone(&store_wrapper.inner);
 
     store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else {
+        let Some(path) = ensure_path_parameter(&path_str, callback, user_data) else {
             return;
         };
 
@@ -220,7 +220,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_delete(
     ErrorCode::Ok
 }
 
-fn parse_path(path_str: &str, callback: Callback, user_data: u64) -> Option<Path> {
+fn ensure_path_parameter(path_str: &str, callback: Callback, user_data: isize) -> Option<Path> {
     match Path::parse(path_str) {
         Ok(path) => Some(path),
         Err(e) => {

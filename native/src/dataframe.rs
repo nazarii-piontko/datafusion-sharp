@@ -1,9 +1,10 @@
-use crate::{ErrorCode, ErrorInfo, mappers, proto};
 use futures::StreamExt;
 use log::{debug, error, trace};
 use prost::Message;
 use std::sync::Arc;
 use tokio::select;
+
+use crate::{ErrorCode, ErrorInfo, mappers, proto};
 
 pub struct DataFrameWrapper {
     runtime: crate::RuntimeHandle,
@@ -80,7 +81,7 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
     df_ptr: *mut DataFrameWrapper,
     param_values_bytes: crate::BytesData,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref_mut!(df_ptr);
 
@@ -123,7 +124,7 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
 pub unsafe extern "C" fn datafusion_dataframe_count(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
@@ -138,7 +139,7 @@ pub unsafe extern "C" fn datafusion_dataframe_count(
                 r.map(|t| t as u64)
                  .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
             }
-            _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+            () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
         };
 
         crate::invoke_callback(result, callback, user_data);
@@ -162,7 +163,7 @@ pub unsafe extern "C" fn datafusion_dataframe_show(
     df_ptr: *mut DataFrameWrapper,
     limit: u64,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
@@ -183,7 +184,7 @@ pub unsafe extern "C" fn datafusion_dataframe_show(
             } => {
                 r.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
             }
-            _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+            () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
         };
 
         crate::invoke_callback(result, callback, user_data);
@@ -203,7 +204,7 @@ pub unsafe extern "C" fn datafusion_dataframe_show(
 pub unsafe extern "C" fn datafusion_dataframe_to_string(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
@@ -220,7 +221,7 @@ pub unsafe extern "C" fn datafusion_dataframe_to_string(
                     Err(err) => crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::DataFrameError, err), callback, user_data)
                 }
             },
-            _ = cancellation_guard.cancelled() => crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data)
+            () = cancellation_guard.cancelled() => crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data)
         }
     });
 
@@ -238,7 +239,7 @@ pub unsafe extern "C" fn datafusion_dataframe_to_string(
 pub unsafe extern "C" fn datafusion_dataframe_schema(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
@@ -273,7 +274,7 @@ pub struct CollectedData {
 pub unsafe extern "C" fn datafusion_dataframe_collect(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
@@ -294,7 +295,7 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
 
         let collect_result = select! {
             r = df.collect() => r,
-            _ = cancellation_guard.cancelled() => {
+            () = cancellation_guard.cancelled() => {
                 crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data);
                 return;
             }
@@ -362,7 +363,7 @@ pub struct ExecutedStreamData {
 pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
@@ -384,7 +385,7 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 
         let stream_result = select! {
             r = df.execute_stream() => r,
-            _ = cancellation_guard.cancelled() => {
+            () = cancellation_guard.cancelled() => {
                 crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data);
                 return;
             }
@@ -448,7 +449,7 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_destroy(
 pub unsafe extern "C" fn datafusion_dataframe_stream_next(
     stream_ptr: *mut DataFrameStreamWrapper,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let stream_wrapper = ffi_ref_mut!(stream_ptr);
 
@@ -461,7 +462,7 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
     runtime.spawn(async move {
         let result = select! {
             batch_opt = stream_wrapper.stream.next() => batch_opt,
-            _ = cancellation_guard.cancelled() => {
+            () = cancellation_guard.cancelled() => {
                 crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data);
                 return;
             }
@@ -498,7 +499,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     dataframe_write_options_bytes: crate::BytesData,
     csv_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
@@ -537,7 +538,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
             r = df.write_csv(&path, dataframe_write_options, csv_write_options) => {
                 r.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
             }
-            _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+            () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
         };
 
         debug!("Executed write_csv to '{path}'");
@@ -564,7 +565,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
     dataframe_write_options_bytes: crate::BytesData,
     json_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
@@ -603,7 +604,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
             r = df.write_json(&path, dataframe_write_options, json_write_options) => {
                 r.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
             }
-            _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+            () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
         };
 
         debug!("Executed write_json to '{path}'");
@@ -631,7 +632,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
     dataframe_write_options_bytes: crate::BytesData,
     parquet_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
@@ -670,7 +671,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
             r = df.write_parquet(&path, dataframe_write_options, parquet_write_options) => {
                 r.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
             }
-            _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+            () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
         };
 
         debug!("Executed write_parquet to '{path}'");

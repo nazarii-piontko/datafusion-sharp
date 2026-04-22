@@ -1,14 +1,15 @@
 use anyhow::{Result, anyhow, bail};
 use std::collections::HashMap;
 
-use crate::data_frame_param_values::Values;
-use crate::proto;
 use datafusion::arrow::datatypes::{DataType, Schema};
 use datafusion::common::ParamValues;
 use datafusion::common::metadata::{FieldMetadata, ScalarAndMetadata};
 use datafusion::datasource::file_format::file_compression_type::FileCompressionType;
 use datafusion::logical_expr::SortExpr;
 use datafusion::prelude::CsvReadOptions;
+
+use crate::data_frame_param_values::Values;
+use crate::proto;
 
 pub(crate) fn from_proto_schema(
     schema: Option<&datafusion_proto::protobuf::Schema>,

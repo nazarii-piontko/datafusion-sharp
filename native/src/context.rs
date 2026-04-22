@@ -1,10 +1,9 @@
-use crate::{BytesData, Callback, proto};
 use log::{debug, error, trace};
 use prost::Message;
 use std::sync::Arc;
 use tokio::select;
 
-use crate::{ErrorCode, ErrorInfo, mappers};
+use crate::{BytesData, Callback, ErrorCode, ErrorInfo, mappers, proto};
 
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
@@ -83,7 +82,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     table_path_ptr: *const std::ffi::c_char,
     csv_options_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
@@ -125,7 +124,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
                     r = context.inner.register_csv(&table_ref, &table_path, opts) => {
                         r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
                     }
-                    _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                    () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
                 };
 
                 crate::invoke_callback(result, callback, user_data);
@@ -160,7 +159,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     table_path_ptr: *const std::ffi::c_char,
     json_options_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
@@ -205,7 +204,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
                     r = context.inner.register_json(&table_ref, &table_path, opts) => {
                         r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
                     }
-                    _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                    () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
                 };
 
                 crate::invoke_callback(result, callback, user_data);
@@ -240,7 +239,7 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
     table_path_ptr: *const std::ffi::c_char,
     parquet_options_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
@@ -289,7 +288,7 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
                     r = context.inner.register_parquet(&table_ref, &table_path, opts) => {
                         r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
                     }
-                    _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                    () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
                 };
 
                 crate::invoke_callback(result, callback, user_data);
@@ -322,19 +321,17 @@ pub unsafe extern "C" fn datafusion_context_register_batch(
     table_ref_ptr: *const std::ffi::c_char,
     batch_ipc_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
 
     debug!("Registering table '{table_ref}' from DataFrame on session {context_ptr:p}");
 
-    let result = datafusion::arrow::ipc::reader::StreamReader::try_new(
-        batch_ipc_bytes.as_slice(),
-        None,
-    )
-    .map(|mut reader| {
-        reader
+    let result =
+        datafusion::arrow::ipc::reader::StreamReader::try_new(batch_ipc_bytes.as_slice(), None)
+            .map(|mut reader| {
+                reader
             .next()
             .map(|batch| match batch {
                 Ok(batch) => context
@@ -351,14 +348,14 @@ pub unsafe extern "C" fn datafusion_context_register_batch(
                 ErrorCode::InvalidArgument,
                 format!("Arrow IPC stream did not contain any RecordBatch for table '{table_ref}'"),
             )))
-    })
-    .map_err(|e| {
-        ErrorInfo::new(
-            ErrorCode::InvalidArgument,
-            format!("Failed to create Arrow IPC stream reader: {e}"),
-        )
-    })
-    .flatten();
+            })
+            .map_err(|e| {
+                ErrorInfo::new(
+                    ErrorCode::InvalidArgument,
+                    format!("Failed to create Arrow IPC stream reader: {e}"),
+                )
+            })
+            .flatten();
 
     crate::invoke_callback(result, callback, user_data);
 
@@ -378,7 +375,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
     context_ptr: *mut SessionContextWrapper,
     table_ref_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
@@ -413,7 +410,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
     sql_ptr: *const std::ffi::c_char,
     param_values_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let sql = ffi_cstr_to_string!(sql_ptr);
@@ -451,7 +448,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
                     })
                 .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e))
             }
-            _ = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+            () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
         };
 
         trace!("Executed SQL query: {sql} on session 0x{context_ptr_addr:x}");
@@ -475,7 +472,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_local(
     context_ptr: *mut SessionContextWrapper,
     url_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
 
@@ -518,7 +515,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_s3(
     url_ptr: *const std::ffi::c_char,
     s3_options_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
 
@@ -568,7 +565,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_azure(
     url_ptr: *const std::ffi::c_char,
     azure_options_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
 
@@ -618,7 +615,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_gcs(
     url_ptr: *const std::ffi::c_char,
     gcs_options_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
 
@@ -668,7 +665,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_http(
     url_ptr: *const std::ffi::c_char,
     http_options_bytes: BytesData,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
 
@@ -718,7 +715,7 @@ pub unsafe extern "C" fn datafusion_context_register_object_store_in_memory(
     base_url_ptr: *const std::ffi::c_char,
     store_ptr: *const crate::memory_store::InMemoryStoreWrapper,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
 
@@ -753,7 +750,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_object_store(
     context_ptr: *mut SessionContextWrapper,
     url_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64,
+    user_data: isize,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
 

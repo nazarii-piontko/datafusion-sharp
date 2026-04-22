@@ -1,20 +1,18 @@
+use log::{error, warn};
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
+
 use crate::ErrorCode;
 use crate::error::ErrorInfo;
 
-use log::{error, warn};
-
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
-
-use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
-
 pub(crate) struct CancellationTokenGuard {
     token: CancellationToken,
-    user_data: u64,
+    user_data: isize,
 }
 
 impl CancellationTokenGuard {
-    pub(crate) fn new(user_data: u64) -> Self {
+    pub(crate) fn new(user_data: isize) -> Self {
         Self {
             token: CancellationToken::new(),
             user_data,
@@ -37,10 +35,10 @@ impl Drop for CancellationTokenGuard {
     }
 }
 
-static CANCELLATION_TOKENS: LazyLock<Mutex<HashMap<u64, CancellationToken>>> =
+static CANCELLATION_TOKENS: LazyLock<Mutex<HashMap<isize, CancellationToken>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-pub(crate) fn create_token(user_data: u64) -> CancellationTokenGuard {
+pub(crate) fn create_token(user_data: isize) -> CancellationTokenGuard {
     let token_guard = CancellationTokenGuard::new(user_data);
 
     let mut tokens = CANCELLATION_TOKENS.lock().unwrap();
@@ -63,7 +61,7 @@ pub(crate) fn error() -> ErrorInfo {
 /// - `ErrorCode::InvalidArgument` if no operation is associated with the given user data
 /// - `ErrorCode::Panic` if there was an error accessing the cancellation tokens
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn datafusion_cancel_operation(user_data: u64) -> ErrorCode {
+pub unsafe extern "C" fn datafusion_cancel_operation(user_data: isize) -> ErrorCode {
     let token: Option<CancellationToken>;
     {
         let Ok(mut tokens) = CANCELLATION_TOKENS.lock() else {
