@@ -49,11 +49,11 @@ public sealed class InMemoryObjectStore : IDisposable
         
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, true, &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to put object into in-memory store.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, true, &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to put object into in-memory store.");
             
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -81,11 +81,11 @@ public sealed class InMemoryObjectStore : IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, false, &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to put object into in-memory store.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, false, &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to put object into in-memory store.");
             
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -103,11 +103,11 @@ public sealed class InMemoryObjectStore : IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<byte[]>(cancellationToken);
-            var result = NativeMethods.InMemoryStoreGet(Handle, path, &GenericCallbacks.CallbackForBytes, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to get object from in-memory store.", cancellationToken);
+            var op = new AsyncOperation<byte[]>(cancellationToken);
+            var result = NativeMethods.InMemoryStoreGet(Handle, path, &GenericCallbacks.CallbackForBytes, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to get object from in-memory store.");
             
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -126,11 +126,11 @@ public sealed class InMemoryObjectStore : IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.InMemoryStoreDelete(Handle, path, &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to delete object from in-memory store.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.InMemoryStoreDelete(Handle, path, &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to delete object from in-memory store.");
             
-            return tcs.Task;
+            return op.Task;
         }
     }
 

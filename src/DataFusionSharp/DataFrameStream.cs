@@ -77,10 +77,10 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema, cancellationToken);
-            var result = NativeMethods.DataFrameStreamNext(_handle, &CallbackForNextResult, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start getting next batch from stream.", cancellationToken);
-            dfStreamNextTask = tcs.Task;
+            var op = new AsyncOperation<RecordBatch?, Schema>(Schema, cancellationToken);
+            var result = NativeMethods.DataFrameStreamNext(_handle, &CallbackForNextResult, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start getting next batch from stream.");
+            dfStreamNextTask = op.Task;
         }
 
         var batch = await dfStreamNextTask.ConfigureAwait(false);
@@ -92,19 +92,24 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe void CallbackForNextResult(IntPtr result, IntPtr error, ulong userData)
+    private static unsafe void CallbackForNextResult(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<RecordBatch?, Schema>.FromHandle(handle);
+        
         if (error != IntPtr.Zero)
         {
+            if (op is null)
+                return;
+
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
+            op.Complete(ex);
             return;
         }
-        
+
         if (result == IntPtr.Zero)
         {
             // Null result - end of stream
-            AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, null);
+            op?.Complete((RecordBatch?)null);
             return;
         }
 
@@ -112,7 +117,7 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
         RecordBatch batch;
         try
         {
-            var schema = AsyncOperations.Instance.GetUserData<Schema>(userData);
+            var schema = op?.UserData;
             if (schema is null)
                 throw new InvalidOperationException("Failed to retrieve schema for next batch retrieval operation");
 
@@ -129,10 +134,10 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
                 // Ignore exceptions from release function - we are already handling another exception and there's not much we can do about it.
             }
 
-            AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
+            op?.Complete(ex);
             return;
         }
         
-        AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, batch);
+        op?.Complete(batch);
     }
 }

@@ -29,7 +29,7 @@ public sealed class CancellationTests : IDisposable
             using var cts = new CancellationTokenSource();
 
             // Act
-            var pingTask = _runtime.PingAsync(TimeSpan.FromMilliseconds(1000), cts.Token);
+            var pingTask = _runtime.PingAsync(TimeSpan.FromMilliseconds(5000), cts.Token);
             var cancellationTask = Task.Delay(TimeSpan.FromMilliseconds(cancellationDelayMs)) .ContinueWith(_ => cts.Cancel());
 
             // Assert
@@ -38,23 +38,10 @@ public sealed class CancellationTests : IDisposable
             Assert.True(pingTask.IsCanceled);
             Assert.True(cancellationTask.IsCompletedSuccessfully);
 
-            var tries = 5;
-            while (tries-- > 0) // Wait for the cancellation log message to appear
-            {
-                var log = logOutput.GetText();
-                if (log.Contains("Ping cancelled for user_data=", StringComparison.Ordinal))
-                {
-                    Assert.DoesNotContain("Ping completed for user_data=", log, StringComparison.Ordinal);
-                    break;
-                }
-                
-                await Task.Delay(25);
-            }
-            
-            Assert.True(tries > 0, "Expected cancellation log message not found after multiple attempts. Logs: " + logOutput.GetText());
+            await AssertCancelledLogMessageWithWait(logOutput);
         }
     }
-    
+
     [Fact(Timeout = 2000)]
     public async Task TokenCancel_BeforeOperationStart_ThrowsCancellationException()
     {
@@ -66,8 +53,8 @@ public sealed class CancellationTests : IDisposable
         await cts.CancelAsync();
         
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () => await _runtime.PingAsync(TimeSpan.FromMilliseconds(1000), cts.Token));
-        Assert.Contains("No cancellation token found for user_data=", logOutput.GetText(), StringComparison.Ordinal);
+        await Assert.ThrowsAsync<TaskCanceledException>(async () => await _runtime.PingAsync(TimeSpan.FromMilliseconds(1000), cts.Token));
+        await AssertCancelledLogMessageWithWait(logOutput);
     }
     
     [Fact(Timeout = 2000)]
@@ -92,6 +79,24 @@ public sealed class CancellationTests : IDisposable
     public void Dispose()
     {
         _runtime.Dispose();
+    }
+    
+    private static async Task AssertCancelledLogMessageWithWait(LogOutput logOutput)
+    {
+        var tries = 5;
+        while (tries-- > 0) // Wait for the cancellation log message to appear
+        {
+            var log = logOutput.GetText();
+            if (log.Contains("Ping cancelled for user_data=", StringComparison.Ordinal))
+            {
+                Assert.DoesNotContain("Ping completed for user_data=", log, StringComparison.Ordinal);
+                break;
+            }
+                
+            await Task.Delay(50);
+        }
+            
+        Assert.True(tries > 0, "Expected cancellation log message not found after multiple attempts. Logs: " + logOutput.GetText());
     }
 
     private sealed class LogOutput : ITestOutputHelper

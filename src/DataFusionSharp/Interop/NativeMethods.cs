@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace DataFusionSharp.Interop;
 
-using unsafe Callback = delegate * unmanaged[Cdecl]<IntPtr, IntPtr, ulong, void>;
+using unsafe Callback = delegate * unmanaged[Cdecl]<IntPtr, IntPtr, IntPtr, void>;
 using unsafe LogCallback = delegate * unmanaged[Cdecl]<NativeMethods.NativeLogLevel, BytesData, BytesData, void>;
 
 internal static unsafe partial class NativeMethods
@@ -32,7 +32,7 @@ internal static unsafe partial class NativeMethods
     // Cancellation
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_cancel_operation")]
-    public static partial DataFusionErrorCode CancelOperation(ulong userData);
+    public static partial DataFusionErrorCode CancelOperation(IntPtr userData);
 
     // Runtime
 
@@ -43,7 +43,7 @@ internal static unsafe partial class NativeMethods
     public static partial DataFusionErrorCode RuntimeDestroy(IntPtr runtimeHandle);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_ping")]
-    public static partial DataFusionErrorCode Ping(RuntimeSafeHandle runtimeHandle, ulong timeoutMilliseconds, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode Ping(RuntimeSafeHandle runtimeHandle, ulong timeoutMilliseconds, Callback callback, IntPtr userData);
     
     // Context
     
@@ -54,45 +54,45 @@ internal static unsafe partial class NativeMethods
     public static partial DataFusionErrorCode ContextDestroy(IntPtr contextHandle);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_csv")]
-    public static partial DataFusionErrorCode ContextRegisterCsv(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, BytesData optionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterCsv(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, BytesData optionsData, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_json")]
-    public static partial DataFusionErrorCode ContextRegisterJson(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, BytesData optionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterJson(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, BytesData optionsData, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_parquet")]
-    public static partial DataFusionErrorCode ContextRegisterParquet(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, BytesData optionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterParquet(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath, BytesData optionsData, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_batch")]
-    public static partial DataFusionErrorCode ContextRegisterBatch(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, BytesData batchIpcData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterBatch(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, BytesData batchIpcData, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_deregister_table")]
-    public static partial DataFusionErrorCode ContextDeregisterTable(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextDeregisterTable(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_sql")]
-    public static partial DataFusionErrorCode ContextSql(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, BytesData paramValuesData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextSql(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string sql, BytesData paramValuesData, Callback callback, IntPtr userData);
 
     // Object Store
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_local")]
-    public static partial DataFusionErrorCode ContextRegisterObjectStoreLocal(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreLocal(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_s3")]
-    public static partial DataFusionErrorCode ContextRegisterObjectStoreS3(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreS3(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_azure")]
-    public static partial DataFusionErrorCode ContextRegisterObjectStoreAzure(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreAzure(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_gcs")]
-    public static partial DataFusionErrorCode ContextRegisterObjectStoreGcs(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreGcs(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_http")]
-    public static partial DataFusionErrorCode ContextRegisterObjectStoreHttp(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreHttp(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, BytesData optionsData, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_object_store_in_memory")]
-    public static partial DataFusionErrorCode ContextRegisterObjectStoreInMemory(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, InMemoryStoreSafeHandle inMemoryStoreHandle, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextRegisterObjectStoreInMemory(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, InMemoryStoreSafeHandle inMemoryStoreHandle, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_deregister_object_store")]
-    public static partial DataFusionErrorCode ContextDeregisterObjectStore(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode ContextDeregisterObjectStore(SessionContextSafeHandle contextHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string url, Callback callback, IntPtr userData);
 
     // DataFrame
     
@@ -103,42 +103,42 @@ internal static unsafe partial class NativeMethods
     public static partial IntPtr DataFrameClone(DataFrameSafeHandle dataFrameHandle);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_with_parameters")]
-    public static partial DataFusionErrorCode DataFrameWithParameters(DataFrameSafeHandle dataFrameHandle, BytesData paramValuesData, Callback callback, ulong userData); 
+    public static partial DataFusionErrorCode DataFrameWithParameters(DataFrameSafeHandle dataFrameHandle, BytesData paramValuesData, Callback callback, IntPtr userData); 
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_count")]
-    public static partial DataFusionErrorCode DataFrameCount(DataFrameSafeHandle dataFrameHandle, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameCount(DataFrameSafeHandle dataFrameHandle, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_show")]
-    public static partial DataFusionErrorCode DataFrameShow(DataFrameSafeHandle dataFrameHandle, ulong limit, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameShow(DataFrameSafeHandle dataFrameHandle, ulong limit, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_schema")]
-    public static partial DataFusionErrorCode DataFrameSchema(DataFrameSafeHandle dataFrameHandle, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameSchema(DataFrameSafeHandle dataFrameHandle, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_collect")]
-    public static partial DataFusionErrorCode DataFrameCollect(DataFrameSafeHandle dataFrameHandle, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameCollect(DataFrameSafeHandle dataFrameHandle, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_to_string")]
-    public static partial DataFusionErrorCode DataFrameToString(DataFrameSafeHandle dataFrameHandle, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameToString(DataFrameSafeHandle dataFrameHandle, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_write_csv")]
-    public static partial DataFusionErrorCode DataFrameWriteCsv(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData dataFrameWriteOptionsData, BytesData csvWriteOptionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameWriteCsv(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData dataFrameWriteOptionsData, BytesData csvWriteOptionsData, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_write_json")]
-    public static partial DataFusionErrorCode DataFrameWriteJson(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData dataFrameWriteOptionsData, BytesData jsonWriteOptionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameWriteJson(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData dataFrameWriteOptionsData, BytesData jsonWriteOptionsData, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_write_parquet")]
-    public static partial DataFusionErrorCode DataFrameWriteParquet(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData dataFrameWriteOptionsData, BytesData parquetWriteOptionsData, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameWriteParquet(DataFrameSafeHandle dataFrameHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData dataFrameWriteOptionsData, BytesData parquetWriteOptionsData, Callback callback, IntPtr userData);
 
     // Stream
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_execute_stream")]
-    public static partial DataFusionErrorCode DataFrameExecuteStream(DataFrameSafeHandle dataFrameHandle, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameExecuteStream(DataFrameSafeHandle dataFrameHandle, Callback callback, IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_stream_destroy")]
     public static partial DataFusionErrorCode DataFrameStreamDestroy(IntPtr streamHandle);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_dataframe_stream_next")]
-    public static partial DataFusionErrorCode DataFrameStreamNext(DataFrameStreamSafeHandle streamHandle, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode DataFrameStreamNext(DataFrameStreamSafeHandle streamHandle, Callback callback, IntPtr userData);
     
     // InMemory Store
     
@@ -149,11 +149,11 @@ internal static unsafe partial class NativeMethods
     public static partial DataFusionErrorCode InMemoryStoreDestroy(IntPtr inMemoryHandle);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_put")]
-    public static partial DataFusionErrorCode InMemoryStorePut(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData data, [MarshalAs(UnmanagedType.I1)] bool copy, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode InMemoryStorePut(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, BytesData data, [MarshalAs(UnmanagedType.I1)] bool copy, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_get")]
-    public static partial DataFusionErrorCode InMemoryStoreGet(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode InMemoryStoreGet(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, Callback callback, IntPtr userData);
     
     [LibraryImport(LibraryName, EntryPoint = "datafusion_in_memory_store_delete")]
-    public static partial DataFusionErrorCode InMemoryStoreDelete(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, Callback callback, ulong userData);
+    public static partial DataFusionErrorCode InMemoryStoreDelete(InMemoryStoreSafeHandle inMemoryHandle, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, Callback callback, IntPtr userData);
 }

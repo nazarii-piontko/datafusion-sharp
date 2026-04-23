@@ -1,198 +1,206 @@
-using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace DataFusionSharp.Interop;
 
-internal sealed class AsyncOperations
+internal abstract class AsyncOperation
 {
-    public static AsyncOperations Instance { get; } = new();
-
-    private abstract class Operation
+    private readonly CancellationToken _cancellationToken;
+    private readonly CancellationTokenRegistration _cancellationRegistration;
+    
+    private GCHandle _handle;
+    
+    protected AsyncOperation(CancellationToken cancellationToken)
     {
-        public ulong Id { get; set; }
-        
-        public object? UserData { get; init; }
-        
-        public CancellationTokenRegistration CancellationTokenCallbackRegistration { get; set; }
+        _cancellationToken = cancellationToken;
+        _cancellationRegistration = cancellationToken.Register(OnCancelled);
+    }
 
-        public abstract void Cancel();
-
-        public void UnregisterCancellationCallback()
-        {
-            CancellationTokenCallbackRegistration.Unregister();
-        }
+    internal IntPtr GetHandle()
+    {
+        if (!_handle.IsAllocated)
+            _handle = GCHandle.Alloc(this, GCHandleType.Normal);
+        return GCHandle.ToIntPtr(_handle);
     }
     
-    private sealed class Operation<TResult> : Operation
-    {
-        public required TaskCompletionSource<TResult> TaskCompletionSource { get; init; }
-        
-        public override void Cancel()
-        {
-            TaskCompletionSource.TrySetCanceled();
-        }
-    }
-
-    private sealed class OperationVoid : Operation
-    {
-        public required TaskCompletionSource TaskCompletionSource { get; init; }
-        
-        public override void Cancel()
-        {
-            TaskCompletionSource.TrySetCanceled();
-        }
-    }
-    
-    private readonly ConcurrentDictionary<ulong, Operation> _operations = new();
-    private ulong _nextId;
-
-    public (ulong Id, TaskCompletionSource TaskCompletionSource) Create(CancellationToken cancellationToken = default)
-    {
-        return Create<object>(null, cancellationToken);
-    }
-
-    public (ulong Id, TaskCompletionSource TaskCompletionSource) Create<TUserData>(TUserData? data, CancellationToken cancellationToken = default)
-    {
-        // Create TaskCompletionSource with continuations running asynchronously to avoid potential deadlocks
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var op = new OperationVoid
-        {
-            TaskCompletionSource = tcs,
-            UserData = data
-        };
-        
-        var id = Interlocked.Increment(ref _nextId);
-        while (!_operations.TryAdd(id, op))
-            id = Interlocked.Increment(ref _nextId);
-        
-        op.Id = id;
-        // Create registration after adding to dictionary to avoid race condition where cancellation could occur before the operation is added
-        op.CancellationTokenCallbackRegistration = cancellationToken.Register(OnOperationCancelled, op);
-        
-        return (id, tcs);
-    }
-    
-    public (ulong Id, TaskCompletionSource<TResult> Source) Create<TResult>(CancellationToken cancellationToken = default)
-    {
-        return Create<TResult, object>(null, cancellationToken);
-    }
-
-    public (ulong Id, TaskCompletionSource<TResult> Source) Create<TResult, TUserData>(TUserData? data, CancellationToken cancellationToken = default)
-    {
-        // Create TaskCompletionSource with continuations running asynchronously to avoid potential deadlocks
-        var tcs = new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var op = new Operation<TResult>
-        {
-            TaskCompletionSource = tcs,
-            UserData = data
-        };
-        
-        var id = Interlocked.Increment(ref _nextId);
-        while (!_operations.TryAdd(id, op))
-            id = Interlocked.Increment(ref _nextId);
-
-        op.Id = id;
-        // Create registration after adding to dictionary to avoid race condition where cancellation could occur before the operation is added
-        op.CancellationTokenCallbackRegistration = cancellationToken.Register(OnOperationCancelled, op);
-        
-        return (id, tcs);
-    }
-    
-    public TUserData? GetUserData<TUserData>(ulong id)
-    {
-        if (_operations.TryGetValue(id, out var op) && op is { UserData: TUserData data })
-            return data;
-        return default;
-    }
-    
-    public void EnsureNativeCall(ulong id, DataFusionErrorCode result, string errorMessage, CancellationToken cancellationToken)
+    internal void EnsureNativeCall(DataFusionErrorCode result, string errorMessage)
     {
         if (result != DataFusionErrorCode.Ok)
         {
-            Abort(id);
-            cancellationToken.ThrowIfCancellationRequested();
+            // Native call failed, the operation has not been started.
+            // We can just clean up.
+            Cleanup();
+            _cancellationToken.ThrowIfCancellationRequested();
             throw new DataFusionException(result, errorMessage);
         }
 
-        if (cancellationToken.IsCancellationRequested)
+        if (_cancellationToken.IsCancellationRequested)
         {
-            Cancel(id);
-            cancellationToken.ThrowIfCancellationRequested();
+            // The operation has been started, but the token was already cancelled.
+            // We need forcibly to attempt to cancel the operation on the native side.
+            // If the token was cancelled before native code registered async operation,
+            // native code will not have the chance to actually do cancellation.
+            if (_handle.IsAllocated)
+            {
+                var cancelResult = NativeMethods.CancelOperation(GCHandle.ToIntPtr(_handle));
+                if (cancelResult != DataFusionErrorCode.Ok)
+                {
+                    // Cancellation fails, it means the operation has already cancelled or completed.
+                    // We can just clean up.
+                    Cleanup();
+                    _cancellationToken.ThrowIfCancellationRequested();
+                }
+            }
+            else
+            {
+                // Should never happen.
+                Debug.Assert(false, "Expected handle to be allocated when cancellation is requested");
+                
+                // We can just clean up.
+                Cleanup();
+                _cancellationToken.ThrowIfCancellationRequested();
+            }
         }
     }
     
-    public void CompleteVoid(ulong id, Exception? exception = null)
+    protected void Cleanup()
     {
-        if (!_operations.TryRemove(id, out var t) || t is not OperationVoid op)
-            return;
-        
-        op.UnregisterCancellationCallback();
+        if (_handle.IsAllocated)
+        {
+            try
+            {
+                _handle.Free();
+            }
+            catch (InvalidOperationException)
+            {
+                // Handle was already freed, ignore
+            }
+        }
+
+        try
+        {
+            _cancellationRegistration.Unregister();
+        }
+        catch (ObjectDisposedException)
+        {
+            // CancellationTokenSource was already disposed, ignore
+        }
+    }
+
+    private void OnCancelled()
+    {
+        if (_handle.IsAllocated)
+            NativeMethods.CancelOperation(GCHandle.ToIntPtr(_handle));
+    }
+}
+
+internal sealed class AsyncVoidOperation : AsyncOperation
+{
+    private readonly TaskCompletionSource _taskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    
+    internal Task Task => _taskCompletionSource.Task;
+    
+    internal AsyncVoidOperation(CancellationToken cancellationToken)
+        : base(cancellationToken)
+    {
+    }
+
+    internal void Complete(Exception? exception = null)
+    {
+        Cleanup();
 
         switch (exception)
         {
             case null:
-                op.TaskCompletionSource.TrySetResult();
+                _taskCompletionSource.TrySetResult();
                 break;
             case DataFusionException { ErrorCode: DataFusionErrorCode.Canceled }:
-                op.TaskCompletionSource.TrySetCanceled();
+                _taskCompletionSource.TrySetCanceled();
                 break;
             default:
-                op.TaskCompletionSource.TrySetException(exception);
+                _taskCompletionSource.TrySetException(exception);
                 break;
         }
     }
     
-    public void CompleteWithError<TResult>(ulong id, Exception exception)
+    internal static AsyncVoidOperation? FromHandle(IntPtr handle)
     {
-        if (!_operations.TryRemove(id, out var t) || t is not Operation<TResult> op)
-            return;
+        try
+        {
+            var h = GCHandle.FromIntPtr(handle);
+            if (!h.IsAllocated)
+                return null;
+
+            return h.Target as AsyncVoidOperation;
+        }
+        catch (InvalidOperationException)
+        {
+            // The handle was freed between the IsAllocated check and the Target access.
+            // Or the handle is invalid. In either case, we can just return null.
+            return null;
+        }
+    }
+}
+
+internal class AsyncOperation<TResult> : AsyncOperation
+{
+    private readonly TaskCompletionSource<TResult> _taskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    
+    internal Task<TResult> Task => _taskCompletionSource.Task;
         
-        op.UnregisterCancellationCallback();
+    internal AsyncOperation(CancellationToken cancellationToken)
+        : base(cancellationToken)
+    {
+    }
+    
+    internal void Complete(TResult result)
+    {
+        Cleanup();
+        
+        _taskCompletionSource.TrySetResult(result);
+    }
+    
+    internal void Complete(Exception exception)
+    {
+        Cleanup();
         
         if (exception is DataFusionException { ErrorCode: DataFusionErrorCode.Canceled })
-            op.TaskCompletionSource.TrySetCanceled();
+            _taskCompletionSource.TrySetCanceled();
         else
-            op.TaskCompletionSource.TrySetException(exception);
+            _taskCompletionSource.TrySetException(exception);
     }
     
-    public void CompleteWithResult<TResult>(ulong id, TResult result)
+    internal static AsyncOperation<TResult>? FromHandle(IntPtr handle)
     {
-        if (!_operations.TryRemove(id, out var t) || t is not Operation<TResult> op)
-            return;
-        
-        op.UnregisterCancellationCallback();
-        
-        op.TaskCompletionSource.TrySetResult(result);
+        try
+        {
+            var h = GCHandle.FromIntPtr(handle);
+            if (!h.IsAllocated)
+                return null;
+
+            return h.Target as AsyncOperation<TResult>;
+        }
+        catch (InvalidOperationException)
+        {
+            // The handle was freed between the IsAllocated check and the Target access.
+            // Or the handle is invalid. In either case, we can just return null.
+            return null;
+        }
+    }
+}
+
+internal class AsyncOperation<TResult, TUserData> : AsyncOperation<TResult>
+{
+    internal TUserData UserData { get; }
+    
+    internal AsyncOperation(TUserData userData, CancellationToken cancellationToken)
+        : base(cancellationToken)
+    {
+        UserData = userData;
     }
     
-    private void Abort(ulong id)
+    internal new static AsyncOperation<TResult, TUserData>? FromHandle(IntPtr handle)
     {
-        if (_operations.TryRemove(id, out var op))
-            op.UnregisterCancellationCallback();
-    }
-
-    private void Cancel(ulong id)
-    {
-        if (!_operations.TryRemove(id, out var op))
-            return;
-
-        NativeMethods.CancelOperation(op.Id);
-        op.UnregisterCancellationCallback();
-    }
-
-    private static void OnOperationCancelled(object? obj)
-    {
-        if (obj is not Operation op)
-            return;
-
-        var result = NativeMethods.CancelOperation(op.Id);
-            
-        // If result is OK the native code will inform us when the operation is cancelled, so we don't need to do anything here.
-        // If it's not OK, it means the operation has already completed or is in the process of completing, so we can just remove it.
-        if (result == DataFusionErrorCode.Ok ||
-            !Instance._operations.TryRemove(op.Id, out _))
-            return;
-        
-        op.UnregisterCancellationCallback();
-        op.Cancel();
+        return AsyncOperation<TResult>.FromHandle(handle) as AsyncOperation<TResult, TUserData>;
     }
 }

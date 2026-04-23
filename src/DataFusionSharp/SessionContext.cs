@@ -50,11 +50,11 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start CSV file registration.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start CSV file registration.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -76,11 +76,11 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start JSON file registration.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start JSON file registration.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -102,11 +102,11 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start Parquet file registration.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start Parquet file registration.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -134,9 +134,9 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.ContextRegisterBatch(_handle, tableName, BytesData.FromPinned(memoryHandle, (int)memoryStream.Length), &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start record batch registration.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.ContextRegisterBatch(_handle, tableName, BytesData.FromPinned(memoryHandle, (int)memoryStream.Length), &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start record batch registration.");
         }
     }
 
@@ -153,11 +153,11 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.ContextDeregisterTable(_handle, tableName, &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start table deregistration.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.ContextDeregisterTable(_handle, tableName, &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start table deregistration.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -181,10 +181,10 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
-            var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, &CallbackForSqlAsync, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing SQL query.", cancellationToken);
-            sqlTask = tcs.Task;
+            var op = new AsyncOperation<DataFrameSafeHandle>(cancellationToken);
+            var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, &CallbackForSqlAsync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start executing SQL query.");
+            sqlTask = op.Task;
         }
         
         var dataFrameSafeHandle = await sqlTask.ConfigureAwait(false);
@@ -215,10 +215,10 @@ public sealed class SessionContext : IDisposable
         {
             unsafe
             {
-                var (id, tcs) = AsyncOperations.Instance.Create<DataFrameSafeHandle>(cancellationToken);
-                var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), &CallbackForSqlAsync, id);
-                AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing SQL query.", cancellationToken);
-                task = tcs.Task;
+                var op = new AsyncOperation<DataFrameSafeHandle>(cancellationToken);
+                var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), &CallbackForSqlAsync, op.GetHandle());
+                op.EnsureNativeCall(result, "Failed to start executing SQL query.");
+                task = op.Task;
             }
         }
         
@@ -240,9 +240,9 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.ContextRegisterObjectStoreLocal(_handle, url, &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start local file system object store registration.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.ContextRegisterObjectStoreLocal(_handle, url, &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start local file system object store registration.");
         }
     }
 
@@ -262,9 +262,9 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.ContextRegisterObjectStoreS3(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start S3 object store registration.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.ContextRegisterObjectStoreS3(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start S3 object store registration.");
         }
     }
 
@@ -284,9 +284,9 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.ContextRegisterObjectStoreAzure(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start Azure Blob Storage object store registration.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.ContextRegisterObjectStoreAzure(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start Azure Blob Storage object store registration.");
         }
     }
 
@@ -306,9 +306,9 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.ContextRegisterObjectStoreGcs(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start Google Cloud Storage object store registration.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.ContextRegisterObjectStoreGcs(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start Google Cloud Storage object store registration.");
         }
     }
 
@@ -328,9 +328,9 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.ContextRegisterObjectStoreHttp(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start HTTP object store registration.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.ContextRegisterObjectStoreHttp(_handle, url, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start HTTP object store registration.");
         }
     }
     
@@ -350,9 +350,9 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.ContextRegisterObjectStoreInMemory(_handle, url, store.Handle, &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start in-memory object store registration.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.ContextRegisterObjectStoreInMemory(_handle, url, store.Handle, &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start in-memory object store registration.");
         }
     }
 
@@ -369,9 +369,9 @@ public sealed class SessionContext : IDisposable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.ContextDeregisterObjectStore(_handle, url, &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start object store deregistration.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.ContextDeregisterObjectStore(_handle, url, &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start object store deregistration.");
         }
     }
 
@@ -382,12 +382,17 @@ public sealed class SessionContext : IDisposable
     }
     
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void CallbackForSqlAsync(IntPtr result, IntPtr error, ulong handle)
+    private static void CallbackForSqlAsync(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<DataFrameSafeHandle>.FromHandle(handle);
+
         if (error != IntPtr.Zero)
         {
+            if (op is null)
+                return;
+
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<DataFrameSafeHandle>(handle, ex);
+            op.Complete(ex);
             return;
         }
 
@@ -395,6 +400,10 @@ public sealed class SessionContext : IDisposable
 #pragma warning disable CA2000
         var dataFrameSafeHandle = new DataFrameSafeHandle(dataFrameHandle);
 #pragma warning restore CA2000
-        AsyncOperations.Instance.CompleteWithResult(handle, dataFrameSafeHandle);
+        
+        if (op is null)
+            dataFrameSafeHandle.Dispose(); // Clean up the native handle if we can't complete the operation
+        else
+            op.Complete(dataFrameSafeHandle);
     }
 }

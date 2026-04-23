@@ -52,9 +52,9 @@ public sealed class DataFrame : IDisposable, ICloneable
 
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, id);
-            SyncOperations.Instance.TakeResult(id, result, "Failed to start DataFrame with SQL parameters parameterization.");
+            var op = new SyncVoidOperation();
+            var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start DataFrame with SQL parameters parameterization.");
         }
 
         return this;
@@ -70,11 +70,11 @@ public sealed class DataFrame : IDisposable, ICloneable
     {
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<ulong>(cancellationToken);
-            var result = NativeMethods.DataFrameCount(_handle, &CallbackForCountAsync, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start counting rows in DataFrame.", cancellationToken);
+            var op = new AsyncOperation<ulong>(cancellationToken);
+            var result = NativeMethods.DataFrameCount(_handle, &CallbackForCountAsync, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start counting rows in DataFrame.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -92,11 +92,11 @@ public sealed class DataFrame : IDisposable, ICloneable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start showing DataFrame.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start showing DataFrame.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
     
@@ -110,11 +110,11 @@ public sealed class DataFrame : IDisposable, ICloneable
     {
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<string>(cancellationToken);
-            var result = NativeMethods.DataFrameToString(_handle, &GenericCallbacks.CallbackForString, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start converting DataFrame to string.", cancellationToken);
+            var op = new AsyncOperation<string>(cancellationToken);
+            var result = NativeMethods.DataFrameToString(_handle, &GenericCallbacks.CallbackForString, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start converting DataFrame to string.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
     
@@ -127,10 +127,10 @@ public sealed class DataFrame : IDisposable, ICloneable
     {
         unsafe
         {
-            var id = SyncOperations.Instance.Create();
-            var result = NativeMethods.DataFrameSchema(_handle, &CallbackForGetSchema, id);
+            var op = new SyncOperation<Schema>();
+            var result = NativeMethods.DataFrameSchema(_handle, &CallbackForGetSchema, op.GetHandle());
 
-            return SyncOperations.Instance.TakeResult<Schema>(id, result, "Failed to start getting DataFrame schema.");
+            return op.EnsureNativeCall(result, "Failed to start getting DataFrame schema.");
         }
     }
     
@@ -144,11 +144,11 @@ public sealed class DataFrame : IDisposable, ICloneable
     {
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<DataFrameCollectedResult>(cancellationToken);
-            var result = NativeMethods.DataFrameCollect(_handle, &CallbackForCollect, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start collecting DataFrame.", cancellationToken);
+            var op = new AsyncOperation<DataFrameCollectedResult>(cancellationToken);
+            var result = NativeMethods.DataFrameCollect(_handle, &CallbackForCollect, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start collecting DataFrame.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
     
@@ -164,10 +164,10 @@ public sealed class DataFrame : IDisposable, ICloneable
         
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>(cancellationToken);
-            var result = NativeMethods.DataFrameExecuteStream(_handle, &CallbackForExecutedStream, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start executing stream on DataFrame.", cancellationToken);
-            executeStreamTask = tcs.Task;
+            var op = new AsyncOperation<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>(cancellationToken);
+            var result = NativeMethods.DataFrameExecuteStream(_handle, &CallbackForExecutedStream, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start executing stream on DataFrame.");
+            executeStreamTask = op.Task;
         }
         
         var (schema, streamHandle) = await executeStreamTask.ConfigureAwait(false);
@@ -193,11 +193,11 @@ public sealed class DataFrame : IDisposable, ICloneable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.DataFrameWriteCsv(_handle, path, dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to CSV.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.DataFrameWriteCsv(_handle, path, dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start writing DataFrame to CSV.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -219,11 +219,11 @@ public sealed class DataFrame : IDisposable, ICloneable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.DataFrameWriteJson(_handle, path, dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to JSON.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.DataFrameWriteJson(_handle, path, dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start writing DataFrame to JSON.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
 
@@ -245,11 +245,11 @@ public sealed class DataFrame : IDisposable, ICloneable
 
         unsafe
         {
-            var (id, tcs) = AsyncOperations.Instance.Create(cancellationToken);
-            var result = NativeMethods.DataFrameWriteParquet(_handle, path, dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, id);
-            AsyncOperations.Instance.EnsureNativeCall(id, result, "Failed to start writing DataFrame to Parquet.", cancellationToken);
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.DataFrameWriteParquet(_handle, path, dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
+            op.EnsureNativeCall(result, "Failed to start writing DataFrame to Parquet.");
 
-            return tcs.Task;
+            return op.Task;
         }
     }
     
@@ -274,12 +274,17 @@ public sealed class DataFrame : IDisposable, ICloneable
     }
     
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void CallbackForClone(IntPtr result, IntPtr error, ulong handle)
+    private static void CallbackForClone(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<DataFrameSafeHandle>.FromHandle(handle);
+        
         if (error != IntPtr.Zero)
         {
+            if (op is null)
+                return;
+
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<DataFrameSafeHandle>(handle, ex);
+            op.Complete(ex);
             return;
         }
 
@@ -287,29 +292,42 @@ public sealed class DataFrame : IDisposable, ICloneable
 #pragma warning disable CA2000
         var clonedDataFrameSafeHandle = new DataFrameSafeHandle(dataFrameHandle);
 #pragma warning restore CA2000
-        AsyncOperations.Instance.CompleteWithResult(handle, clonedDataFrameSafeHandle);
+        
+        if (op is null)
+            clonedDataFrameSafeHandle.Dispose(); // Nothing to complete, so dispose the cloned handle to avoid leaks.
+        else
+            op.Complete(clonedDataFrameSafeHandle);
     }
     
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void CallbackForCountAsync(IntPtr result, IntPtr error, ulong handle)
+    private static void CallbackForCountAsync(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<ulong>.FromHandle(handle);
+        if (op is null)
+            return;
+        
         if (error != IntPtr.Zero)
         {
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<ulong>(handle, ex);
+            op.Complete(ex);
             return;
         }
 
-        AsyncOperations.Instance.CompleteWithResult(handle, (ulong)Marshal.ReadInt64(result));
+        op.Complete((ulong)Marshal.ReadInt64(result));
     }
     
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe void CallbackForGetSchema(IntPtr result, IntPtr error, ulong handle)
+    private static unsafe void CallbackForGetSchema(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = SyncOperation<Schema>.FromHandle(handle);
+        
         if (error != IntPtr.Zero)
         {
+            if (op is null)
+                return;
+
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            SyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
+            op.Complete(ex);
             return;
         }
 
@@ -320,20 +338,25 @@ public sealed class DataFrame : IDisposable, ICloneable
         }
         catch (Exception ex)
         {
-            SyncOperations.Instance.CompleteWithError<Schema>(handle, ex);
+            op?.Complete(ex);
             return;
         }
         
-        SyncOperations.Instance.CompleteWithResult(handle, schema);
+        op?.Complete(schema);
     }
     
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe void CallbackForCollect(IntPtr result, IntPtr error, ulong handle)
+    private static unsafe void CallbackForCollect(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<DataFrameCollectedResult>.FromHandle(handle);
+        
         if (error != IntPtr.Zero)
         {
+            if (op is null)
+                return;
+
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
+            op.Complete(ex);
             return;
         }
 
@@ -346,14 +369,17 @@ public sealed class DataFrame : IDisposable, ICloneable
         }
         catch (Exception ex)
         {
-            AsyncOperations.Instance.CompleteWithError<DataFrameCollectedResult>(handle, ex);
+            op?.Complete(ex);
             return;
         }
         
 #pragma warning disable CA2000
         var collectedResult = new DataFrameCollectedResult(batches.AsReadOnly(), schema);
 #pragma warning restore CA2000
-        AsyncOperations.Instance.CompleteWithResult(handle, collectedResult);
+        if (op is null)
+            collectedResult.Dispose(); // Nothing to complete, so dispose the collected result to avoid leaks.
+        else
+            op.Complete(collectedResult);
     }
     
     private static unsafe (Schema Schema, List<RecordBatch> Batches) ImportCollectedData(NativeDataFrameCollectedData* data)
@@ -391,12 +417,17 @@ public sealed class DataFrame : IDisposable, ICloneable
     }
     
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static unsafe void CallbackForExecutedStream(IntPtr result, IntPtr error, ulong handle)
+    private static unsafe void CallbackForExecutedStream(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<(Schema, DataFrameStreamSafeHandle)>.FromHandle(handle);
+        
         if (error != IntPtr.Zero)
         {
+            if (op is null)
+                return;
+
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<(Schema, DataFrameStreamSafeHandle)>(handle, ex);
+            op.Complete(ex);
             return;
         }
 
@@ -408,14 +439,17 @@ public sealed class DataFrame : IDisposable, ICloneable
         }
         catch (Exception ex)
         {
-            AsyncOperations.Instance.CompleteWithError<(Schema, DataFrameStreamSafeHandle)>(handle, ex);
+            op?.Complete(ex);
             return;
         }
 
 #pragma warning disable CA2000
         var streamSafeHandle = new DataFrameStreamSafeHandle(data->StreamHandle);
 #pragma warning restore CA2000
-        AsyncOperations.Instance.CompleteWithResult(handle, ValueTuple.Create(schema, streamSafeHandle));
+        if (op is null)
+            streamSafeHandle.Dispose(); // Nothing to complete, so dispose the stream handle to avoid leaks.
+        else
+            op.Complete(ValueTuple.Create(schema, streamSafeHandle));
     }
 }
 
