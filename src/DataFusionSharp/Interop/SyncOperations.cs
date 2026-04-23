@@ -4,12 +4,23 @@ namespace DataFusionSharp.Interop;
 
 internal abstract class SyncOperation
 {
+#if MEMORY_TEST
+    private static long _liveInstances;
+    internal static long LiveInstances => Interlocked.Read(ref _liveInstances);
+#endif
+
     private GCHandle _handle;
 
     internal IntPtr GetHandle()
     {
         if (!_handle.IsAllocated)
+        {
             _handle = GCHandle.Alloc(this, GCHandleType.Normal);
+#if MEMORY_TEST
+            Interlocked.Increment(ref _liveInstances);
+#endif
+        }
+
         return GCHandle.ToIntPtr(_handle);
     }
     
@@ -20,6 +31,9 @@ internal abstract class SyncOperation
             try
             {
                 _handle.Free();
+#if MEMORY_TEST
+                Interlocked.Decrement(ref _liveInstances);
+#endif
             }
             catch (InvalidOperationException)
             {

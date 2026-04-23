@@ -5,6 +5,11 @@ namespace DataFusionSharp.Interop;
 
 internal abstract class AsyncOperation
 {
+#if MEMORY_TEST
+    private static long _liveInstances;
+    internal static long LiveInstances => Interlocked.Read(ref _liveInstances);
+#endif
+
     private readonly CancellationToken _cancellationToken;
     private readonly CancellationTokenRegistration _cancellationRegistration;
     
@@ -19,7 +24,13 @@ internal abstract class AsyncOperation
     internal IntPtr GetHandle()
     {
         if (!_handle.IsAllocated)
+        {
             _handle = GCHandle.Alloc(this, GCHandleType.Normal);
+#if MEMORY_TEST
+            Interlocked.Increment(ref _liveInstances);
+#endif
+        }
+
         return GCHandle.ToIntPtr(_handle);
     }
     
@@ -70,6 +81,9 @@ internal abstract class AsyncOperation
             try
             {
                 _handle.Free();
+#if MEMORY_TEST
+                Interlocked.Decrement(ref _liveInstances);
+#endif
             }
             catch (InvalidOperationException)
             {

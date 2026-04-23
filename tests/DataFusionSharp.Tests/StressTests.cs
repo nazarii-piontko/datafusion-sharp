@@ -1,4 +1,5 @@
 using Apache.Arrow;
+using Apache.Arrow.Types;
 using Meziantou.Extensions.Logging.Xunit;
 using Xunit.Abstractions;
 
@@ -71,6 +72,7 @@ public sealed class StressTestsQueriesData : TheoryData<StressTests.QueryFunc>
 {
     public StressTestsQueriesData()
     {
+        Add(StressTestsQueries.Query_WithSchema);
         Add(StressTestsQueries.Query_WithCollect);
         Add(StressTestsQueries.Query_WithStream);
     }
@@ -78,6 +80,29 @@ public sealed class StressTestsQueriesData : TheoryData<StressTests.QueryFunc>
 
 public static class StressTestsQueries
 {
+    public static async Task Query_WithSchema(DataFusionRuntime runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+
+        var rowsCount = GetRandomRowsCount();
+
+        using var context = runtime.CreateSessionContext();
+        using var dataFrame = await context.SqlAsync($"SELECT s.value AS id, 'Generated value for collect #' || s.value AS val, 'Collect constant value' as const_val FROM generate_series(1, {rowsCount}) AS s");
+            
+        var schema = dataFrame.GetSchema();
+        
+        Assert.Equal(3, schema.FieldsList.Count);
+        
+        Assert.Equal("id", schema.FieldsList[0].Name);
+        Assert.IsType<Int64Type>(schema.FieldsList[0].DataType);
+        
+        Assert.Equal("val", schema.FieldsList[1].Name);
+        Assert.IsType<StringType>(schema.FieldsList[1].DataType);
+        
+        Assert.Equal("const_val", schema.FieldsList[2].Name);
+        Assert.IsType<StringType>(schema.FieldsList[2].DataType);
+    }
+    
     public static async Task Query_WithCollect(DataFusionRuntime runtime)
     {
         ArgumentNullException.ThrowIfNull(runtime);

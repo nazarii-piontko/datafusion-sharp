@@ -30,10 +30,17 @@ public sealed class CancellationTests : IDisposable
 
             // Act
             var pingTask = _runtime.PingAsync(TimeSpan.FromMilliseconds(5000), cts.Token);
-            var cancellationTask = Task.Delay(TimeSpan.FromMilliseconds(cancellationDelayMs)) .ContinueWith(_ => cts.Cancel());
+            var cancellationTask = Task.Delay(TimeSpan.FromMilliseconds(cancellationDelayMs)).ContinueWith(_ => cts.Cancel());
 
             // Assert
-            await Assert.ThrowsAsync<TaskCanceledException>(() => Task.WhenAll(pingTask, cancellationTask));
+            try
+            {
+                await Task.WhenAll(pingTask, cancellationTask);
+            }
+            catch (Exception ex)
+            {
+                Assert.IsType<TaskCanceledException>(ex);
+            }
 
             Assert.True(pingTask.IsCanceled);
             Assert.True(cancellationTask.IsCompletedSuccessfully);

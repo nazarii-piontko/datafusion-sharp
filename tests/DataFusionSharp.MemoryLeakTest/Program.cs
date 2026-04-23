@@ -6,6 +6,9 @@ Console.WriteLine("=== Test started ===");
 var test = new StressTests(new TestOutputHelper());
 try
 {
+    Console.WriteLine("=== Running ConcurrentSessions_HandleMultipleQueries_Successfully with Query_WithSchema ===");
+    await test.ConcurrentSessions_HandleMultipleQueries_Successfully(StressTestsQueries.Query_WithSchema);
+    
     Console.WriteLine("=== Running ConcurrentSessions_HandleMultipleQueries_Successfully with Query_WithStream ===");
     await test.ConcurrentSessions_HandleMultipleQueries_Successfully(StressTestsQueries.Query_WithStream);
     
@@ -19,5 +22,10 @@ finally
 
 Console.WriteLine("=== Forcing GC to check for memory leaks ===");
 GC.Collect(2, GCCollectionMode.Forced, true, true);
+
+#if MEMORY_TEST
+Console.WriteLine($"Live AsyncOperation instances: {DataFusionSharp.Interop.AsyncOperation.LiveInstances}");
+Console.WriteLine($"Live SyncOperation instances: {DataFusionSharp.Interop.SyncOperation.LiveInstances}");
+#endif
 
 Console.WriteLine("=== Test completed ===");
