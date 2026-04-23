@@ -122,6 +122,8 @@ pub unsafe extern "C" fn datafusion_ping(
     let cancellation_guard = crate::cancellation::create_token(user_data);
 
     runtime.spawn(async move {
+        debug!("Ping spawned with timeout_ms={timeout_ms}, user_data={user_data}");
+
         let result = tokio::select! {
             () = tokio::time::sleep(std::time::Duration::from_millis(timeout_ms)) => {
                 debug!("Ping completed for user_data={user_data}");
@@ -134,6 +136,8 @@ pub unsafe extern "C" fn datafusion_ping(
         };
 
         crate::invoke_callback(result, callback, user_data);
+
+        debug!("Ping finished with timeout_ms={timeout_ms}, user_data={user_data}");
     });
 
     crate::ErrorCode::Ok
