@@ -71,8 +71,8 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncOperation<ulong>(cancellationToken);
-            var result = NativeMethods.DataFrameCount(_handle, &CallbackForCountAsync, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start counting rows in DataFrame.");
+            var result = NativeMethods.DataFrameCount(_handle, &CallbackForCountAsync, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start counting rows in DataFrame.");
 
             return op.Task;
         }
@@ -93,8 +93,8 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start showing DataFrame.");
+            var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start showing DataFrame.");
 
             return op.Task;
         }
@@ -111,8 +111,8 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncOperation<string>(cancellationToken);
-            var result = NativeMethods.DataFrameToString(_handle, &GenericCallbacks.CallbackForString, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start converting DataFrame to string.");
+            var result = NativeMethods.DataFrameToString(_handle, &GenericCallbacks.CallbackForString, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start converting DataFrame to string.");
 
             return op.Task;
         }
@@ -145,8 +145,8 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncOperation<DataFrameCollectedResult>(cancellationToken);
-            var result = NativeMethods.DataFrameCollect(_handle, &CallbackForCollect, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start collecting DataFrame.");
+            var result = NativeMethods.DataFrameCollect(_handle, &CallbackForCollect, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start collecting DataFrame.");
 
             return op.Task;
         }
@@ -165,8 +165,8 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncOperation<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>(cancellationToken);
-            var result = NativeMethods.DataFrameExecuteStream(_handle, &CallbackForExecutedStream, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start executing stream on DataFrame.");
+            var result = NativeMethods.DataFrameExecuteStream(_handle, &CallbackForExecutedStream, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start executing stream on DataFrame.");
             executeStreamTask = op.Task;
         }
         
@@ -194,8 +194,8 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.DataFrameWriteCsv(_handle, path, dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start writing DataFrame to CSV.");
+            var result = NativeMethods.DataFrameWriteCsv(_handle, path, dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start writing DataFrame to CSV.");
 
             return op.Task;
         }
@@ -220,8 +220,8 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.DataFrameWriteJson(_handle, path, dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start writing DataFrame to JSON.");
+            var result = NativeMethods.DataFrameWriteJson(_handle, path, dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start writing DataFrame to JSON.");
 
             return op.Task;
         }
@@ -246,8 +246,8 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.DataFrameWriteParquet(_handle, path, dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start writing DataFrame to Parquet.");
+            var result = NativeMethods.DataFrameWriteParquet(_handle, path, dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start writing DataFrame to Parquet.");
 
             return op.Task;
         }

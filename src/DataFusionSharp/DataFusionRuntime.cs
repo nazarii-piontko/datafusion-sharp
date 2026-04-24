@@ -55,8 +55,8 @@ public sealed class DataFusionRuntime : IDisposable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMilliseconds, &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to send ping to DataFusion runtime.");
+            var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMilliseconds, &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to send ping to DataFusion runtime.");
 
             return op.Task;
         }

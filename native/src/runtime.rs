@@ -1,5 +1,6 @@
 use log::{debug, error, warn};
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 
 pub type RuntimeHandle = Arc<tokio::runtime::Runtime>;
 
@@ -111,25 +112,27 @@ pub unsafe extern "C" fn datafusion_runtime_destroy(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_ping(
     runtime_ptr: *mut RuntimeHandle,
-    timeout_ms: u64,
+    timeout_millis: u64,
     callback: crate::Callback,
     user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> crate::ErrorCode {
     let runtime = ffi_ref!(runtime_ptr);
 
-    debug!("Received ping with timeout_ms={timeout_ms}, user_data={user_data}");
+    debug!("Received ping with timeout_millis={timeout_millis}, user_data={user_data}");
 
-    let cancellation_guard = crate::cancellation::create_token(user_data);
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
 
     runtime.spawn(async move {
-        debug!("Ping spawned with timeout_ms={timeout_ms}, user_data={user_data}");
+        debug!("Ping spawned with timeout_millis={timeout_millis}, user_data={user_data}");
 
         let result = tokio::select! {
-            () = tokio::time::sleep(std::time::Duration::from_millis(timeout_ms)) => {
+            () = tokio::time::sleep(std::time::Duration::from_millis(timeout_millis)) => {
                 debug!("Ping completed for user_data={user_data}");
                 Ok(())
             },
-            () = cancellation_guard.cancelled() => {
+            () = cancellation_token.cancelled() => {
                 debug!("Ping cancelled for user_data={user_data}");
                 Err(crate::cancellation::error())
             }
@@ -137,7 +140,7 @@ pub unsafe extern "C" fn datafusion_ping(
 
         crate::invoke_callback(result, callback, user_data);
 
-        debug!("Ping finished with timeout_ms={timeout_ms}, user_data={user_data}");
+        debug!("Ping finished with timeout_millis={timeout_millis}, user_data={user_data}");
     });
 
     crate::ErrorCode::Ok

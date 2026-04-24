@@ -51,8 +51,8 @@ public sealed class SessionContext : IDisposable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start CSV file registration.");
+            var result = NativeMethods.ContextRegisterCsv(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start CSV file registration.");
 
             return op.Task;
         }
@@ -77,8 +77,8 @@ public sealed class SessionContext : IDisposable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start JSON file registration.");
+            var result = NativeMethods.ContextRegisterJson(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start JSON file registration.");
 
             return op.Task;
         }
@@ -103,8 +103,8 @@ public sealed class SessionContext : IDisposable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start Parquet file registration.");
+            var result = NativeMethods.ContextRegisterParquet(_handle, tableName, filePath, optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start Parquet file registration.");
 
             return op.Task;
         }
@@ -154,8 +154,8 @@ public sealed class SessionContext : IDisposable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.ContextDeregisterTable(_handle, tableName, &GenericCallbacks.CallbackForVoid, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start table deregistration.");
+            var result = NativeMethods.ContextDeregisterTable(_handle, tableName, &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start table deregistration.");
 
             return op.Task;
         }
@@ -182,8 +182,8 @@ public sealed class SessionContext : IDisposable
         unsafe
         {
             var op = new AsyncOperation<DataFrameSafeHandle>(cancellationToken);
-            var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, &CallbackForSqlAsync, op.GetHandle());
-            op.EnsureNativeCall(result, "Failed to start executing SQL query.");
+            var result = NativeMethods.ContextSql(_handle, sql, BytesData.Empty, &CallbackForSqlAsync, op.GetHandle(), out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start executing SQL query.");
             sqlTask = op.Task;
         }
         
@@ -216,8 +216,8 @@ public sealed class SessionContext : IDisposable
             unsafe
             {
                 var op = new AsyncOperation<DataFrameSafeHandle>(cancellationToken);
-                var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), &CallbackForSqlAsync, op.GetHandle());
-                op.EnsureNativeCall(result, "Failed to start executing SQL query.");
+                var result = NativeMethods.ContextSql(_handle, sql, paramValuesData.ToBytesData(), &CallbackForSqlAsync, op.GetHandle(), out var cancellationTokenHandle);
+                op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start executing SQL query.");
                 task = op.Task;
             }
         }

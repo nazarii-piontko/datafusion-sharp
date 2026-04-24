@@ -2,6 +2,7 @@ use log::{debug, error, trace};
 use prost::Message;
 use std::sync::Arc;
 use tokio::select;
+use tokio_util::sync::CancellationToken;
 
 use crate::{BytesData, Callback, ErrorCode, ErrorInfo, mappers, proto};
 
@@ -75,6 +76,7 @@ pub unsafe extern "C" fn datafusion_context_destroy(
 /// - `table_path_ptr` must be a valid null-terminated UTF-8 string
 /// - `csv_options_bytes_ptr` must be a valid pointer to `BytesData` containing a Flatbuffers-encoded `CsvReadOptions` struct
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_register_csv(
     context_ptr: *mut SessionContextWrapper,
@@ -83,6 +85,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
     csv_options_bytes: BytesData,
     callback: Callback,
     user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
@@ -101,7 +104,8 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
         None => None,
     };
 
-    let cancellation_guard = crate::cancellation::create_token(user_data);
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
 
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
@@ -124,7 +128,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
                     r = context.inner.register_csv(&table_ref, &table_path, opts) => {
                         r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
                     }
-                    () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                    () = cancellation_token.cancelled() => Err(crate::cancellation::error())
                 };
 
                 crate::invoke_callback(result, callback, user_data);
@@ -152,6 +156,7 @@ pub unsafe extern "C" fn datafusion_context_register_csv(
 /// - `table_path_ptr` must be a valid null-terminated UTF-8 string
 /// - `json_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `JsonReadOptions`, or null
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_register_json(
     context_ptr: *mut SessionContextWrapper,
@@ -160,6 +165,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
     json_options_bytes: BytesData,
     callback: Callback,
     user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
@@ -178,7 +184,8 @@ pub unsafe extern "C" fn datafusion_context_register_json(
         None => None,
     };
 
-    let cancellation_guard = crate::cancellation::create_token(user_data);
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
 
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
@@ -204,7 +211,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
                     r = context.inner.register_json(&table_ref, &table_path, opts) => {
                         r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
                     }
-                    () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                    () = cancellation_token.cancelled() => Err(crate::cancellation::error())
                 };
 
                 crate::invoke_callback(result, callback, user_data);
@@ -232,6 +239,7 @@ pub unsafe extern "C" fn datafusion_context_register_json(
 /// - `table_path_ptr` must be a valid null-terminated UTF-8 string
 /// - `parquet_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `ParquetReadOptions`, or null
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_register_parquet(
     context_ptr: *mut SessionContextWrapper,
@@ -240,6 +248,7 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
     parquet_options_bytes: BytesData,
     callback: Callback,
     user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let table_ref = ffi_cstr_to_string!(table_ref_ptr);
@@ -260,7 +269,8 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
         None => None,
     };
 
-    let cancellation_guard = crate::cancellation::create_token(user_data);
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
 
     context.runtime.spawn(async move {
         let schema_opt = match mappers::from_proto_schema(
@@ -288,7 +298,7 @@ pub unsafe extern "C" fn datafusion_context_register_parquet(
                     r = context.inner.register_parquet(&table_ref, &table_path, opts) => {
                         r.map_err(|e| ErrorInfo::new(ErrorCode::TableRegistrationFailed, e))
                     }
-                    () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+                    () = cancellation_token.cancelled() => Err(crate::cancellation::error())
                 };
 
                 crate::invoke_callback(result, callback, user_data);
@@ -404,6 +414,7 @@ pub unsafe extern "C" fn datafusion_context_deregister_table(
 /// - `sql_ptr` must be a valid null-terminated UTF-8 string
 /// - `callback` must be valid to call from any thread
 /// - Caller must call `datafusion_dataframe_destroy` on the returned `DataFrame` pointer
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_sql(
     context_ptr: *mut SessionContextWrapper,
@@ -411,6 +422,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
     param_values_bytes: BytesData,
     callback: Callback,
     user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let context = ffi_ref!(context_ptr);
     let sql = ffi_cstr_to_string!(sql_ptr);
@@ -432,7 +444,8 @@ pub unsafe extern "C" fn datafusion_context_sql(
 
     trace!("Executing SQL query: {sql} on session {context_ptr:p}");
 
-    let cancellation_guard = crate::cancellation::create_token(user_data);
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
 
     let context_ptr_addr = context_ptr as usize;
     context.runtime.spawn(async move {
@@ -448,7 +461,7 @@ pub unsafe extern "C" fn datafusion_context_sql(
                     })
                 .map_err(|e| ErrorInfo::new(ErrorCode::SqlError, e))
             }
-            () = cancellation_guard.cancelled() => Err(crate::cancellation::error())
+            () = cancellation_token.cancelled() => Err(crate::cancellation::error())
         };
 
         trace!("Executed SQL query: {sql} on session 0x{context_ptr_addr:x}");

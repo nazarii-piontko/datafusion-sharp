@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace DataFusionSharp.Interop;
@@ -8,17 +7,37 @@ internal abstract class AsyncOperation
 #if MEMORY_TEST
     private static long _liveInstances;
     internal static long LiveInstances => Interlocked.Read(ref _liveInstances);
+    
+    private static long _liveCancellationTokens;
+    internal static long LiveCancellationTokens => Interlocked.Read(ref _liveCancellationTokens);
 #endif
+    
+    private static readonly IntPtr EmptyCancellationTokenHandle = IntPtr.Zero;
+    private static readonly IntPtr FinishedCancellationTokenHandle = new(-1);
 
     private readonly CancellationToken _cancellationToken;
-    private readonly CancellationTokenRegistration _cancellationRegistration;
+    private CancellationTokenRegistration _cancellationRegistration;
     
     private GCHandle _handle;
+    
+    // Handle to the native cancellation token associated with this operation.
+    // It can be in one of three states:
+    // - EmptyCancellationTokenHandle (IntPtr.Zero): the operation has not been started, and no native cancellation token has been created.
+    // - FinishedCancellationTokenHandle (new IntPtr(-1)): the operation has been completed or cancellation requested, and the native cancellation token has been destroyed.
+    // - Any other value: the operation is in progress, and the native cancellation token is active.
+    // It is important to keep three states to prevent race condition in EnsureNativeCall and double free in Cleanup.
+    private IntPtr _cancellationTokenHandle;
     
     protected AsyncOperation(CancellationToken cancellationToken)
     {
         _cancellationToken = cancellationToken;
-        _cancellationRegistration = cancellationToken.Register(OnCancelled);
+    }
+
+    ~AsyncOperation()
+    {
+        // Finalizer is a safety net to ensure resources are released even if Cleanup is not called.
+        // In normal operation, Cleanup should be called explicitly to free resources.
+        CleanupCore();
     }
 
     internal IntPtr GetHandle()
@@ -34,47 +53,43 @@ internal abstract class AsyncOperation
         return GCHandle.ToIntPtr(_handle);
     }
     
-    internal void EnsureNativeCall(DataFusionErrorCode result, string errorMessage)
+    internal void EnsureNativeCall(DataFusionErrorCode result, IntPtr cancellationTokenHandle, string errorMessage)
     {
         if (result != DataFusionErrorCode.Ok)
         {
-            // Native call failed, the operation has not been started.
-            // We can just clean up.
+            // Native call failed, the operation has not been started, clean up.
             Cleanup();
             _cancellationToken.ThrowIfCancellationRequested();
             throw new DataFusionException(result, errorMessage);
         }
-
-        if (_cancellationToken.IsCancellationRequested)
+        
+        if (!TryInitializeCancellationTokenHandle(cancellationTokenHandle))
         {
-            // The operation has been started, but the token was already cancelled.
-            // We need forcibly to attempt to cancel the operation on the native side.
-            // If the token was cancelled before native code registered async operation,
-            // native code will not have the chance to actually do cancellation.
-            if (_handle.IsAllocated)
-            {
-                var cancelResult = NativeMethods.CancelOperation(GCHandle.ToIntPtr(_handle));
-                if (cancelResult != DataFusionErrorCode.Ok)
-                {
-                    // Cancellation fails, it means the operation has already cancelled or completed.
-                    // We can just clean up.
-                    Cleanup();
-                    _cancellationToken.ThrowIfCancellationRequested();
-                }
-            }
-            else
-            {
-                // Should never happen.
-                Debug.Assert(false, "Expected handle to be allocated when cancellation is requested");
-                
-                // We can just clean up.
-                Cleanup();
-                _cancellationToken.ThrowIfCancellationRequested();
-            }
+            // As it seems the operation has been completed meanwhile, clean up.
+#if MEMORY_TEST
+            Interlocked.Decrement(ref _liveCancellationTokens);
+#endif
+
+            NativeMethods.CancellationTokenDestroy(cancellationTokenHandle);
+            return;
         }
+        
+        _cancellationRegistration = _cancellationToken.Register(OnCancelled);
+        
+        if (_cancellationToken.IsCancellationRequested)
+            Cancel();
     }
     
     protected void Cleanup()
+    {
+        CleanupCore();
+        
+#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
+        GC.SuppressFinalize(this);
+#pragma warning restore CA1816
+    }
+    
+    protected void CleanupCore()
     {
         if (_handle.IsAllocated)
         {
@@ -90,6 +105,15 @@ internal abstract class AsyncOperation
                 // Handle was already freed, ignore
             }
         }
+        
+        var cancellationTokenHandle = TakeCancellationTokenHandle();
+        if (IsValidCancellationTokenHandle(cancellationTokenHandle))
+        {
+#if MEMORY_TEST
+            Interlocked.Decrement(ref _liveCancellationTokens);
+#endif
+            NativeMethods.CancellationTokenDestroy(cancellationTokenHandle);
+        }
 
         try
         {
@@ -100,11 +124,48 @@ internal abstract class AsyncOperation
             // CancellationTokenSource was already disposed, ignore
         }
     }
+    
+    private void Cancel()
+    {
+        var cancellationTokenHandle = TakeCancellationTokenHandle();
+        if (IsValidCancellationTokenHandle(cancellationTokenHandle))
+        {
+#if MEMORY_TEST
+            Interlocked.Decrement(ref _liveCancellationTokens);
+#endif
 
+            NativeMethods.CancellationTokenCancel(cancellationTokenHandle);
+        }
+    }
+    
     private void OnCancelled()
     {
-        if (_handle.IsAllocated)
-            NativeMethods.CancelOperation(GCHandle.ToIntPtr(_handle));
+        Cancel();
+    }
+
+    private bool TryInitializeCancellationTokenHandle(IntPtr handle)
+    {
+#if MEMORY_TEST
+        Interlocked.Increment(ref _liveCancellationTokens);
+#endif
+
+        var prevCancellationTokenHandle = Interlocked.CompareExchange(
+            ref _cancellationTokenHandle,
+            handle,
+            EmptyCancellationTokenHandle);
+        return prevCancellationTokenHandle == EmptyCancellationTokenHandle;
+    }
+    
+    private IntPtr TakeCancellationTokenHandle()
+    {
+        return Interlocked.Exchange(
+            ref _cancellationTokenHandle,
+            FinishedCancellationTokenHandle);
+    }
+    
+    private static bool IsValidCancellationTokenHandle(IntPtr handle)
+    {
+        return handle != EmptyCancellationTokenHandle && handle != FinishedCancellationTokenHandle;
     }
 }
 
