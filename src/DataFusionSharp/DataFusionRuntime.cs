@@ -36,7 +36,10 @@ public sealed class DataFusionRuntime : IDisposable
         if (maxBlockingThreads.HasValue)
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBlockingThreads.Value);
         
-        var result = NativeMethods.RuntimeNew(workerThreads ?? 0, maxBlockingThreads ?? 0, out var handle);
+        var result = NativeMethods.RuntimeNew(
+            workerThreads ?? 0,
+            maxBlockingThreads ?? 0,
+            out var handle);
         DataFusionException.ThrowIfError(result, "Failed to create DataFusion runtime");
 
         return new DataFusionRuntime(new RuntimeSafeHandle(handle));
@@ -55,7 +58,12 @@ public sealed class DataFusionRuntime : IDisposable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.Ping(_handle, (ulong) timeout.TotalMilliseconds, &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.Ping(
+                _handle,
+                (ulong) timeout.TotalMilliseconds,
+                &GenericCallbacks.CallbackForVoid,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to send ping to DataFusion runtime.");
 
             return op.Task;

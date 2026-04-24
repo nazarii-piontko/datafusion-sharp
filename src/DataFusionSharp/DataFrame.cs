@@ -33,7 +33,8 @@ public sealed class DataFrame : IDisposable, ICloneable
     }
 
     /// <summary>
-    /// Parameterizes DataFrame with the provided SQL parameters. This is used to bind values to parameter placeholders in the original SQL query that created this DataFrame.
+    /// Parameterizes DataFrame with the provided SQL parameters.
+    /// This is used to bind values to parameter placeholders in the original SQL query that created this DataFrame.
     /// </summary>
     /// <param name="parameters">A named parameters to bind to the query.</param>
     /// <returns>A DataFrame instance for chaining.</returns>
@@ -53,7 +54,11 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new SyncVoidOperation();
-            var result = NativeMethods.DataFrameWithParameters(_handle, paramValuesData.ToBytesData(), &GenericCallbacks.CallbackForVoidSync, op.GetHandle());
+            var result = NativeMethods.DataFrameWithParameters(
+                _handle,
+                paramValuesData.ToBytesData(),
+                &GenericCallbacks.CallbackForVoidSync,
+                op.GetHandle());
             op.EnsureNativeCall(result, "Failed to start DataFrame with SQL parameters parameterization.");
         }
 
@@ -71,7 +76,11 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncOperation<ulong>(cancellationToken);
-            var result = NativeMethods.DataFrameCount(_handle, &CallbackForCountAsync, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameCount(
+                _handle,
+                &CallbackForCountAsync,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start counting rows in DataFrame.");
 
             return op.Task;
@@ -93,7 +102,12 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.DataFrameShow(_handle, limit ?? 0, &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameShow(
+                _handle,
+                limit ?? 0,
+                &GenericCallbacks.CallbackForVoid,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start showing DataFrame.");
 
             return op.Task;
@@ -111,7 +125,11 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncOperation<string>(cancellationToken);
-            var result = NativeMethods.DataFrameToString(_handle, &GenericCallbacks.CallbackForString, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameToString(
+                _handle,
+                &GenericCallbacks.CallbackForString,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start converting DataFrame to string.");
 
             return op.Task;
@@ -128,7 +146,10 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new SyncOperation<Schema>();
-            var result = NativeMethods.DataFrameSchema(_handle, &CallbackForGetSchema, op.GetHandle());
+            var result = NativeMethods.DataFrameSchema(
+                _handle,
+                &CallbackForGetSchema,
+                op.GetHandle());
 
             return op.EnsureNativeCall(result, "Failed to start getting DataFrame schema.");
         }
@@ -145,7 +166,11 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncOperation<DataFrameCollectedResult>(cancellationToken);
-            var result = NativeMethods.DataFrameCollect(_handle, &CallbackForCollect, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameCollect(
+                _handle,
+                &CallbackForCollect,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start collecting DataFrame.");
 
             return op.Task;
@@ -165,7 +190,11 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncOperation<(Schema Schema, DataFrameStreamSafeHandle StreamHandle)>(cancellationToken);
-            var result = NativeMethods.DataFrameExecuteStream(_handle, &CallbackForExecutedStream, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameExecuteStream(
+                _handle,
+                &CallbackForExecutedStream,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start executing stream on DataFrame.");
             executeStreamTask = op.Task;
         }
@@ -184,7 +213,11 @@ public sealed class DataFrame : IDisposable, ICloneable
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteCsvAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, CsvWriteOptions? csvWriteOptions = null, CancellationToken cancellationToken = default)
+    public Task WriteCsvAsync(
+        string path,
+        DataFrameWriteOptions? dataFrameWriteOptions = null,
+        CsvWriteOptions? csvWriteOptions = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
@@ -194,7 +227,14 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.DataFrameWriteCsv(_handle, path, dataFrameOptionsData.ToBytesData(), csvOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameWriteCsv(
+                _handle,
+                path,
+                dataFrameOptionsData.ToBytesData(),
+                csvOptionsData.ToBytesData(),
+                &GenericCallbacks.CallbackForVoid,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start writing DataFrame to CSV.");
 
             return op.Task;
@@ -210,7 +250,11 @@ public sealed class DataFrame : IDisposable, ICloneable
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteJsonAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, JsonWriteOptions? jsonWriteOptions = null, CancellationToken cancellationToken = default)
+    public Task WriteJsonAsync(
+        string path,
+        DataFrameWriteOptions? dataFrameWriteOptions = null,
+        JsonWriteOptions? jsonWriteOptions = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
@@ -220,7 +264,14 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.DataFrameWriteJson(_handle, path, dataFrameOptionsData.ToBytesData(), optionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameWriteJson(
+                _handle,
+                path,
+                dataFrameOptionsData.ToBytesData(),
+                optionsData.ToBytesData(),
+                &GenericCallbacks.CallbackForVoid,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start writing DataFrame to JSON.");
 
             return op.Task;
@@ -236,7 +287,11 @@ public sealed class DataFrame : IDisposable, ICloneable
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when the operation fails.</exception>
-    public Task WriteParquetAsync(string path, DataFrameWriteOptions? dataFrameWriteOptions = null, ParquetWriteOptions? parquetWriteOptions = null, CancellationToken cancellationToken = default)
+    public Task WriteParquetAsync(
+        string path,
+        DataFrameWriteOptions? dataFrameWriteOptions = null,
+        ParquetWriteOptions? parquetWriteOptions = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
@@ -246,7 +301,14 @@ public sealed class DataFrame : IDisposable, ICloneable
         unsafe
         {
             var op = new AsyncVoidOperation(cancellationToken);
-            var result = NativeMethods.DataFrameWriteParquet(_handle, path, dataFrameOptionsData.ToBytesData(), parquetOptionsData.ToBytesData(), &GenericCallbacks.CallbackForVoid, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameWriteParquet(
+                _handle,
+                path,
+                dataFrameOptionsData.ToBytesData(),
+                parquetOptionsData.ToBytesData(),
+                &GenericCallbacks.CallbackForVoid,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start writing DataFrame to Parquet.");
 
             return op.Task;
@@ -255,7 +317,8 @@ public sealed class DataFrame : IDisposable, ICloneable
     
     /// <summary>
     /// Creates a deep clone of this DataFrame.
-    /// The cloned DataFrame will have its own independent query execution and lifecycle, allowing it to be used concurrently with the original DataFrame without interference.
+    /// The cloned DataFrame will have its own independent query execution and lifecycle,
+    /// allowing it to be used concurrently with the original DataFrame without interference.
     /// </summary>
     /// <returns>A cloned <see cref="DataFrame"/>.</returns>
     public DataFrame Clone()

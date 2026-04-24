@@ -78,7 +78,11 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
         unsafe
         {
             var op = new AsyncOperation<RecordBatch?, Schema>(Schema, cancellationToken);
-            var result = NativeMethods.DataFrameStreamNext(_handle, &CallbackForNextResult, op.GetHandle(), out var cancellationTokenHandle);
+            var result = NativeMethods.DataFrameStreamNext(
+                _handle,
+                &CallbackForNextResult,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
             op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start getting next batch from stream.");
             dfStreamNextTask = op.Task;
         }
