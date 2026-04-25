@@ -1,23 +1,25 @@
-use std::sync::Arc;
 use log::{debug, error, warn};
+use std::sync::Arc;
+use tokio::select;
+use tokio_util::sync::CancellationToken;
 
+use object_store::memory::InMemory;
 use object_store::path::Path;
 use object_store::{ObjectStoreExt, PutPayload};
-use object_store::memory::InMemory;
 
-use crate::{BytesData, Callback, ErrorCode};
 use crate::error::ErrorInfo;
+use crate::{BytesData, Callback, ErrorCode};
 
 pub struct InMemoryStoreWrapper {
     runtime: crate::RuntimeHandle,
-    inner: Arc<InMemory>
+    inner: Arc<InMemory>,
 }
 
 impl InMemoryStoreWrapper {
     pub(crate) fn new(runtime: &crate::RuntimeHandle) -> Self {
         Self {
             runtime: Arc::clone(runtime),
-            inner: Arc::new(InMemory::new())
+            inner: Arc::new(InMemory::new()),
         }
     }
 
@@ -35,7 +37,7 @@ impl InMemoryStoreWrapper {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_in_memory_store_new(
     runtime_ptr: *mut crate::RuntimeHandle,
-    store_ptr: *mut *mut InMemoryStoreWrapper
+    store_ptr: *mut *mut InMemoryStoreWrapper,
 ) -> ErrorCode {
     if store_ptr.is_null() {
         error!("Received null output pointer for store");
@@ -62,7 +64,9 @@ pub unsafe extern "C" fn datafusion_in_memory_store_new(
 /// - `store_ptr` must be a valid pointer returned by `datafusion_in_memory_store_new`, or null
 /// - Caller must not use `store_ptr` after this call
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn datafusion_in_memory_store_destroy(store_ptr: *mut InMemoryStoreWrapper) -> ErrorCode {
+pub unsafe extern "C" fn datafusion_in_memory_store_destroy(
+    store_ptr: *mut InMemoryStoreWrapper,
+) -> ErrorCode {
     debug!("Destroying in-memory store {store_ptr:p}");
 
     if store_ptr.is_null() {
@@ -84,6 +88,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_destroy(store_ptr: *mut InMe
 /// - `data_bytes` must point to valid memory for the duration of this call if copy is `true` or for the duration of the store if copy is `false`
 /// - If `copy` is false, the data behind `data_bytes` must remain valid for the lifetime of the store
 /// - `callback` will be invoked exactly once when the operation completes
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or nul
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_in_memory_store_put(
     store_ptr: *mut InMemoryStoreWrapper,
@@ -91,12 +96,16 @@ pub unsafe extern "C" fn datafusion_in_memory_store_put(
     data_bytes: BytesData,
     copy: bool,
     callback: Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
 
-    debug!("Putting data to in-memory store {store_ptr:p} at path '{path_str}' with data length {}, copy={copy}", data_bytes.len());
+    debug!(
+        "Putting data to in-memory store {store_ptr:p} at path '{path_str}' with data length {}, copy={copy}",
+        data_bytes.len()
+    );
 
     let store = Arc::clone(&store_wrapper.inner);
 
@@ -106,16 +115,23 @@ pub unsafe extern "C" fn datafusion_in_memory_store_put(
         bytes::Bytes::from_static(data_bytes.as_slice_static())
     };
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else { return };
+        let Some(path) = ensure_path_parameter(&path_str, callback, user_data) else {
+            return;
+        };
 
         let payload = PutPayload::from_bytes(bytes);
 
-        let result = store
-            .put(&path, payload)
-            .await
-            .map(drop)
-            .map_err(|e| ErrorInfo::new(ErrorCode::ObjectStoreError, e));
+        let result = select! {
+            r = store.put(&path, payload) => {
+                r.map(drop)
+                 .map_err(|e| ErrorInfo::new(ErrorCode::ObjectStoreError, e))
+            }
+            () = cancellation_token.cancelled() => Err(crate::cancellation::error())
+        };
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -129,12 +145,14 @@ pub unsafe extern "C" fn datafusion_in_memory_store_put(
 /// - `store_ptr` must be a valid pointer returned by `datafusion_in_memory_store_new`
 /// - `path_ptr` must be a valid null-terminated C string representing the object path
 /// - `callback` will be invoked exactly once when the operation completes
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_in_memory_store_get(
     store_ptr: *mut InMemoryStoreWrapper,
     path_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
@@ -143,21 +161,54 @@ pub unsafe extern "C" fn datafusion_in_memory_store_get(
 
     let store = Arc::clone(&store_wrapper.inner);
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else { return };
-
-        let get_result = match store.get(&path).await {
-            Ok(r) => r,
-            Err(e) => return crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::ObjectStoreError, e), callback, user_data)
+        let Some(path) = ensure_path_parameter(&path_str, callback, user_data) else {
+            return;
         };
 
-        let bytes = match get_result.bytes().await {
-            Ok(r) => r,
-            Err(e) => return crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::ObjectStoreError, e), callback, user_data)
+        let get_result = select! {
+            r = store.get(&path) => r,
+            () = cancellation_token.cancelled() => {
+                crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data);
+                return;
+            }
         };
 
-        let bytes_data = BytesData::new(bytes.as_ref());
-        crate::invoke_callback_success(bytes_data, callback, user_data);
+        let get_result = match get_result {
+            Ok(r) => r,
+            Err(e) => {
+                return crate::invoke_callback_error(
+                    &ErrorInfo::new(ErrorCode::ObjectStoreError, e),
+                    callback,
+                    user_data,
+                );
+            }
+        };
+
+        let bytes_result = select! {
+            r = get_result.bytes() => r,
+            () = cancellation_token.cancelled() => {
+                crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data);
+                return;
+            }
+        };
+
+        match bytes_result {
+            Ok(bytes) => {
+                let bytes_data = BytesData::new(bytes.as_ref());
+                crate::invoke_callback_success(bytes_data, callback, user_data);
+            }
+            Err(e) => {
+                crate::invoke_callback_error(
+                    &ErrorInfo::new(ErrorCode::ObjectStoreError, e),
+                    callback,
+                    user_data,
+                );
+            }
+        }
     });
 
     ErrorCode::Ok
@@ -169,12 +220,14 @@ pub unsafe extern "C" fn datafusion_in_memory_store_get(
 /// - `store_ptr` must be a valid pointer returned by `datafusion_in_memory_store_new`
 /// - `path_ptr` must be a valid null-terminated C string representing the object path to delete
 /// - `callback` will be invoked exactly once when the operation completes
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_in_memory_store_delete(
     store_ptr: *mut InMemoryStoreWrapper,
     path_ptr: *const std::ffi::c_char,
     callback: Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let store_wrapper = ffi_ref!(store_ptr);
     let path_str = ffi_cstr_to_string!(path_ptr);
@@ -183,13 +236,20 @@ pub unsafe extern "C" fn datafusion_in_memory_store_delete(
 
     let store = Arc::clone(&store_wrapper.inner);
 
-    store_wrapper.runtime.spawn(async move {
-        let Some(path) = parse_path(&path_str, callback, user_data) else { return };
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
 
-        let result = store
-            .delete(&path)
-            .await
-            .map_err(|e| ErrorInfo::new(ErrorCode::ObjectStoreError, e));
+    store_wrapper.runtime.spawn(async move {
+        let Some(path) = ensure_path_parameter(&path_str, callback, user_data) else {
+            return;
+        };
+
+        let result = select! {
+            r = store.delete(&path) => {
+                r.map_err(|e| ErrorInfo::new(ErrorCode::ObjectStoreError, e))
+            }
+            () = cancellation_token.cancelled() => Err(crate::cancellation::error())
+        };
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -197,7 +257,7 @@ pub unsafe extern "C" fn datafusion_in_memory_store_delete(
     ErrorCode::Ok
 }
 
-fn parse_path(path_str: &str, callback: Callback, user_data: u64) -> Option<Path> {
+fn ensure_path_parameter(path_str: &str, callback: Callback, user_data: isize) -> Option<Path> {
     match Path::parse(path_str) {
         Ok(path) => Some(path),
         Err(e) => {

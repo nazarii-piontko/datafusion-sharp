@@ -22,5 +22,7 @@ public enum DataFusionErrorCode
     /// <summary>An error occurred during DataFrame operations.</summary>
     DataFrameError = 7,
     /// <summary>An error occurred in the object store.</summary>
-    ObjectStoreError = 8
+    ObjectStoreError = 8,
+    /// <summary>The operation was cancelled before it could complete.</summary>
+    Canceled = 9,
 }

@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using DataFusionSharp.Interop;
 using Microsoft.Extensions.Logging;
 
@@ -12,7 +14,10 @@ public static partial class DataFusionNativeLogger
 
     static DataFusionNativeLogger()
     {
-        _ = NativeMethods.SetLogger(LogCallbackHandle);
+        unsafe
+        {
+            _ = NativeMethods.SetLogger(&LogCallback);
+        }
     }
 
     /// <summary>
@@ -54,6 +59,7 @@ public static partial class DataFusionNativeLogger
         DataFusionException.ThrowIfError(errorCode, "Failed to set native log level");
     }
     
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void LogCallback(NativeMethods.NativeLogLevel level, BytesData targetBytes, BytesData messageBytes)
     {
         var logger = _logger;
@@ -79,8 +85,6 @@ public static partial class DataFusionNativeLogger
         using var scope = logger.BeginScope(KeyValuePair.Create("NativeTarget", target));
         logger.LogNativeMessage(logLevel, message);
     }
-    private static readonly NativeMethods.LogCallback LogCallbackDelegate = LogCallback;
-    private static readonly IntPtr LogCallbackHandle = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(LogCallbackDelegate);
 
     [LoggerMessage("{message}")]
     private static partial void LogNativeMessage(this ILogger logger, LogLevel logLevel, string message);

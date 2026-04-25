@@ -1,48 +1,61 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
 namespace DataFusionSharp.Interop;
 
-internal static partial class GenericCallbacks
+internal static class GenericCallbacks
 {
-    [DataFusionSharpNativeCallback]
-    internal static void CallbackForVoid(IntPtr _, IntPtr error, ulong handle)
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    internal static void CallbackForVoid(IntPtr _, IntPtr error, IntPtr handle)
     {
         var ex = error != IntPtr.Zero ? ErrorInfoData.FromIntPtr(error).ToException() : null;
-        AsyncOperations.Instance.CompleteVoid(handle, ex);
+        var op = AsyncVoidOperation.FromHandle(handle);
+        op?.Complete(ex);
     }
     
-    [DataFusionSharpNativeCallback]
-    internal static void CallbackForVoidSync(IntPtr _, IntPtr error, ulong handle)
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    internal static void CallbackForVoidSync(IntPtr _, IntPtr error, IntPtr handle)
     {
         var ex = error != IntPtr.Zero ? ErrorInfoData.FromIntPtr(error).ToException() : null;
-        SyncOperations.Instance.CompleteVoid(handle, ex);
+        var op = SyncVoidOperation.FromHandle(handle);
+        op?.Complete(ex);
     }
 
-    [DataFusionSharpNativeCallback]
-    internal static void CallbackForString(IntPtr result, IntPtr error, ulong handle)
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    internal static void CallbackForString(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<string>.FromHandle(handle);
+        if (op is null)
+            return;
+
         if (error != IntPtr.Zero)
         {
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<string>(handle, ex);
+            op.Complete(ex);
             return;
         }
 
         var data = BytesData.FromIntPtr(result);
         var dataStr = data.ToUtf8String();
-        AsyncOperations.Instance.CompleteWithResult(handle, dataStr);
+        op.Complete(dataStr);
     }
     
-    [DataFusionSharpNativeCallback]
-    internal static void CallbackForBytes(IntPtr result, IntPtr error, ulong handle)
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    internal static void CallbackForBytes(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<byte[]>.FromHandle(handle);
+        if (op is null)
+            return;
+
         if (error != IntPtr.Zero)
         {
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<byte[]>(handle, ex);
+            op.Complete(ex);
             return;
         }
 
         var data = BytesData.FromIntPtr(result);
         var dataBytes = data.ToArray();
-        AsyncOperations.Instance.CompleteWithResult(handle, dataBytes);
+        op.Complete(dataBytes);
     }
 }

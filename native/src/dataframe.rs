@@ -1,8 +1,11 @@
-use std::sync::Arc;
 use futures::StreamExt;
 use log::{debug, error, trace};
 use prost::Message;
-use crate::{mappers, proto, ErrorCode, ErrorInfo};
+use std::sync::Arc;
+use tokio::select;
+use tokio_util::sync::CancellationToken;
+
+use crate::{ErrorCode, ErrorInfo, mappers, proto};
 
 pub struct DataFrameWrapper {
     runtime: crate::RuntimeHandle,
@@ -11,10 +14,7 @@ pub struct DataFrameWrapper {
 
 impl DataFrameWrapper {
     pub fn new(runtime: crate::RuntimeHandle, inner: datafusion::prelude::DataFrame) -> Self {
-        Self {
-            runtime,
-            inner,
-        }
+        Self { runtime, inner }
     }
 
     pub(crate) fn runtime(&self) -> &crate::RuntimeHandle {
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn datafusion_dataframe_destroy(df_ptr: *mut DataFrameWrap
 /// - `df_ptr` must be a valid pointer returned by other public functions
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_clone(
-    df_ptr: *mut DataFrameWrapper
+    df_ptr: *mut DataFrameWrapper,
 ) -> *mut DataFrameWrapper {
     if df_ptr.is_null() {
         return std::ptr::null_mut();
@@ -82,12 +82,17 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
     df_ptr: *mut DataFrameWrapper,
     param_values_bytes: crate::BytesData,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref_mut!(df_ptr);
 
-    let Ok(param_values_proto) = proto::DataFrameParamValues::decode(param_values_bytes.as_slice()) else { return ErrorCode::InvalidArgument };
-    let Ok(param_values) = mappers::from_proto_param_values(&param_values_proto) else { return ErrorCode::InvalidArgument };
+    let Ok(param_values_proto) = proto::DataFrameParamValues::decode(param_values_bytes.as_slice())
+    else {
+        return ErrorCode::InvalidArgument;
+    };
+    let Ok(param_values) = mappers::from_proto_param_values(&param_values_proto) else {
+        return ErrorCode::InvalidArgument;
+    };
 
     debug!("Applying parameters to DataFrame {df_ptr:p}");
 
@@ -95,10 +100,14 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
         Ok(new_df) => {
             df_wrapper.set_inner(new_df);
             crate::invoke_callback_null_result(callback, user_data);
-        },
+        }
         Err(e) => {
             error!("Failed to apply parameters to DataFrame: {e}");
-            crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::DataFrameError, e), callback, user_data);
+            crate::invoke_callback_error(
+                &ErrorInfo::new(ErrorCode::DataFrameError, e),
+                callback,
+                user_data,
+            );
         }
     }
 
@@ -112,23 +121,30 @@ pub unsafe extern "C" fn datafusion_dataframe_with_parameters(
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_count(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
     debug!("Executing count on DataFrame {df_ptr:p}");
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
-        let result = df
-            .count()
-            .await
-            .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
-            .map(|s| s as u64);
+        let result = select! {
+            r = df.count() => {
+                r.map(|t| t as u64)
+                 .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
+            }
+            () = cancellation_token.cancelled() => Err(crate::cancellation::error())
+        };
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -143,6 +159,7 @@ pub unsafe extern "C" fn datafusion_dataframe_count(
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 ///
 /// # Parameters
 /// - `limit`: Maximum number of rows to display (0 = no limit)
@@ -151,20 +168,31 @@ pub unsafe extern "C" fn datafusion_dataframe_show(
     df_ptr: *mut DataFrameWrapper,
     limit: u64,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
     debug!("Executing show with limit={limit} on DataFrame {df_ptr:p}");
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
-        let result = if limit > 0 {
-            #[allow(clippy::cast_possible_truncation)]
-            df.show_limit(limit as usize).await
-        } else {
-            df.show().await
-        }.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e));
+        let result = select! {
+            r = async {
+                if limit > 0 {
+                    #[allow(clippy::cast_possible_truncation)]
+                    df.show_limit(limit as usize).await
+                } else {
+                    df.show().await
+                }
+            } => {
+                r.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
+            }
+            () = cancellation_token.cancelled() => Err(crate::cancellation::error())
+        };
 
         crate::invoke_callback(result, callback, user_data);
     });
@@ -179,31 +207,31 @@ pub unsafe extern "C" fn datafusion_dataframe_show(
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_to_string(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
     debug!("Executing to_string on DataFrame {df_ptr:p}");
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
-        let result = df
-            .to_string()
-            .await;
-
-        match result {
-            Ok(s) => {
-                let data = crate::BytesData::new(s.as_bytes());
-                crate::invoke_callback(Ok(data), callback, user_data);
-            }
-            Err(err) => {
-                let err_info = ErrorInfo::new(ErrorCode::DataFrameError, err);
-                crate::invoke_callback(Err::<crate::BytesData, _>(err_info), callback, user_data);
-            }
+        select! {
+            r = df.to_string() => {
+                match r {
+                    Ok(s) => crate::invoke_callback_success(crate::BytesData::new(s.as_bytes()), callback, user_data),
+                    Err(err) => crate::invoke_callback_error(&ErrorInfo::new(ErrorCode::DataFrameError, err), callback, user_data)
+                }
+            },
+            () = cancellation_token.cancelled() => crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data)
         }
     });
 
@@ -221,7 +249,7 @@ pub unsafe extern "C" fn datafusion_dataframe_to_string(
 pub unsafe extern "C" fn datafusion_dataframe_schema(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
@@ -252,15 +280,20 @@ pub struct CollectedData {
 /// # Safety
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_collect(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
     debug!("Collecting DataFrame {df_ptr:p}");
+
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
 
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
@@ -273,17 +306,34 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
             }
         };
 
-        let Ok(batches) = df.collect().await else {
+        let collect_result = select! {
+            r = df.collect() => r,
+            () = cancellation_token.cancelled() => {
+                crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data);
+                return;
+            }
+        };
+
+        let Ok(batches) = collect_result else {
             error!("Failed to collect record batches");
-            let error = ErrorInfo::new(ErrorCode::DataFrameError, "Failed to collect record batches");
+            let error = ErrorInfo::new(
+                ErrorCode::DataFrameError,
+                "Failed to collect record batches",
+            );
             crate::invoke_callback_error(&error, callback, user_data);
             return;
         };
         let ffi_batches = batches.iter().map(convert_batch_to_ffi).collect::<Vec<_>>();
 
         let Ok(num_batches) = i32::try_from(ffi_batches.len()) else {
-            error!("Too many record batches ({}) to fit in i32", ffi_batches.len());
-            let error = ErrorInfo::new(ErrorCode::DataFrameError, "Too many record batches to fit in i32");
+            error!(
+                "Too many record batches ({}) to fit in i32",
+                ffi_batches.len()
+            );
+            let error = ErrorInfo::new(
+                ErrorCode::DataFrameError,
+                "Too many record batches to fit in i32",
+            );
             crate::invoke_callback_error(&error, callback, user_data);
             return;
         };
@@ -304,7 +354,7 @@ pub unsafe extern "C" fn datafusion_dataframe_collect(
 
 pub struct DataFrameStreamWrapper {
     runtime: crate::RuntimeHandle,
-    stream: datafusion::execution::SendableRecordBatchStream
+    stream: datafusion::execution::SendableRecordBatchStream,
 }
 
 #[repr(C)]
@@ -322,15 +372,20 @@ pub struct ExecutedStreamData {
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `callback` must be valid to call from any thread
 /// - Caller must call `datafusion_dataframe_stream_destroy` on the returned stream pointer
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
     df_ptr: *mut DataFrameWrapper,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
 
     debug!("Executing stream on DataFrame {df_ptr:p}");
+
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
 
     let df_ptr_addr = df_ptr as usize;
     df_wrapper.runtime().spawn(async move {
@@ -344,8 +399,19 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
             }
         };
 
-        let Ok(stream) = df.execute_stream().await else {
-            let error = ErrorInfo::new(ErrorCode::DataFrameError, "Failed to execute dataframe stream");
+        let stream_result = select! {
+            r = df.execute_stream() => r,
+            () = cancellation_token.cancelled() => {
+                crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data);
+                return;
+            }
+        };
+
+        let Ok(stream) = stream_result else {
+            let error = ErrorInfo::new(
+                ErrorCode::DataFrameError,
+                "Failed to execute dataframe stream",
+            );
             crate::invoke_callback_error(&error, callback, user_data);
             return;
         };
@@ -375,7 +441,7 @@ pub unsafe extern "C" fn datafusion_dataframe_execute_stream(
 /// - Caller must not use `stream_ptr` after this call
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_stream_destroy(
-    stream_ptr: *mut DataFrameStreamWrapper
+    stream_ptr: *mut DataFrameStreamWrapper,
 ) -> ErrorCode {
     debug!("Destroying stream {stream_ptr:p}");
 
@@ -395,11 +461,13 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_destroy(
 /// # Safety
 /// - `stream_ptr` must be a valid pointer returned by `datafusion_dataframe_execute_stream`
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_stream_next(
     stream_ptr: *mut DataFrameStreamWrapper,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let stream_wrapper = ffi_ref_mut!(stream_ptr);
 
@@ -407,19 +475,28 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
 
     let runtime = Arc::clone(&stream_wrapper.runtime);
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     runtime.spawn(async move {
-        match stream_wrapper.stream.next().await {
-            Some(result) => match result {
-                Ok(batch) => {
-                    let ffi_batch = convert_batch_to_ffi(&batch);
-                    crate::invoke_callback_success(ffi_batch, callback, user_data);
-                },
-                Err(err) => {
-                    let error = ErrorInfo::new(ErrorCode::DataFrameError, err);
-                    crate::invoke_callback_error(&error, callback, user_data);
-                }
-            },
-            None => crate::invoke_callback_null_result(callback, user_data)
+        let result = select! {
+            batch_opt = stream_wrapper.stream.next() => batch_opt,
+            () = cancellation_token.cancelled() => {
+                crate::invoke_callback_error(&crate::cancellation::error(), callback, user_data);
+                return;
+            }
+        };
+
+        match result {
+            Some(Ok(batch)) => {
+                let ffi_batch = convert_batch_to_ffi(&batch);
+                crate::invoke_callback_success(ffi_batch, callback, user_data);
+            }
+            Some(Err(err)) => {
+                let error = ErrorInfo::new(ErrorCode::DataFrameError, err);
+                crate::invoke_callback_error(&error, callback, user_data);
+            }
+            None => crate::invoke_callback_null_result(callback, user_data),
         }
     });
 
@@ -434,6 +511,7 @@ pub unsafe extern "C" fn datafusion_dataframe_stream_next(
 /// - `df_ptr` must be a valid pointer returned by other public functions
 /// - `path_ptr` must be a valid null-terminated UTF-8 string
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     df_ptr: *mut DataFrameWrapper,
@@ -441,29 +519,49 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
     dataframe_write_options_bytes: crate::BytesData,
     csv_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
-    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes.as_opt_slice()
-        .map(proto::DataFrameWriteOptions::decode).transpose() else { return ErrorCode::InvalidArgument };
-    let Ok(dataframe_write_options) = mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref()) else { return ErrorCode::InvalidArgument };
+    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes
+        .as_opt_slice()
+        .map(proto::DataFrameWriteOptions::decode)
+        .transpose()
+    else {
+        return ErrorCode::InvalidArgument;
+    };
+    let Ok(dataframe_write_options) =
+        mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref())
+    else {
+        return ErrorCode::InvalidArgument;
+    };
 
-    let Ok(csv_write_options) = csv_write_options_bytes.as_opt_slice()
-        .map(|b| datafusion_proto::protobuf::CsvOptions::decode(b)
-            .map(|pbo| datafusion::common::config::CsvOptions::from(&pbo))
-        )
-        .transpose() else { return ErrorCode::InvalidArgument };
+    let Ok(csv_write_options) = csv_write_options_bytes
+        .as_opt_slice()
+        .map(|b| {
+            datafusion_proto::protobuf::CsvOptions::decode(b)
+                .map(|pbo| datafusion::common::config::CsvOptions::from(&pbo))
+        })
+        .transpose()
+    else {
+        return ErrorCode::InvalidArgument;
+    };
 
     debug!("Executing write_csv to '{path}' on DataFrame {df_ptr:p}");
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
-        let result = df
-            .write_csv(&path, dataframe_write_options, csv_write_options)
-            .await
-            .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e));
+        let result = select! {
+            r = df.write_csv(&path, dataframe_write_options, csv_write_options) => {
+                r.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
+            }
+            () = cancellation_token.cancelled() => Err(crate::cancellation::error())
+        };
 
         debug!("Executed write_csv to '{path}'");
 
@@ -482,6 +580,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_csv(
 /// - `path_ptr` must be a valid null-terminated UTF-8 string
 /// - `json_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `JsonOptions`, or null
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or null
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_write_json(
     df_ptr: *mut DataFrameWrapper,
@@ -489,29 +588,49 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
     dataframe_write_options_bytes: crate::BytesData,
     json_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
-    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes.as_opt_slice()
-        .map(proto::DataFrameWriteOptions::decode).transpose() else { return ErrorCode::InvalidArgument };
-    let Ok(dataframe_write_options) = mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref()) else { return ErrorCode::InvalidArgument };
+    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes
+        .as_opt_slice()
+        .map(proto::DataFrameWriteOptions::decode)
+        .transpose()
+    else {
+        return ErrorCode::InvalidArgument;
+    };
+    let Ok(dataframe_write_options) =
+        mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref())
+    else {
+        return ErrorCode::InvalidArgument;
+    };
 
-    let Ok(json_write_options) = json_write_options_bytes.as_opt_slice()
-        .map(|b| datafusion_proto::protobuf::JsonOptions::decode(b)
-            .map(|pbo| datafusion::common::config::JsonOptions::from(&pbo))
-        )
-        .transpose() else { return ErrorCode::InvalidArgument };
+    let Ok(json_write_options) = json_write_options_bytes
+        .as_opt_slice()
+        .map(|b| {
+            datafusion_proto::protobuf::JsonOptions::decode(b)
+                .map(|pbo| datafusion::common::config::JsonOptions::from(&pbo))
+        })
+        .transpose()
+    else {
+        return ErrorCode::InvalidArgument;
+    };
 
     debug!("Executing write_json to '{path}' on DataFrame {df_ptr:p}");
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
-        let result = df
-            .write_json(&path, dataframe_write_options, json_write_options)
-            .await
-            .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e));
+        let result = select! {
+            r = df.write_json(&path, dataframe_write_options, json_write_options) => {
+                r.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
+            }
+            () = cancellation_token.cancelled() => Err(crate::cancellation::error())
+        };
 
         debug!("Executed write_json to '{path}'");
 
@@ -531,6 +650,7 @@ pub unsafe extern "C" fn datafusion_dataframe_write_json(
 /// - `dataframe_write_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `DataFrameWriteOptions`, or null
 /// - `parquet_write_options_bytes` must be a valid `BytesData` containing a protobuf-encoded `TableParquetOptions`, or null
 /// - `callback` must be valid to call from any thread
+/// - `cancellation_token_out_ptr` must be a valid pointer to writable memory or nul
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
     df_ptr: *mut DataFrameWrapper,
@@ -538,29 +658,49 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
     dataframe_write_options_bytes: crate::BytesData,
     parquet_write_options_bytes: crate::BytesData,
     callback: crate::Callback,
-    user_data: u64
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
 ) -> ErrorCode {
     let df_wrapper = ffi_ref!(df_ptr);
     let path = ffi_cstr_to_string!(path_ptr);
 
-    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes.as_opt_slice()
-        .map(proto::DataFrameWriteOptions::decode).transpose() else { return ErrorCode::InvalidArgument };
-    let Ok(dataframe_write_options) = mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref()) else { return ErrorCode::InvalidArgument };
+    let Ok(dataframe_write_options_proto) = dataframe_write_options_bytes
+        .as_opt_slice()
+        .map(proto::DataFrameWriteOptions::decode)
+        .transpose()
+    else {
+        return ErrorCode::InvalidArgument;
+    };
+    let Ok(dataframe_write_options) =
+        mappers::from_proto_dataframe_write_options(dataframe_write_options_proto.as_ref())
+    else {
+        return ErrorCode::InvalidArgument;
+    };
 
-    let Ok(parquet_write_options) = parquet_write_options_bytes.as_opt_slice()
-        .map(|b| datafusion_proto::protobuf::TableParquetOptions::decode(b)
-            .map(|pbo| datafusion::common::config::TableParquetOptions::from(&pbo))
-        )
-        .transpose() else { return ErrorCode::InvalidArgument };
+    let Ok(parquet_write_options) = parquet_write_options_bytes
+        .as_opt_slice()
+        .map(|b| {
+            datafusion_proto::protobuf::TableParquetOptions::decode(b)
+                .map(|pbo| datafusion::common::config::TableParquetOptions::from(&pbo))
+        })
+        .transpose()
+    else {
+        return ErrorCode::InvalidArgument;
+    };
 
     debug!("Executing write_parquet to '{path}' on DataFrame {df_ptr:p}");
 
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
     df_wrapper.runtime().spawn(async move {
         let df = df_wrapper.clone_inner();
-        let result = df
-            .write_parquet(&path, dataframe_write_options, parquet_write_options)
-            .await
-            .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e));
+        let result = select! {
+            r = df.write_parquet(&path, dataframe_write_options, parquet_write_options) => {
+                r.map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, e))
+            }
+            () = cancellation_token.cancelled() => Err(crate::cancellation::error())
+        };
 
         debug!("Executed write_parquet to '{path}'");
 
@@ -570,17 +710,26 @@ pub unsafe extern "C" fn datafusion_dataframe_write_parquet(
     ErrorCode::Ok
 }
 
-pub(crate) fn dataframe_to_ptr(runtime: &crate::RuntimeHandle, df: datafusion::prelude::DataFrame) -> *mut DataFrameWrapper {
+pub(crate) fn dataframe_to_ptr(
+    runtime: &crate::RuntimeHandle,
+    df: datafusion::prelude::DataFrame,
+) -> *mut DataFrameWrapper {
     let ptr = Box::into_raw(Box::new(DataFrameWrapper::new(Arc::clone(runtime), df)));
     debug!("Created DataFrame {ptr:p}");
     ptr
 }
 
 /// Helper function to convert a `DataFrame` schema to FFI format.
-fn convert_schema_to_ffi(df: &datafusion::dataframe::DataFrame) -> Result<arrow_array::ffi::FFI_ArrowSchema, ErrorInfo> {
+fn convert_schema_to_ffi(
+    df: &datafusion::dataframe::DataFrame,
+) -> Result<arrow_array::ffi::FFI_ArrowSchema, ErrorInfo> {
     let schema = df.schema();
-    arrow_array::ffi::FFI_ArrowSchema::try_from(schema.as_arrow())
-        .map_err(|e| ErrorInfo::new(ErrorCode::DataFrameError, format!("Failed to convert schema to FFI format: {e}")))
+    arrow_array::ffi::FFI_ArrowSchema::try_from(schema.as_arrow()).map_err(|e| {
+        ErrorInfo::new(
+            ErrorCode::DataFrameError,
+            format!("Failed to convert schema to FFI format: {e}"),
+        )
+    })
 }
 
 /// Helper function to convert a `RecordBatch` to FFI format.

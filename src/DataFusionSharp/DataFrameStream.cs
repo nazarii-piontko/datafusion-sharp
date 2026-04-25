@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Apache.Arrow;
 using DataFusionSharp.Interop;
 
@@ -21,7 +23,7 @@ namespace DataFusionSharp;
 /// </code>
 /// </example>
 #pragma warning disable CA1711 // Identifiers should not have incorrect suffix
-public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
+public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
 #pragma warning restore CA1711
 {
     private readonly DataFrameStreamSafeHandle _handle;
@@ -51,7 +53,7 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
     /// <returns>An async enumerator of <see cref="RecordBatch"/>.</returns>
     public async IAsyncEnumerator<RecordBatch> GetAsyncEnumerator(CancellationToken cancellationToken = default)
     {
-        while (await NextAsync().ConfigureAwait(false) is { } batch)
+        while (await NextAsync(cancellationToken).ConfigureAwait(false) is { } batch)
         {
             cancellationToken.ThrowIfCancellationRequested();
             yield return batch;
@@ -69,18 +71,23 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
         _handle.Dispose();
     }
     
-    private async Task<RecordBatch?> NextAsync()
+    private async Task<RecordBatch?> NextAsync(CancellationToken cancellationToken)
     {
-        var (id, tcs) = AsyncOperations.Instance.Create<RecordBatch?, Schema>(Schema);
-        
-        var result = NativeMethods.DataFrameStreamNext(_handle, CallbackForNextResultHandle, id);
-        if (result != DataFusionErrorCode.Ok)
+        Task<RecordBatch?> dfStreamNextTask;
+
+        unsafe
         {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to start getting next batch from stream");
+            var op = new AsyncOperation<RecordBatch?, Schema>(Schema, cancellationToken);
+            var result = NativeMethods.DataFrameStreamNext(
+                _handle,
+                &CallbackForNextResult,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to start getting next batch from stream.");
+            dfStreamNextTask = op.Task;
         }
-        
-        var batch = await tcs.Task.ConfigureAwait(false);
+
+        var batch = await dfStreamNextTask.ConfigureAwait(false);
 
         if (batch is not null)
             _batches.Add(batch); // Keep track of batches to dispose them when the stream is disposed.
@@ -88,20 +95,25 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
         return batch;
     }
 
-    [DataFusionSharpNativeCallback]
-    private static unsafe void CallbackForNextResult(IntPtr result, IntPtr error, ulong userData)
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static unsafe void CallbackForNextResult(IntPtr result, IntPtr error, IntPtr handle)
     {
+        var op = AsyncOperation<RecordBatch?, Schema>.FromHandle(handle);
+        
         if (error != IntPtr.Zero)
         {
+            if (op is null)
+                return;
+
             var ex = ErrorInfoData.FromIntPtr(error).ToException();
-            AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
+            op.Complete(ex);
             return;
         }
-        
+
         if (result == IntPtr.Zero)
         {
             // Null result - end of stream
-            AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, null);
+            op?.Complete((RecordBatch?)null);
             return;
         }
 
@@ -109,7 +121,7 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
         RecordBatch batch;
         try
         {
-            var schema = AsyncOperations.Instance.GetUserData<Schema>(userData);
+            var schema = op?.UserData;
             if (schema is null)
                 throw new InvalidOperationException("Failed to retrieve schema for next batch retrieval operation");
 
@@ -126,10 +138,10 @@ public sealed partial class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDi
                 // Ignore exceptions from release function - we are already handling another exception and there's not much we can do about it.
             }
 
-            AsyncOperations.Instance.CompleteWithError<RecordBatch?>(userData, ex);
+            op?.Complete(ex);
             return;
         }
         
-        AsyncOperations.Instance.CompleteWithResult<RecordBatch?>(userData, batch);
+        op!.Complete(batch);
     }
 }

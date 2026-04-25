@@ -1,66 +1,130 @@
-using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 
 namespace DataFusionSharp.Interop;
 
-internal sealed class SyncOperations
+internal abstract class SyncOperation
 {
-    public static SyncOperations Instance { get; } = new();
-    
-    private readonly ConcurrentDictionary<ulong, SyncOperationResult?> _operations = new();
-    private ulong _nextId;
+#if MEMORY_TEST
+    private static long _liveInstances;
+    internal static long LiveInstances => Interlocked.Read(ref _liveInstances);
+#endif
 
-    public ulong Create()
+    private GCHandle _handle;
+
+    internal IntPtr GetHandle()
     {
-        return Interlocked.Increment(ref _nextId);
+        if (!_handle.IsAllocated)
+        {
+            _handle = GCHandle.Alloc(this, GCHandleType.Normal);
+#if MEMORY_TEST
+            Interlocked.Increment(ref _liveInstances);
+#endif
+        }
+
+        return GCHandle.ToIntPtr(_handle);
     }
     
-    public void Abort(ulong id)
+    protected void Cleanup()
     {
-        _operations.TryRemove(id, out _);
+        if (_handle.IsAllocated)
+        {
+            try
+            {
+                _handle.Free();
+#if MEMORY_TEST
+                Interlocked.Decrement(ref _liveInstances);
+#endif
+            }
+            catch (InvalidOperationException)
+            {
+                // Handle was already freed, ignore
+            }
+        }
     }
-    
-    public void CompleteVoid(ulong id, Exception? exception)
+}
+
+internal sealed class SyncVoidOperation : SyncOperation
+{
+    private Exception? _exception;
+
+    internal void EnsureNativeCall(DataFusionErrorCode result, string errorMessage)
     {
-        _operations.TryAdd(id, new SyncOperationResult { Exception = exception });
-    }
-    
-    public void CompleteWithResult<TResult>(ulong id, TResult? result = default)
-    {
-        _operations.TryAdd(id, new SyncOperationResult<TResult> { Result = result });
-    }
-    
-    public void CompleteWithError<TResult>(ulong id, Exception exception)
-    {
-        _operations.TryAdd(id, new SyncOperationResult<TResult> { Exception = exception });
-    }
-    
-    public void TakeResult(ulong id)
-    {
-        if (!_operations.TryRemove(id, out var result) || result is not { } r)
-            throw new DataFusionException(DataFusionErrorCode.Panic, "No result available for the given operation");
+        Cleanup();
+
+        if (result != DataFusionErrorCode.Ok)
+            throw new DataFusionException(result, errorMessage);
         
-        if (r.Exception is not null)
-            throw r.Exception;
-    }
-    
-    public TResult TakeResult<TResult>(ulong id)
-    {
-        if (!_operations.TryRemove(id, out var result) || result is not SyncOperationResult<TResult> r)
-            throw new DataFusionException(DataFusionErrorCode.Panic, "No result available for the given operation");
-        
-        if (r.Exception is not null)
-            throw r.Exception;
-        
-        return r.Result!;
+        if (_exception is not null)
+            throw _exception;
     }
 
-    private class SyncOperationResult
+    internal void Complete(Exception? exception = null)
     {
-        public Exception? Exception { get; set; }
+        _exception = exception;
     }
     
-    private sealed class SyncOperationResult<TResult> : SyncOperationResult
+    internal static SyncVoidOperation? FromHandle(IntPtr handle)
     {
-        public TResult? Result { get; set; }
+        try
+        {
+            var h = GCHandle.FromIntPtr(handle);
+            if (!h.IsAllocated)
+                return null;
+
+            return h.Target as SyncVoidOperation;
+        }
+        catch (InvalidOperationException)
+        {
+            // The handle was freed between the IsAllocated check and the Target access.
+            // Or the handle is invalid. In either case, we can just return null.
+            return null;
+        }
+    }
+}
+
+internal sealed class SyncOperation<TResult> : SyncOperation
+{
+    private TResult _result = default!;
+    private Exception? _exception;
+
+    internal TResult EnsureNativeCall(DataFusionErrorCode result, string errorMessage)
+    {
+        Cleanup();
+
+        if (result != DataFusionErrorCode.Ok)
+            throw new DataFusionException(result, errorMessage);
+        
+        if (_exception is not null)
+            throw _exception;
+
+        return _result;
+    }
+
+    internal void Complete(TResult result)
+    {
+        _result = result;
+    }
+    
+    internal void Complete(Exception exception)
+    {
+        _exception = exception;
+    }
+    
+    internal static SyncOperation<TResult>? FromHandle(IntPtr handle)
+    {
+        try
+        {
+            var h = GCHandle.FromIntPtr(handle);
+            if (!h.IsAllocated)
+                return null;
+
+            return h.Target as SyncOperation<TResult>;
+        }
+        catch (InvalidOperationException)
+        {
+            // The handle was freed between the IsAllocated check and the Target access.
+            // Or the handle is invalid. In either case, we can just return null.
+            return null;
+        }
     }
 }

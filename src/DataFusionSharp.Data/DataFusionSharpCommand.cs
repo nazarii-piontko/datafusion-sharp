@@ -107,7 +107,7 @@ public sealed class DataFusionSharpCommand : DbCommand
     public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
     {
         using var df = await ExecuteDataFrameAsync().ConfigureAwait(false);
-        using var stream = await df.ExecuteStreamAsync().ConfigureAwait(false);
+        using var stream = await df.ExecuteStreamAsync(cancellationToken).ConfigureAwait(false);
         await foreach (var batch in stream.WithCancellation(cancellationToken).ConfigureAwait(false))
             batch.Dispose();
         return -1;
@@ -143,7 +143,7 @@ public sealed class DataFusionSharpCommand : DbCommand
         var df = await ExecuteDataFrameAsync().ConfigureAwait(false);
         try
         {
-            var stream = await df.ExecuteStreamAsync().ConfigureAwait(false);
+            var stream = await df.ExecuteStreamAsync(cancellationToken).ConfigureAwait(false);
             return new DataFusionSharpDataReader(df, stream);
         }
         catch

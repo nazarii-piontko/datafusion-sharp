@@ -1,5 +1,6 @@
-use std::sync::Arc;
 use log::{debug, error, warn};
+use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 
 pub type RuntimeHandle = Arc<tokio::runtime::Runtime>;
 
@@ -17,13 +18,16 @@ pub type RuntimeHandle = Arc<tokio::runtime::Runtime>;
 pub unsafe extern "C" fn datafusion_runtime_new(
     worker_threads: u32,
     max_blocking_threads: u32,
-    runtime_ptr: *mut *mut RuntimeHandle) -> crate::ErrorCode {
+    runtime_ptr: *mut *mut RuntimeHandle,
+) -> crate::ErrorCode {
     if runtime_ptr.is_null() {
         error!("Failed to create runtime: invalid output pointer");
         return crate::ErrorCode::InvalidArgument;
     }
 
-    debug!("Creating Tokio runtime with worker_threads={worker_threads}, max_blocking_threads={max_blocking_threads}");
+    debug!(
+        "Creating Tokio runtime with worker_threads={worker_threads}, max_blocking_threads={max_blocking_threads}"
+    );
 
     let mut builder = tokio::runtime::Builder::new_multi_thread();
 
@@ -40,16 +44,20 @@ pub unsafe extern "C" fn datafusion_runtime_new(
     match builder.build() {
         Ok(runtime) => {
             let runtime_handle: RuntimeHandle = Arc::new(runtime);
-            unsafe { *runtime_ptr = Box::into_raw(Box::new(runtime_handle)); }
+            unsafe {
+                *runtime_ptr = Box::into_raw(Box::new(runtime_handle));
+            }
 
-            debug!("Created Tokio runtime with worker_threads={worker_threads}, max_blocking_threads={max_blocking_threads}, runtime_ptr={runtime_ptr:p}");
+            debug!(
+                "Created Tokio runtime with worker_threads={worker_threads}, max_blocking_threads={max_blocking_threads}, runtime_ptr={runtime_ptr:p}"
+            );
 
             crate::ErrorCode::Ok
         }
         Err(err) => {
             error!("Failed to create runtime: {err}");
             crate::ErrorCode::RuntimeInitializationFailed
-        },
+        }
     }
 }
 
@@ -64,7 +72,9 @@ pub unsafe extern "C" fn datafusion_runtime_new(
 /// # Parameters
 /// - `runtime`: Pointer to the runtime to destroy
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHandle) -> crate::ErrorCode {
+pub unsafe extern "C" fn datafusion_runtime_destroy(
+    runtime_ptr: *mut RuntimeHandle,
+) -> crate::ErrorCode {
     if runtime_ptr.is_null() {
         warn!("Destroying runtime: null pointer, ignoring");
         return crate::ErrorCode::Ok;
@@ -83,9 +93,55 @@ pub unsafe extern "C" fn datafusion_runtime_destroy(runtime_ptr: *mut RuntimeHan
             crate::ErrorCode::Ok
         }
         Err(arc) => {
-            error!("Failed to destroy runtime: {} strong references remain", Arc::strong_count(&arc));
+            error!(
+                "Failed to destroy runtime: {} strong references remain",
+                Arc::strong_count(&arc)
+            );
 
             crate::ErrorCode::RuntimeInitializationFailed
         }
     }
+}
+
+/// Example async function to test runtime functionality.
+/// Sleeps for `timeout_ms` milliseconds, then invokes the callback with the result.
+///
+/// # Safety
+/// - `runtime_ptr` must be a valid pointer to a runtime created by `datafusion_runtime_new`
+/// - `callback` must be valid to call from any thread
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_ping(
+    runtime_ptr: *mut RuntimeHandle,
+    timeout_millis: u64,
+    callback: crate::Callback,
+    user_data: isize,
+    cancellation_token_out_ptr: *mut *mut CancellationToken,
+) -> crate::ErrorCode {
+    let runtime = ffi_ref!(runtime_ptr);
+
+    debug!("Received ping with timeout_millis={timeout_millis}, user_data={user_data}");
+
+    let cancellation_token = CancellationToken::new();
+    crate::cancellation::into_raw_ptr(&cancellation_token, cancellation_token_out_ptr);
+
+    runtime.spawn(async move {
+        debug!("Ping spawned with timeout_millis={timeout_millis}, user_data={user_data}");
+
+        let result = tokio::select! {
+            () = tokio::time::sleep(std::time::Duration::from_millis(timeout_millis)) => {
+                debug!("Ping completed for user_data={user_data}");
+                Ok(())
+            },
+            () = cancellation_token.cancelled() => {
+                debug!("Ping cancelled for user_data={user_data}");
+                Err(crate::cancellation::error())
+            }
+        };
+
+        crate::invoke_callback(result, callback, user_data);
+
+        debug!("Ping finished with timeout_millis={timeout_millis}, user_data={user_data}");
+    });
+
+    crate::ErrorCode::Ok
 }

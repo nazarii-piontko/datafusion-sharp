@@ -33,11 +33,12 @@ public sealed class InMemoryObjectStore : IDisposable
     /// </remarks>
     /// <param name="path">Path to data</param>
     /// <param name="data">Bytes data to put</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task that completes when the put operation is finished.</returns>
     /// <exception cref="ArgumentException">Invalid path</exception>
     /// <exception cref="ArgumentNullException">Null data</exception>
     /// <exception cref="DataFusionException">Failed to put object into in-memory store</exception>
-    public Task PutAsync(string path, Memory<byte> data)
+    public Task PutAsync(string path, Memory<byte> data, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         if (data.IsEmpty)
@@ -46,17 +47,23 @@ public sealed class InMemoryObjectStore : IDisposable
         using var pinnedData = PinnedBytesData.FromMemory(data);
         var bytesData = pinnedData.ToBytesData();
         
-        var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, true, GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
+        unsafe
         {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to put object into in-memory store.");
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.InMemoryStorePut(
+                Handle,
+                path,
+                bytesData,
+                true,
+                &GenericCallbacks.CallbackForVoid,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to put object into in-memory store.");
+            
+            return op.Task;
         }
-        
-        return tcs.Task;
     }
-    
+
     /// <summary>
     /// Puts data into the in-memory store at the specified path.
     /// The data is provided as a pinned byte array.
@@ -68,69 +75,87 @@ public sealed class InMemoryObjectStore : IDisposable
     /// <param name="path">Path to data</param>
     /// <param name="memoryHandle">Pinned memory handle to byte data to put</param>
     /// <param name="length">Length of the data in bytes</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task that completes when the put operation is finished.</returns>
     /// <exception cref="ArgumentException">Invalid path</exception>
     /// <exception cref="ArgumentNullException">Null data</exception>
     /// <exception cref="DataFusionException">Failed to put object into in-memory store</exception>
-    public Task PutAsStaticAsync(string path, MemoryHandle memoryHandle, int length)
+    public Task PutAsStaticAsync(string path, MemoryHandle memoryHandle, int length, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
         
-        var (id, tcs) = AsyncOperations.Instance.Create();
         var bytesData = BytesData.FromPinned(memoryHandle, length);
-        var result = NativeMethods.InMemoryStorePut(Handle, path, bytesData, false, GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
+
+        unsafe
         {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to put object into in-memory store.");
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.InMemoryStorePut(
+                Handle,
+                path,
+                bytesData,
+                false,
+                &GenericCallbacks.CallbackForVoid,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to put object into in-memory store.");
+            
+            return op.Task;
         }
-        
-        return tcs.Task;
     }
 
     /// <summary>
     /// Gets data from the in-memory store at the specified path.
     /// </summary>
     /// <param name="path">Path to data</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task that completes with the retrieved data as a byte array.</returns>
     /// <exception cref="ArgumentException">Invalid path</exception>
     /// <exception cref="DataFusionException">Failed to get object from in-memory store</exception>
-    public Task<byte[]> GetAsync(string path)
+    public Task<byte[]> GetAsync(string path, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        
-        var (id, tcs) = AsyncOperations.Instance.Create<byte[]>();
-        var result = NativeMethods.InMemoryStoreGet(Handle, path, GenericCallbacks.CallbackForBytesHandle, id);
-        if (result != DataFusionErrorCode.Ok)
+
+        unsafe
         {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to get object from in-memory store.");
+            var op = new AsyncOperation<byte[]>(cancellationToken);
+            var result = NativeMethods.InMemoryStoreGet(
+                Handle,
+                path,
+                &GenericCallbacks.CallbackForBytes,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to get object from in-memory store.");
+            
+            return op.Task;
         }
-        
-        return tcs.Task;
     }
 
     /// <summary>
     /// Deletes data at the specified path from the in-memory store.
     /// </summary>
     /// <param name="path">Path to data to delete</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A task that completes when the delete operation is finished.</returns>
     /// <exception cref="ArgumentException">Invalid path</exception>
     /// <exception cref="ArgumentNullException">Null data</exception>
     /// <exception cref="DataFusionException">Failed to delete object from in-memory store</exception>
-    public Task DeleteAsync(string path)
+    public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        
-        var (id, tcs) = AsyncOperations.Instance.Create();
-        var result = NativeMethods.InMemoryStoreDelete(Handle, path, GenericCallbacks.CallbackForVoidHandle, id);
-        if (result != DataFusionErrorCode.Ok)
+
+        unsafe
         {
-            AsyncOperations.Instance.Abort(id);
-            throw new DataFusionException(result, "Failed to delete object from in-memory store.");
+            var op = new AsyncVoidOperation(cancellationToken);
+            var result = NativeMethods.InMemoryStoreDelete(
+                Handle,
+                path,
+                &GenericCallbacks.CallbackForVoid,
+                op.GetHandle(),
+                out var cancellationTokenHandle);
+            op.EnsureNativeCall(result, cancellationTokenHandle, "Failed to delete object from in-memory store.");
+            
+            return op.Task;
         }
-        
-        return tcs.Task;
     }
 
     /// <inheritdoc />

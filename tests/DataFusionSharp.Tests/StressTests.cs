@@ -1,4 +1,5 @@
 using Apache.Arrow;
+using Apache.Arrow.Types;
 using Meziantou.Extensions.Logging.Xunit;
 using Xunit.Abstractions;
 
@@ -71,13 +72,38 @@ public sealed class StressTestsQueriesData : TheoryData<StressTests.QueryFunc>
 {
     public StressTestsQueriesData()
     {
+        Add(StressTestsQueries.Query_WithSchema);
         Add(StressTestsQueries.Query_WithCollect);
         Add(StressTestsQueries.Query_WithStream);
+        Add(StressTestsQueries.Query_WithCancellation_DuringCollect);
     }
 }
 
 public static class StressTestsQueries
 {
+    public static async Task Query_WithSchema(DataFusionRuntime runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+
+        var rowsCount = GetRandomRowsCount();
+
+        using var context = runtime.CreateSessionContext();
+        using var dataFrame = await context.SqlAsync($"SELECT s.value AS id, 'Generated value for collect #' || s.value AS val, 'Collect constant value' as const_val FROM generate_series(1, {rowsCount}) AS s");
+            
+        var schema = dataFrame.GetSchema();
+        
+        Assert.Equal(3, schema.FieldsList.Count);
+        
+        Assert.Equal("id", schema.FieldsList[0].Name);
+        Assert.IsType<Int64Type>(schema.FieldsList[0].DataType);
+        
+        Assert.Equal("val", schema.FieldsList[1].Name);
+        Assert.IsType<StringType>(schema.FieldsList[1].DataType);
+        
+        Assert.Equal("const_val", schema.FieldsList[2].Name);
+        Assert.IsType<StringType>(schema.FieldsList[2].DataType);
+    }
+    
     public static async Task Query_WithCollect(DataFusionRuntime runtime)
     {
         ArgumentNullException.ThrowIfNull(runtime);
@@ -135,6 +161,35 @@ public static class StressTestsQueries
             var row = rows[i];
             if (i + 1 != row.Id || row.Value != $"Generated value for stream #{row.Id}" || row.ConstValue != "Stream constant value")
                 Assert.Fail($"Unexpected row data for id {row.Id} in query with {rowsCount} rows: {row}");
+        }
+    }
+    
+    public static async Task Query_WithCancellation_DuringCollect(DataFusionRuntime runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+
+        // Use a higher row count to ensure CollectAsync takes long enough for cancellation to hit.
+        var rowsCount = Random.Shared.Next(10_000, 64_000);
+
+        using var context = runtime.CreateSessionContext();
+        
+        // Cancel after a short random delay to target the collect phase.
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMilliseconds(Random.Shared.Next(0, 50)));
+        
+        try
+        {
+            using var dataFrame = await context.SqlAsync(
+                $"SELECT s.value AS id, 'Generated value for cancel #' || s.value AS val, 'Cancel constant value' as const_val FROM generate_series(1, {rowsCount}) AS s", cts.Token);
+
+            using var collected = await dataFrame.CollectAsync(cts.Token);
+
+            // If we got here, the operation completed before cancellation — that's fine.
+            Assert.True(collected.Batches.Count > 0);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancellation fires during collect.
         }
     }
     

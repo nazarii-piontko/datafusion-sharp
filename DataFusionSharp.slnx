@@ -99,7 +99,6 @@
   <Folder Name="/src/">
     <Project Path="src/DataFusionSharp/DataFusionSharp.csproj" />
     <Project Path="src/DataFusionSharp.Data/DataFusionSharp.Data.csproj" />
-    <Project Path="src/DataFusionSharp.SourceGenerators/DataFusionSharp.SourceGenerators.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DataFusionSharp.Benchmark/DataFusionSharp.Benchmark.csproj" />

@@ -1,6 +1,6 @@
 [package]
 name = "datafusion-sharp-native"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [lib]
@@ -25,6 +25,7 @@ object_store = { version = "0.13.2", features = ["aws", "azure", "gcp", "http"] 
 prost = "0.14.3"
 reqwest = { version = "0.13.2", default-features = false }
 tokio = { version = "1.52.1", features = ["rt-multi-thread"] }
+tokio-util = "0.7.18"
 url = "2.5.8"
 
 [build-dependencies]
