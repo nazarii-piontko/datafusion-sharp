@@ -142,6 +142,6 @@ public sealed class DataFrameStream : IAsyncEnumerable<RecordBatch>, IDisposable
             return;
         }
         
-        op?.Complete(batch);
+        op!.Complete(batch);
     }
 }

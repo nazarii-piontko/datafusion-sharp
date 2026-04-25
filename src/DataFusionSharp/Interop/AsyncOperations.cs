@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace DataFusionSharp.Interop;
@@ -70,7 +71,8 @@ internal abstract class AsyncOperation
             Interlocked.Decrement(ref _liveCancellationTokens);
 #endif
 
-            NativeMethods.CancellationTokenDestroy(cancellationTokenHandle);
+            var tokenDestroyResult = NativeMethods.CancellationTokenDestroy(cancellationTokenHandle);
+            Debug.Assert(tokenDestroyResult == DataFusionErrorCode.Ok, "Failed to destroy cancellation token in EnsureNativeCall.");
             return;
         }
         
@@ -85,7 +87,9 @@ internal abstract class AsyncOperation
         CleanupCore();
         
 #pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
+#pragma warning disable S3971
         GC.SuppressFinalize(this);
+#pragma warning restore S3971
 #pragma warning restore CA1816
     }
     
@@ -100,7 +104,7 @@ internal abstract class AsyncOperation
                 Interlocked.Decrement(ref _liveInstances);
 #endif
             }
-            catch (InvalidOperationException)
+            catch (Exception)
             {
                 // Handle was already freed, ignore
             }
@@ -112,7 +116,8 @@ internal abstract class AsyncOperation
 #if MEMORY_TEST
             Interlocked.Decrement(ref _liveCancellationTokens);
 #endif
-            NativeMethods.CancellationTokenDestroy(cancellationTokenHandle);
+            var tokenDestroyResult = NativeMethods.CancellationTokenDestroy(cancellationTokenHandle);
+            Debug.Assert(tokenDestroyResult == DataFusionErrorCode.Ok, "Failed to destroy cancellation token in CleanupCore.");
         }
 
         try
@@ -134,7 +139,8 @@ internal abstract class AsyncOperation
             Interlocked.Decrement(ref _liveCancellationTokens);
 #endif
 
-            NativeMethods.CancellationTokenCancel(cancellationTokenHandle);
+            var tokenCancelResult = NativeMethods.CancellationTokenCancel(cancellationTokenHandle);
+            Debug.Assert(tokenCancelResult == DataFusionErrorCode.Ok, "Failed to cancel cancellation token in Cancel.");
         }
     }
     
