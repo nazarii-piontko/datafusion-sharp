@@ -11,10 +11,11 @@
 
 ## Features
 
-| Component        | Feature                                      | Status | Notes                                             |
-|------------------|----------------------------------------------|--------|---------------------------------------------------|
+| Component        | Feature                                      | Status  | Notes                                             |
+|------------------|----------------------------------------------|---------|---------------------------------------------------|
 | **Runtime**      | Tokio runtime                                | ✅      | Configurable threads, supports multiple instances |
 |                  | Logger                                       | ✅      | Configurable with log levels                      |
+|                  | CancellationToken                            | ✅      | All async operations accept CancellationToken     |
 | **Session**      | Create session context                       | ✅      |                                                   |
 |                  | Execute SQL queries                          | ✅      | Returns DataFrame, supports parameters            |
 | **Data Sources** | CSV (read/write)                             | ✅      | `RegisterCsvAsync`                                |
