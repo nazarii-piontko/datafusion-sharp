@@ -181,7 +181,7 @@ Key characteristics:
 - **No stored procedures** -- only `CommandType.Text` is supported
 - **ExecuteNonQuery returns -1** -- DataFusion is an analytical engine and does not track affected row counts
 - **Single result set** -- `NextResult()` always returns `false`
-- **No Cancel** -- `Cancel()` throws `NotSupportedException`
+- **No synchronous Cancel** -- `Cancel()` throws `NotSupportedException`; however, `CancellationToken` is fully supported on `ExecuteScalarAsync`, `ExecuteNonQueryAsync`, and `ExecuteReaderAsync`, propagating cancellation to the native runtime
 - **Read-only** -- DataFusion does not support INSERT/UPDATE/DELETE on registered tables
 
 For the core DataFusion parameter syntax and ScalarValue types, see [Querying Data](./querying-data).

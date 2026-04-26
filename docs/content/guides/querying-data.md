@@ -155,3 +155,16 @@ df2.WithParameters([("status", "Pending")]);
 await df1.ShowAsync();
 await df2.ShowAsync();
 ```
+
+## Cancellation
+
+All async methods accept an optional `CancellationToken` that propagates cancellation to the native Rust runtime.
+When cancelled, the in-flight Tokio task is aborted and a `TaskCanceledException` is thrown on the .NET side.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+
+// Pass the token to any async method
+using var df = await context.SqlAsync("SELECT * FROM large_table", cancellationToken: cts.Token);
+using var result = await df.CollectAsync(cts.Token);
+```
