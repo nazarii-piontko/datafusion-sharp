@@ -31,7 +31,7 @@ jobs:
   check:
     name: Check
     if: "!contains(github.event.head_commit.message, '[ci-skip]')"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -59,9 +59,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
+          key: ubuntu-22.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
           restore-keys: |
-            ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}
+            ubuntu-22.04-cargo-${{ hashFiles('native/Cargo.toml') }}
         continue-on-error: true
 
       - name: Setup Protoc
@@ -87,7 +87,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
+          key: ubuntu-22.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
         continue-on-error: true
 
   sonar:
@@ -96,7 +96,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -130,7 +130,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             native/target/
-          key: ubuntu-24.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
+          key: ubuntu-22.04-cargo-${{ hashFiles('native/Cargo.toml') }}-${{ github.run_id }}
           fail-on-cache-miss: 'true'
         continue-on-error: false
 

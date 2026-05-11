@@ -23,11 +23,11 @@ jobs:
         include:
           # Linux x64
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-24.04
+            os: ubuntu-22.04
           
           # Linux ARM64
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04-arm
+            os: ubuntu-22.04-arm
 
           # Windows x64
           - target: x86_64-pc-windows-msvc
@@ -86,7 +86,7 @@ jobs:
   pack:
     name: Pack NuGet
     needs: pack-build-native
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -120,7 +120,7 @@ jobs:
     needs: pack
     strategy:
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2025, macos-26]
+        os: [ubuntu-22.04, ubuntu-22.04-arm, windows-2025, macos-26]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -149,7 +149,7 @@ jobs:
   pack-publish-github:
     name: Publish to GitHub Packages
     needs: pack-smoke-test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     permissions:
       packages: write
     steps:
@@ -240,7 +240,7 @@ jobs:
   github-release:
     name: Create GitHub Release
     needs: pack-publish-github
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:
