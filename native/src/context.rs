@@ -6,6 +6,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{BytesData, Callback, ErrorCode, ErrorInfo, mappers, proto};
 
+#[derive(Clone)]
 pub struct SessionContextWrapper {
     runtime: crate::RuntimeHandle,
     inner: Arc<datafusion::prelude::SessionContext>,
@@ -22,28 +23,30 @@ impl SessionContextWrapper {
 
 /// Creates a new `SessionContext` bound to a runtime.
 ///
+/// This is a synchronous operation.
+///
 /// # Safety
 /// - `runtime_ptr` must be a valid pointer returned by `datafusion_runtime_new`
-/// - `context_ptr` must be a valid, aligned, non-null pointer to writable memory
+/// - `context_out_ptr` must be a valid, aligned, non-null pointer to writable memory
 /// - Caller must call `datafusion_context_destroy` exactly once with the returned pointer
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn datafusion_context_new(
     runtime_ptr: *mut crate::RuntimeHandle,
-    context_ptr: *mut *mut SessionContextWrapper,
+    context_out_ptr: *mut *mut SessionContextWrapper,
 ) -> ErrorCode {
-    if context_ptr.is_null() {
+    if context_out_ptr.is_null() {
         return ErrorCode::InvalidArgument;
     }
 
     let runtime_handle = ffi_ref!(runtime_ptr);
 
     let context = Box::new(SessionContextWrapper::new(Arc::clone(runtime_handle)));
-    let raw_ptr = Box::into_raw(context);
+    let context_ptr = Box::into_raw(context);
     unsafe {
-        *context_ptr = raw_ptr;
+        *context_out_ptr = context_ptr;
     }
 
-    debug!("Created session context {raw_ptr:p}");
+    debug!("Created session context {context_ptr:p}");
 
     ErrorCode::Ok
 }
@@ -62,6 +65,37 @@ pub unsafe extern "C" fn datafusion_context_destroy(
     if !context_ptr.is_null() {
         unsafe { drop(Box::from_raw(context_ptr)) };
     }
+
+    ErrorCode::Ok
+}
+
+/// Clones a `SessionContext`, creating a new wrapper that shares the same underlying context.
+///
+/// This is a synchronous operation.
+///
+/// # Safety
+/// - `context_ptr` must be a valid pointer returned by `datafusion_context_new` or `datafusion_context_clone`
+/// - `context_out_ptr` must be a valid, aligned, non-null pointer to writable memory
+/// - Caller must call `datafusion_context_destroy` exactly once with the returned pointer
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn datafusion_context_clone(
+    context_ptr: *mut SessionContextWrapper,
+    context_out_ptr: *mut *mut SessionContextWrapper,
+) -> ErrorCode {
+    if context_out_ptr.is_null() {
+        return ErrorCode::InvalidArgument;
+    }
+
+    let context = ffi_ref!(context_ptr);
+
+    let cloned_context = Box::new(context.clone());
+    let cloned_context_ptr = Box::into_raw(cloned_context);
+
+    unsafe {
+        *context_out_ptr = cloned_context_ptr;
+    }
+
+    debug!("Cloned session context {context_ptr:p} -> {cloned_context_ptr:p}");
 
     ErrorCode::Ok
 }

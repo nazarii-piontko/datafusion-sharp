@@ -173,6 +173,46 @@ public sealed class SessionContextTests : IDisposable
         Assert.Contains("$value_b", ex.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("$value_a", ex.Message, StringComparison.Ordinal);
     }
+    
+    [Fact]
+    public async Task Clone_RegisteredTableIsAvailableInClonedContext()
+    {
+        // Arrange
+        using var context = _runtime.CreateSessionContext();
+        await context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
+
+        // Act
+        using var clonedContext = context.Clone();
+        using var clonedDataFrame = await clonedContext.SqlAsync("SELECT * FROM customers");
+        var count = await clonedDataFrame.CountAsync();
+
+        // Assert
+        Assert.NotSame(context, clonedContext);
+        Assert.Same(context.Runtime, clonedContext.Runtime);
+        Assert.Equal(10UL, count);
+    }
+
+    [Fact]
+    public async Task Clone_AfterOriginalDisposed_RemainsValid()
+    {
+        // Arrange
+        SessionContext clonedContext;
+        using (var context = _runtime.CreateSessionContext())
+        {
+            await context.RegisterCsvAsync("customers", DataSet.CustomersCsvPath);
+            clonedContext = context.Clone();
+        }
+
+        // Act
+        using (clonedContext)
+        {
+            using var clonedDataFrame = await clonedContext.SqlAsync("SELECT * FROM customers");
+            var count = await clonedDataFrame.CountAsync();
+
+            // Assert
+            Assert.Equal(10UL, count);
+        }
+    }
 
     public void Dispose()
     {
