@@ -83,7 +83,7 @@ public sealed class SessionContextTests : IDisposable
     }
 
     [Fact]
-    public async Task DeregisterTableAsync_RegisteredTable_MakesTableUnavailable()
+    public async Task DeregisterTable_RegisteredTable_MakesTableUnavailable()
     {
         // Arrange
         using var context = _runtime.CreateSessionContext();
@@ -97,7 +97,7 @@ public sealed class SessionContextTests : IDisposable
         }
         
         // Act
-        await context.DeregisterTableAsync("customers");
+        context.DeregisterTable("customers");
 
         // Assert
         var ex = await Assert.ThrowsAsync<DataFusionException>(async () =>
@@ -108,13 +108,13 @@ public sealed class SessionContextTests : IDisposable
     }
 
     [Fact]
-    public async Task DeregisterTableAsync_NonExistentTable_DoesNotThrow()
+    public void DeregisterTable_NonExistentTable_DoesNotThrow()
     {
         // Arrange
         using var context = _runtime.CreateSessionContext();
 
         // Act
-        await context.DeregisterTableAsync("non_existent_table");
+        context.DeregisterTable("non_existent_table");
 
         // Assert
         Assert.True(true, "Successfully deregistered a non-existent table without throwing an exception");

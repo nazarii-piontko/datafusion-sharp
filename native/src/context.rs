@@ -374,7 +374,8 @@ pub unsafe extern "C" fn datafusion_context_register_batch(
 
 /// Deregisters a table from the `SessionContext` by name.
 ///
-/// This is an async operation. The callback is invoked on completion with no result data.
+/// This is a synchronous operation.
+/// The callback is invoked on completion with no result data.
 ///
 /// # Safety
 /// - `context_ptr` must be a valid pointer returned by `datafusion_context_new`

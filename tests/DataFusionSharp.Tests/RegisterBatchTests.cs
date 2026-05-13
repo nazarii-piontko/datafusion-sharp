@@ -60,7 +60,7 @@ public sealed class RegisterBatchTests : IDisposable
             Assert.Equal(2UL, countBefore);
         }
 
-        await _context.DeregisterTableAsync("test");
+        _context.DeregisterTable("test");
 
         // Assert - table should no longer be available
         await Assert.ThrowsAsync<DataFusionException>(async () =>
