@@ -66,6 +66,9 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_destroy")]
     public static partial DataFusionErrorCode ContextDestroy(IntPtr contextHandle);
 
+    [LibraryImport(LibraryName, EntryPoint = "datafusion_context_clone")]
+    public static partial DataFusionErrorCode ContextClone(SessionContextSafeHandle contextHandle, out IntPtr clonedContextHandle);
+    
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_register_csv")]
     public static partial DataFusionErrorCode ContextRegisterCsv(
         SessionContextSafeHandle contextHandle,

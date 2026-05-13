@@ -33,6 +33,22 @@ public sealed class SessionContext : IDisposable
     }
 
     /// <summary>
+    /// Creates a clone of this session context.
+    /// </summary>
+    /// <remarks>
+    /// The cloned context is an independent wrapper with its own lifecycle.
+    /// </remarks>
+    /// <returns>A cloned <see cref="SessionContext"/>.</returns>
+    /// <exception cref="DataFusionException">Thrown when cloning fails.</exception>
+    public SessionContext Clone()
+    {
+        var errorCode = NativeMethods.ContextClone(_handle, out var clonedContextHandle);
+        DataFusionException.ThrowIfError(errorCode, "Failed to clone DataFusion context");
+
+        return new SessionContext(Runtime, new SessionContextSafeHandle(clonedContextHandle));
+    }
+
+    /// <summary>
     /// Registers a CSV file as a table in this session.
     /// </summary>
     /// <param name="tableName">The name to use for the table.</param>
