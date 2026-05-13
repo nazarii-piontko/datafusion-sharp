@@ -72,7 +72,7 @@ internal abstract class AsyncOperation
 #endif
 
             var tokenDestroyResult = NativeMethods.CancellationTokenDestroy(cancellationTokenHandle);
-            Debug.Assert(tokenDestroyResult == DataFusionErrorCode.Ok, "Failed to destroy cancellation token in EnsureNativeCall.");
+            Debug.Assert(tokenDestroyResult == DataFusionErrorCode.Ok, $"Failed to destroy cancellation token in EnsureNativeCall, result: {tokenDestroyResult}.");
             return;
         }
         

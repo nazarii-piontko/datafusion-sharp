@@ -109,8 +109,7 @@ internal static unsafe partial class NativeMethods
         SessionContextSafeHandle contextHandle,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string tableName,
         Callback callback,
-        IntPtr userData,
-        out IntPtr cancellationTokenHandle);
+        IntPtr userData);
 
     [LibraryImport(LibraryName, EntryPoint = "datafusion_context_sql")]
     public static partial DataFusionErrorCode ContextSql(
