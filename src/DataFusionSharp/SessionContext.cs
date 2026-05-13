@@ -182,7 +182,6 @@ public sealed class SessionContext : IDisposable
     /// Deregisters a table from this session.
     /// </summary>
     /// <param name="tableName">The name of the table to deregister.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="DataFusionException">Thrown when table deregistration fails.</exception>
     public void DeregisterTable(string tableName)
     {
