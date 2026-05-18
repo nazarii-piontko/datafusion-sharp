@@ -154,7 +154,7 @@
 
     <!-- NuGet package dependencies -->
     <ItemGroup>
-        <PackageReference Include="Apache.Arrow" Version="22.1.0" />
+        <PackageReference Include="Apache.Arrow" Version="23.0.0" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.203" PrivateAssets="All" />
         <PackageReference Include="Google.Protobuf" Version="3.34.1" />
         <PackageReference Include="Grpc.Tools" Version="2.80.0">
