@@ -115,7 +115,7 @@
 
     <!-- MinVer for Git-based versioning -->
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
         <PackageReference Include="MinVer" Version="7.0.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
