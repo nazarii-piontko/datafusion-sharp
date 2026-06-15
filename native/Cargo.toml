@@ -17,7 +17,7 @@ panic = "unwind"
 anyhow = "1.0.102"
 arrow-array = { version = "58.1.0", features = ["ffi"] }
 bytes = "1.11.1"
-datafusion = "53.1.0"
+datafusion = "54.0.0"
 datafusion-proto = "53.1.0"
 futures = "0.3.32"
 log = {version = "0.4.29", features = ["std"]}
