@@ -51,7 +51,7 @@ jobs:
 
       - name: Restore Rust Cargo Cache
         id: cache-rust-cargo
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -79,7 +79,7 @@ jobs:
         run: cargo clippy --release --all-targets --no-deps -- -D clippy::pedantic
       
       - name: Save Rust Cargo Cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -122,7 +122,7 @@ jobs:
 
       - name: Restore Rust Cargo Cache
         id: cache-rust-cargo
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/bin/
