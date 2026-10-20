@@ -1,3 +1,11 @@
+// The native library allocates through mimalloc rather than the platform allocator, so that it behaves the same everywhere. Arrow's buffers are large
+// and short-lived: a column buffer per batch, freed when the batch is. The Windows heap serves blocks above ~512 KB with VirtualAlloc and returns them
+// with VirtualFree, a kernel round trip with page faults and zeroed pages for every such buffer; glibc keeps and reuses them. mimalloc keeps and
+// reuses them on every platform. Disable the `mimalloc` feature to fall back to the system allocator.
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[macro_use]
 mod macros;
 
